@@ -2,6 +2,7 @@ from sqlalchemy import Column , Integer , String , Boolean , ForeignKey ,  Text 
 from sqlalchemy.orm import relationship 
 from app.database.database import Base
 from datetime import datetime
+from app.models.resume import Resume
 
 class User(Base):
     __tablename__ = "users"
@@ -18,5 +19,6 @@ class User(Base):
     is_active = Column(Boolean,default=True)
     role_id = Column(Integer,ForeignKey("roles.id"),nullable=False)
     role = relationship("Role",back_populates="users")
+    resumes = relationship("Resume", back_populates="user",cascade="all,delete-orphan")
     created_at = Column(DateTime,default=datetime.utcnow)
     updated_at = Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
