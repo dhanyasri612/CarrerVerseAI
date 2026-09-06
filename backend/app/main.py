@@ -4,8 +4,10 @@ from app.models.role import Role
 from app.models.user import User
 from app.models.resume import Resume
 from app.models.parsed_resume import ParsedResume
+from app.models.job import Job
 
-from app.routers import profile , resume , parser
+
+from app.routers import profile , resume , parser , job
 from app.routers import auth
 
 Base.metadata.create_all(bind=engine)
@@ -14,6 +16,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(resume.router)
 app.include_router(parser.router)
+app.include_router(job.router)
 
 @app.get("/")
 def read_root():
