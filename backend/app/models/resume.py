@@ -18,4 +18,9 @@ class Resume(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
     user = relationship("User", back_populates="resumes")
-    
+    parsed_resume = relationship(
+        "ParsedResume",
+        back_populates="resume",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

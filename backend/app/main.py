@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from app.database.database import Base , engine
 from app.models.role import Role
 from app.models.user import User
+from app.models.resume import Resume
+from app.models.parsed_resume import ParsedResume
+
 from app.routers import profile , resume , parser
 from app.routers import auth
 
