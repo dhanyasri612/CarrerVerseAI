@@ -20,5 +20,11 @@ class User(Base):
     role_id = Column(Integer,ForeignKey("roles.id"),nullable=False)
     role = relationship("Role",back_populates="users")
     resumes = relationship("Resume", back_populates="user",cascade="all,delete-orphan")
+    candidate_profile = relationship(
+    "CandidateProfile",
+    back_populates="user",
+    uselist=False,
+    cascade="all,delete-orphan"
+    )
     created_at = Column(DateTime,default=datetime.utcnow)
     updated_at = Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
