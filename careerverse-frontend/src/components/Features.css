@@ -1,0 +1,25 @@
+.features{
+    text-align: center;
+    padding: 80px 60px;
+}
+.fetaures h2 {
+    font-size: 36px;
+    margin-bottom: 40px;
+}
+.features>div{
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+}
+.feature-card{
+    width: 250px;
+    padding: 30px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+}
+.feature-card h3{
+    margin-bottom: 15px;
+}
+.feature-card p{
+    line-height: 1.5;
+}
