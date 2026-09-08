@@ -26,5 +26,12 @@ class User(Base):
     uselist=False,
     cascade="all,delete-orphan"
     )
+    github_profile = relationship(
+    "GitHubProfile",
+    back_populates="user",
+    uselist=False,
+    cascade="all,delete-orphan"
+    )
+    
     created_at = Column(DateTime,default=datetime.utcnow)
     updated_at = Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
