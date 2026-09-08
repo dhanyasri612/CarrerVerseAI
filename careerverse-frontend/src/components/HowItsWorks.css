@@ -1,0 +1,28 @@
+.howitworks {
+    text-align: center;
+    padding: 80px 60px;
+    background-color: #f8f9fa;
+}
+.howitworks h2 {
+    font-size:36px;
+    margin-bottom: 40px;
+}
+.howitworks > div {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+}
+
+.howitworks > div > div {
+    width: 220px;
+    padding: 25px;
+    background-color: white;
+    border: 1pxn solid #ddd;
+    border-radius: 12px;
+}
+.howitworks h3 {
+    margin-bottom: 15px;
+}
+.howitworks p{
+    line-height: 1.5;
+}
