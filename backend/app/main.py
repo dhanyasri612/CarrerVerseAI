@@ -7,6 +7,9 @@ from app.models.parsed_resume import ParsedResume
 from app.models.job import Job
 from app.models.candidate_profile import CandidateProfile
 from app.models.github_profile import GitHubProfile
+from app.models.github_repository import GitHubRepository
+from app.models.github_repository_document import GitHubRepositoryDocument
+from app.models.github_repository_file import GitHubRepositoryFile
 
 from app.routers import profile , resume , parser , job , skill_gap , recommendation , resume_improvement , career_roadmap , candidate_profile , github
 from app.routers import auth

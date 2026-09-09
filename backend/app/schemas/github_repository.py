@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel
 
 
@@ -18,22 +18,6 @@ class GitHubRepositoryResponse(BaseModel):
     is_fork: bool
     is_archived: bool
     selected_for_analysis: bool
-
-    class Config:
-        from_attributes = True
-
-
-class GitHubProfileResponse(BaseModel):
-    id: int
-    user_id: int
-    username: str
-    profile_url: Optional[str] = None
-    repositories: Optional[List[GitHubRepositoryResponse]] = None
-    languages: Optional[List[str]] = None
-    topics: Optional[List[str]] = None
-    total_repositories: int
-    total_stars: int
-    total_forks: int
 
     class Config:
         from_attributes = True
