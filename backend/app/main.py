@@ -15,7 +15,7 @@ from app.models.hackerrank_profile import HackerRankProfile
 from app.models.linkedin_profile import LinkedInProfile
 from app.models.certification import Certification
 
-from app.routers import profile , resume , parser , job , skill_gap , recommendation , resume_improvement , career_roadmap , candidate_profile , github , leetcode , hackerrank , linkedin , certification
+from app.routers import profile , resume , parser , job , skill_gap , recommendation , resume_improvement , career_roadmap , candidate_profile , github , leetcode , hackerrank , linkedin , certification , candidate_intelligence
 from app.routers import auth
 
 Base.metadata.create_all(bind=engine)
@@ -35,6 +35,7 @@ app.include_router(leetcode.router)
 app.include_router(hackerrank.router)
 app.include_router(linkedin.router)
 app.include_router(certification.router)
+app.include_router(candidate_intelligence.router)
 
 
 

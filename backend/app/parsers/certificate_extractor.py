@@ -322,18 +322,49 @@ def clean_filename_to_title(filename: Optional[str]) -> str:
     return ""
 
 
+RECIPIENT_PREFIX_REGEX = r"^(?:mr|ms|mrs|dr|prof|miss|shri|smt)\.?\s+"
+STUDENT_ID_REGEX = r"\b[0-9]{2}[A-Za-z]{2,4}[0-9]{2,5}\b"
+
+
 def is_invalid_or_generic_title(title: Optional[str]) -> bool:
-    """Check if title is empty, recipient name, or generic boilerplate phrase."""
+    """Check if title is empty, recipient name, student ID, or generic boilerplate phrase."""
     if not title:
         return True
-    t = title.strip().lower()
+    t = title.strip()
+    t_lower = t.lower()
     if len(t) < 3:
         return True
-    if any(g == t or t.startswith(g) or t.endswith(g) for g in GENERIC_TITLE_BLACKLIST):
+    
+    # 1. Exact match, prefix match, or suffix match in blacklist
+    if any(g == t_lower or t_lower.startswith(g) or t_lower.endswith(g) for g in GENERIC_TITLE_BLACKLIST):
         return True
-    # Recipient name prefixes
-    if re.match(r"^(?:mr\.|ms\.|mrs\.|dr\.|prof\.)\s+[A-Za-z\s.]+$", t):
+    
+    # 2. Key phrases anywhere inside text
+    boilerplate_phrases = [
+        "presented to", "awarded to", "this is to certify", "certifies that",
+        "hereby certifies", "for successfully completing", "completion of the course",
+        "national board of accreditation", "authorized signature", "authorized signatory",
+        "organizing secretary", "convenor", "co-ordinator", "coordinator", "programme coordinator",
+        "department of", "ministry of", "government of"
+    ]
+    if any(bp in t_lower for bp in boilerplate_phrases):
         return True
+        
+    # 3. Recipient name prefixes (e.g. "Ms. DHANYASRI K", "Dr. John Doe")
+    if re.search(RECIPIENT_PREFIX_REGEX, t, re.IGNORECASE):
+        return True
+        
+    # 4. Student reg number / roll number (e.g. 23AM018)
+    if re.search(STUDENT_ID_REGEX, t):
+        return True
+        
+    # 5. Names like "DHANYASRI K" or "K. DHANYASRI" (two words where one is a single letter initial and neither is a course keyword)
+    words = t.split()
+    if len(words) == 2 and (len(words[0].rstrip(".")) == 1 or len(words[1].rstrip(".")) == 1):
+        course_keywords = ["programming", "language", "test", "course", "bootcamp", "workshop", "specialization", "cert", "skills", "engineering"]
+        if not any(k in t_lower for k in course_keywords):
+            return True
+        
     return False
 
 
@@ -432,6 +463,8 @@ def extract_certification_name(text: str, filename: Optional[str] = None) -> str
         r"\b(Presentation Skills[A-Za-z0-9\t :,\-–—()&+/]{0,50})",
         r"\b(Business Communication[A-Za-z0-9\t :,\-–—()&+/]{0,50})",
         r"\b(Python Programming[A-Za-z0-9\t :,\-–—()&+/]{0,50})",
+        r"\b(C\s+Programming[A-Za-z0-9\t :,\-–—()&+/]{0,50})",
+        r"\b(C\s+test[A-Za-z0-9\t :,\-–—()&+/]{0,50})",
         r"\b(AWS Certified\s+[A-Za-z0-9\t :,\-–—()&+/]{3,60})",
         r"\b(Microsoft Certified[:\s]+[A-Za-z0-9\t :,\-–—()&+/]{3,60})",
         r"\b(Google Cloud Certified[:\s]+[A-Za-z0-9\t :,\-–—()&+/]{3,60})",
@@ -454,7 +487,7 @@ def extract_certification_name(text: str, filename: Optional[str] = None) -> str
     structural_patterns = [
         r"(?:Course Title|Certification Title|Certificate Name|Course Name|Course on|Specialization in|Masterclass on|Workshop on|Bootcamp on|Training on|Program Title|Program on)[:\s]+([A-Za-z0-9\t :,\-–—()&+/]{4,80})",
         r"(?:Certificate of (?:Completion|Achievement|Excellence|Merit|Participation))\s*(?:in|for)?\s*[\n:]\s*([A-Za-z0-9\t :,\-–—()&+/]{4,80})",
-        r"(?:has successfully completed|has completed the course|has completed the program|has earned the credential|successfully achieved)\s+(?:the requirements to be recognized as an?\s+|all requirements for\s+)?[\"']?([A-Za-z0-9\t :,\-–—()&+/]{4,80})[\"']?",
+        r"(?:for successfully completing the course (?:on|in)|for successfully completing the course|for successfully completing|has successfully completed|has completed the course|has completed the program|has earned the credential|successfully achieved)\s+(?:the requirements to be recognized as an?\s+|all requirements for\s+)?[\"']?([A-Za-z0-9\t :,\-–—()&+/]{4,80})[\"']?",
     ]
 
     for pat in structural_patterns:
@@ -462,7 +495,7 @@ def extract_certification_name(text: str, filename: Optional[str] = None) -> str
         if match:
             candidate = match.group(1).split("\n")[0].strip()
             # Clean prefixes
-            candidate = re.sub(r"^(?:the requirements to be recognized as an?|all requirements for|the course|the program)\s+", "", candidate, flags=re.IGNORECASE).strip()
+            candidate = re.sub(r"^(?:the requirements to be recognized as an?|all requirements for|the course (?:on|in)?|the course|the program)\s+", "", candidate, flags=re.IGNORECASE).strip()
             candidate = re.sub(r"[\s,.:;–—]+$", "", candidate).strip()
             if not is_invalid_or_generic_title(candidate):
                 return candidate
@@ -485,7 +518,7 @@ def extract_certification_name(text: str, filename: Optional[str] = None) -> str
         if 4 <= len(line_clean) <= 80:
             if not is_invalid_or_generic_title(line_clean):
                 lower = line_clean.lower()
-                if any(k in lower for k in ["prompt", "genai", "ai", "learning", "python", "data", "cloud", "aws", "azure", "presentation", "email", "writing", "communication", "developer", "architect", "engineer", "specialization", "course", "bootcamp"]):
+                if any(k in lower for k in ["prompt", "genai", "ai", "learning", "python", "data", "cloud", "aws", "azure", "presentation", "email", "writing", "communication", "developer", "architect", "engineer", "specialization", "course", "bootcamp", "c programming", "c test"]):
                     return line_clean
 
     # 5. Filename Fallback (e.g. 23AM018_PromptEngineering.pdf -> Prompt Engineering)
@@ -586,14 +619,43 @@ def extract_dates(text: str) -> Tuple[Optional[date], Optional[date]]:
 
 
 def extract_skills_from_text(text: str, certification_name: str) -> List[str]:
-    """Map skills from certification title and parsed syllabus/text."""
+    """
+    Map skills from certification title and parsed syllabus/text.
+    Prioritizes skills directly found in the certification title to avoid
+    extracting spurious mentions from page footers or institute logos.
+    """
     found_skills = set()
-    combined_text = f"{certification_name} {text}".lower()
+
+    # 1. First priority: match against certification_name directly
+    if certification_name and not is_invalid_or_generic_title(certification_name):
+        name_lower = certification_name.lower()
+        for canonical_skill, keywords in SKILL_TAXONOMY.items():
+            if canonical_skill == "C":
+                if re.search(r"\b(?:c\s*programming|c\s*language|course\s*in\s*c|c\s*test|learn\s*c)\b", name_lower) or (re.search(r"\bc\b", name_lower) and not re.search(r"\b(?:c\+\+|c#)\b", name_lower)):
+                    found_skills.add("C")
+                continue
+            for kw in keywords:
+                pattern = rf"\b{re.escape(kw)}\b"
+                if re.search(pattern, name_lower):
+                    found_skills.add(canonical_skill)
+                    break
+
+        # If skills were identified directly in the title, return them (highest precision)
+        if found_skills:
+            return sorted(list(found_skills))
+
+    # 2. Second priority: clean body text (filter out footer catalogs / partner logos)
+    cleaned_body = text.lower()
+    cleaned_body = re.sub(r"(?:spoken tutorial|nmeict|mhrd|funded by|offered courses).*$", "", cleaned_body, flags=re.DOTALL)
 
     for canonical_skill, keywords in SKILL_TAXONOMY.items():
+        if canonical_skill == "C":
+            if re.search(r"\b(?:c\s*programming|c\s*language|course\s*in\s*c|c\s*test)\b", cleaned_body):
+                found_skills.add("C")
+            continue
         for kw in keywords:
             pattern = rf"\b{re.escape(kw)}\b"
-            if re.search(pattern, combined_text):
+            if re.search(pattern, cleaned_body):
                 found_skills.add(canonical_skill)
                 break
 
