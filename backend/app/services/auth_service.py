@@ -18,7 +18,6 @@ def register_user(db: Session , user: UserCreate):
 
 def login_user(db: Session , user: UserLogin):
     db_user = db.query(User).filter(User.email == user.email).first()
-    print(db_user)
     if not db_user:
         raise ValueError("Invalid email or password")
     if not verify_password(user.password, db_user.hashed_password):

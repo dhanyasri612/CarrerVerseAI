@@ -1,5 +1,8 @@
 from fastapi import FastAPI
-from app.database.database import Base , engine
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.database.database import Base, engine
+from app.core.config import CORS_ORIGINS
 from app.models.role import Role
 from app.models.user import User
 from app.models.resume import Resume
@@ -15,11 +18,43 @@ from app.models.hackerrank_profile import HackerRankProfile
 from app.models.linkedin_profile import LinkedInProfile
 from app.models.certification import Certification
 
-from app.routers import profile , resume , parser , job , skill_gap , recommendation , resume_improvement , career_roadmap , candidate_profile , github , leetcode , hackerrank , linkedin , certification , candidate_intelligence
-from app.routers import auth
+from app.routers import (
+    auth,
+    profile,
+    resume,
+    parser,
+    job,
+    skill_gap,
+    recommendation,
+    resume_improvement,
+    career_roadmap,
+    candidate_profile,
+    github,
+    leetcode,
+    hackerrank,
+    linkedin,
+    certification,
+    candidate_intelligence,
+)
 
 Base.metadata.create_all(bind=engine)
-app = FastAPI()
+
+app = FastAPI(
+    title="CareerVerseAI Backend API",
+    description="AI-powered career intelligence, skill gap analysis, multi-source profile intelligence, and developer integrations.",
+    version="1.0.0"
+)
+
+# Configure CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS if CORS_ORIGINS else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register Routers
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(resume.router)
@@ -38,7 +73,11 @@ app.include_router(certification.router)
 app.include_router(candidate_intelligence.router)
 
 
-
-@app.get("/")
+@app.get("/", tags=["Health Check"])
 def read_root():
-    return {"message": "CarrerVerseAI API"}
+    return {
+        "message": "CarrerVerseAI API",
+        "status": "healthy",
+        "service": "CareerVerseAI Backend API",
+        "version": "1.0.0"
+    }

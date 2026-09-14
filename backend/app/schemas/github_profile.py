@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class GitHubRepositoryResponse(BaseModel):
@@ -19,8 +19,7 @@ class GitHubRepositoryResponse(BaseModel):
     is_archived: bool
     selected_for_analysis: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GitHubProfileResponse(BaseModel):
@@ -35,5 +34,4 @@ class GitHubProfileResponse(BaseModel):
     total_stars: int
     total_forks: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

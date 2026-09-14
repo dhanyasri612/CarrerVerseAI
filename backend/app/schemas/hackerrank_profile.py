@@ -1,6 +1,6 @@
-from typing import Optional, Any
+from typing import Optional, Any, List, Dict
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class HackerRankProfileResponse(BaseModel):
@@ -18,13 +18,12 @@ class HackerRankProfileResponse(BaseModel):
     total_solved: int = 0
 
     # Rich metadata
-    badges: Optional[list[Any]] = None
-    certificates: Optional[list[Any]] = None
-    skills: Optional[list[Any]] = None
-    domain_statistics: Optional[dict[str, Any]] = None
+    badges: Optional[List[Any]] = None
+    certificates: Optional[List[Any]] = None
+    skills: Optional[List[Any]] = None
+    domain_statistics: Optional[Dict[str, Any]] = None
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
