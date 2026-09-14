@@ -1,5 +1,6 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.models.resume import Resume
 from app.parsers.resume_parser import parse_resume
@@ -7,7 +8,7 @@ from app.models.user import User
 from app.models.parsed_resume import ParsedResume
 
 
-def parse_resume_by_id(db: Session, resume_id: int , current_user: User):
+def parse_resume_by_id(db: Session, resume_id: int, current_user: User):
     resume = (
         db.query(Resume)
         .filter(
@@ -18,7 +19,10 @@ def parse_resume_by_id(db: Session, resume_id: int , current_user: User):
     )   
 
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found"
+        )
     
     existing = (
         db.query(ParsedResume)
@@ -30,7 +34,16 @@ def parse_resume_by_id(db: Session, resume_id: int , current_user: User):
         db.delete(existing)
         db.commit()
 
-    parsed_data = parse_resume(resume.file_path)
+    try:
+        parsed_data = parse_resume(resume.file_path)
+    except Exception as e:
+        resume.parsed_status = False
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse resume file: {str(e)}"
+        )
+
     parsed_resume = ParsedResume(
         resume_id=resume.id,
         name=parsed_data.name,
@@ -43,9 +56,11 @@ def parse_resume_by_id(db: Session, resume_id: int , current_user: User):
         certifications=parsed_data.certifications,
     )
     db.add(parsed_resume)
+    resume.parsed_status = True
     db.commit()
     db.refresh(parsed_resume)
     return parsed_resume
+
 
 def get_parsed_resume_by_id(
     db: Session,
@@ -62,7 +77,10 @@ def get_parsed_resume_by_id(
     ) 
     
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found"
+        )
     
     parsed_resume = (
         db.query(ParsedResume)
@@ -73,9 +91,13 @@ def get_parsed_resume_by_id(
     )
     
     if not parsed_resume:
-        raise HTTPException(status_code=404, detail="Parsed resume not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Parsed resume not found"
+        )
     
     return parsed_resume
+
 
 def delete_parsed_resume(
     db: Session,
@@ -93,7 +115,7 @@ def delete_parsed_resume(
 
     if not resume:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found"
         )
 
@@ -107,17 +129,19 @@ def delete_parsed_resume(
 
     if not parsed_resume:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Parsed resume not found"
         )
 
     db.delete(parsed_resume)
+    resume.parsed_status = False
     db.commit()
 
     return {
         "message": "Parsed resume deleted successfully"
     }
-    
+
+
 def reparse_resume(
     db: Session,
     resume_id: int,
@@ -134,7 +158,7 @@ def reparse_resume(
 
     if not resume:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found"
         )
 
@@ -150,7 +174,15 @@ def reparse_resume(
         db.delete(existing)
         db.commit()
 
-    parsed_data = parse_resume(resume.file_path)
+    try:
+        parsed_data = parse_resume(resume.file_path)
+    except Exception as e:
+        resume.parsed_status = False
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reparse resume file: {str(e)}"
+        )
 
     parsed_resume = ParsedResume(
         resume_id=resume.id,
@@ -165,6 +197,7 @@ def reparse_resume(
     )
 
     db.add(parsed_resume)
+    resume.parsed_status = True
     db.commit()
     db.refresh(parsed_resume)
 

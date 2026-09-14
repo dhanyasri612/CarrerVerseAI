@@ -634,3 +634,15 @@ def deduplicate_skills_with_metadata(raw_skills: List[str]) -> Dict[str, Tuple[s
                 variants.append(r)
             results[canonical_name] = (cat, variants)
     return results
+
+
+def get_canonical_skill_name(raw_skill: str) -> str:
+    """
+    Convenience helper to extract just the canonical skill name as a single string.
+    Returns empty string if raw_skill is empty or invalid.
+    """
+    if not raw_skill:
+        return ""
+    canonical_name, _ = normalize_skill(raw_skill)
+    return canonical_name
+

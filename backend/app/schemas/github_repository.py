@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class GitHubRepositoryResponse(BaseModel):
@@ -19,5 +19,4 @@ class GitHubRepositoryResponse(BaseModel):
     is_archived: bool
     selected_for_analysis: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

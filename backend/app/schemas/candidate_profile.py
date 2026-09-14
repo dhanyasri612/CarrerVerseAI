@@ -1,9 +1,10 @@
-from typing import List, Optional , Dict , Any
-from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, ConfigDict
+
 
 class CandidateProfileResponse(BaseModel):
-    id:int
-    user_id:int
+    id: int
+    user_id: int
     summary: Optional[str] = None
     
     skills: Optional[List[str]] = None
@@ -15,5 +16,4 @@ class CandidateProfileResponse(BaseModel):
     github_data: Optional[Dict[str, Any]] = None
     coding_data: Optional[Dict[str, Any]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

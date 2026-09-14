@@ -1,10 +1,11 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.resume import Resume
 from app.models.parsed_resume import ParsedResume
 from app.models.job import Job
 from app.models.user import User
+from app.parsers.skill_normalizer import get_canonical_skill_name
 
 
 def get_job_recommendations(
@@ -24,7 +25,7 @@ def get_job_recommendations(
 
     if not resume:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found"
         )
 
@@ -39,60 +40,52 @@ def get_job_recommendations(
 
     if not parsed_resume:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Parsed resume not found"
         )
 
     # 3. Get all jobs
     jobs = db.query(Job).all()
 
-    resume_skills = {
-        skill.strip().lower()
-        for skill in (parsed_resume.skills or [])
-        if skill
-    }
+    # Map candidate skills to canonical names
+    resume_skills_map = {}
+    for skill in (parsed_resume.skills or []):
+        if skill and isinstance(skill, str):
+            canonical = get_canonical_skill_name(skill)
+            if canonical:
+                resume_skills_map[canonical.lower()] = canonical
 
     recommendations = []
 
     # 4. Compare resume with every job
     for job in jobs:
+        required_skills_map = {}
+        for skill in (job.required_skills or []):
+            if skill and isinstance(skill, str):
+                canonical = get_canonical_skill_name(skill)
+                if canonical:
+                    required_skills_map[canonical.lower()] = canonical
 
-        required_skills = {
-            skill.strip().lower()
-            for skill in (job.required_skills or [])
-            if skill
-        }
+        matched_keys = set(resume_skills_map.keys()).intersection(set(required_skills_map.keys()))
+        missing_keys = set(required_skills_map.keys()) - set(resume_skills_map.keys())
 
-        matched_skills = resume_skills.intersection(
-            required_skills
-        )
+        matched_skills = [required_skills_map[k] for k in sorted(matched_keys)]
+        missing_skills = [required_skills_map[k] for k in sorted(missing_keys)]
 
-        missing_skills = required_skills.difference(
-            resume_skills
-        )
-
-        if required_skills:
-            match_percentage = (
-                len(matched_skills)
-                / len(required_skills)
-            ) * 100
+        if required_skills_map:
+            match_percentage = (len(matched_skills) / len(required_skills_map)) * 100
         else:
-            match_percentage = 0
+            match_percentage = 100.0 if resume_skills_map else 0.0
 
         recommendations.append({
             "job_id": job.id,
             "title": job.title,
             "company": job.company,
-            "match_percentage": round(
-                match_percentage,
-                2
-            ),
-            "matched_skills": sorted(
-                matched_skills
-            ),
-            "missing_skills": sorted(
-                missing_skills
-            )
+            "location": job.location,
+            "salary": job.salary,
+            "match_percentage": round(match_percentage, 2),
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills
         })
 
     # 5. Sort highest match first
