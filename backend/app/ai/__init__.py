@@ -1,0 +1,1 @@
+"""Reusable AI foundation components."""
