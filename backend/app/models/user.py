@@ -32,6 +32,29 @@ class User(Base):
     uselist=False,
     cascade="all,delete-orphan"
     )
+    leetcode_profile = relationship(
+    "LeetCodeProfile",
+    back_populates="user",
+    uselist=False,
+    cascade="all,delete-orphan"
+    )
+    hackerrank_profile = relationship(
+    "HackerRankProfile",
+    back_populates="user",
+    uselist=False,
+    cascade="all,delete-orphan"
+    )
+    linkedin_profile = relationship(
+    "LinkedInProfile",
+    back_populates="user",
+    uselist=False,
+    cascade="all,delete-orphan"
+    )
+    certifications = relationship(
+    "Certification",
+    back_populates="user",
+    cascade="all,delete-orphan"
+    )
     
     created_at = Column(DateTime,default=datetime.utcnow)
     updated_at = Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)

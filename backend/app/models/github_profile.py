@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
-
+from app.models.github_repository import GitHubRepository
 from app.database.database import Base
 
 
@@ -38,4 +38,10 @@ class GitHubProfile(Base):
     user = relationship(
         "User",
         back_populates="github_profile"
+    )
+
+    repositories = relationship(
+    "GitHubRepository",
+    back_populates="github_profile",
+    cascade="all, delete-orphan",
     )

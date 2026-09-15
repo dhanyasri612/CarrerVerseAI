@@ -1,25 +1,21 @@
-SKILL_ALIASES = {
-    "postgres": "postgresql",
-    "postgresql": "postgresql",
-    "js": "javascript",
-    "javascript": "javascript",
-    "reactjs": "react",
-    "react.js": "react",
-    "react": "react",
-    "node": "node.js",
-    "nodejs": "node.js",
-    "node.js": "node.js",
-    "py": "python",
-    "python": "python",
-    "mongo": "mongodb",
-    "mongodb": "mongodb",
-}
+"""
+Skill normalizer compatibility wrapper.
+Delegates to app.parsers.skill_normalizer as the single source of truth.
+"""
+
+from app.parsers.skill_normalizer import (
+    normalize_skill as parser_normalize_skill,
+    get_canonical_skill_name,
+    CANONICAL_SKILL_DATABASE,
+    SKILL_CATEGORIES,
+)
 
 
 def normalize_skill(skill: str) -> str:
-    skill = skill.strip().lower()
-
-    return SKILL_ALIASES.get(
-        skill,
-        skill
-    )
+    """
+    Normalize a skill string into its canonical name.
+    Preserves backward compatibility while routing through the unified taxonomy.
+    """
+    if not skill or not isinstance(skill, str):
+        return ""
+    return get_canonical_skill_name(skill)

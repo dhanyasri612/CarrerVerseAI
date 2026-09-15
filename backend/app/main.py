@@ -8,9 +8,33 @@ from app.models.parsed_resume import ParsedResume
 from app.models.job import Job
 from app.models.candidate_profile import CandidateProfile
 from app.models.github_profile import GitHubProfile
+from app.models.github_repository import GitHubRepository
+from app.models.github_repository_document import GitHubRepositoryDocument
+from app.models.github_repository_file import GitHubRepositoryFile
+from app.models.leetcode_profile import LeetCodeProfile
+from app.models.hackerrank_profile import HackerRankProfile
+from app.models.linkedin_profile import LinkedInProfile
+from app.models.certification import Certification
 
-from app.routers import profile , resume , parser , job , skill_gap , recommendation , resume_improvement , career_roadmap , candidate_profile , github
-from app.routers import auth
+from app.routers import (
+    auth,
+    profile,
+    resume,
+    parser,
+    job,
+    skill_gap,
+    recommendation,
+    resume_improvement,
+    career_roadmap,
+    candidate_profile,
+    github,
+    leetcode,
+    hackerrank,
+    linkedin,
+    certification,
+    candidate_intelligence,
+    ai,
+)
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -35,9 +59,19 @@ app.include_router(resume_improvement.router)
 app.include_router(career_roadmap.router)
 app.include_router(candidate_profile.router)
 app.include_router(github.router)
+app.include_router(leetcode.router)
+app.include_router(hackerrank.router)
+app.include_router(linkedin.router)
+app.include_router(certification.router)
+app.include_router(candidate_intelligence.router)
+app.include_router(ai.router)
 
 
-
-@app.get("/")
+@app.get("/", tags=["Health Check"])
 def read_root():
-    return {"message": "CarrerVerseAI API"}
+    return {
+        "message": "CarrerVerseAI API",
+        "status": "healthy",
+        "service": "CareerVerseAI Backend API",
+        "version": "1.0.0"
+    }
