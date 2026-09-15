@@ -35,6 +35,7 @@ from app.routers import (
     linkedin,
     certification,
     candidate_intelligence,
+    ai,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -71,6 +72,7 @@ app.include_router(hackerrank.router)
 app.include_router(linkedin.router)
 app.include_router(certification.router)
 app.include_router(candidate_intelligence.router)
+app.include_router(ai.router)
 
 
 @app.get("/", tags=["Health Check"])
