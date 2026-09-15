@@ -10,9 +10,8 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str   
-    role_id: int
-
-
+    #role_id: int
+    
 class UserResponse(UserBase):
     id: int
     is_active: bool

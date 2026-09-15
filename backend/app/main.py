@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database.database import Base, engine
-from app.core.config import CORS_ORIGINS
+from app.database.database import Base , engine
 from app.models.role import Role
 from app.models.user import User
 from app.models.resume import Resume
@@ -39,23 +37,17 @@ from app.routers import (
 )
 
 Base.metadata.create_all(bind=engine)
-
-app = FastAPI(
-    title="CareerVerseAI Backend API",
-    description="AI-powered career intelligence, skill gap analysis, multi-source profile intelligence, and developer integrations.",
-    version="1.0.0"
-)
-
-# Configure CORS Middleware
+app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS else ["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Register Routers
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(resume.router)
