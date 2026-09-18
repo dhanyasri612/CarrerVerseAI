@@ -15,7 +15,7 @@ from app.ai.errors import (
     AIProviderTimeoutError,
 )
 from app.ai.providers.base import ProviderResponse
-from app.core.config import GROQ_API_KEY, GROQ_MODEL
+from app.core.config import GROQ_API_KEY, GROQ_MAX_COMPLETION_TOKENS, GROQ_MODEL
 
 
 class GroqProvider:
@@ -43,6 +43,7 @@ class GroqProvider:
                     "type": "json_schema",
                     "json_schema": response_schema,
                 },
+                max_completion_tokens=GROQ_MAX_COMPLETION_TOKENS,
             )
         except AuthenticationError as exc:
             raise AIProviderAuthenticationError("Groq authentication failed") from exc
