@@ -4,6 +4,7 @@ from app.ai.parser import TestAIResponse, parse_test_response
 from app.ai.prompts import PromptManager
 from app.ai.providers.base import ModelProvider, ProviderResponse
 from app.ai.providers.groq_provider import GroqProvider
+from app.schemas.resume_ai import ResumeAIAnalysis
 
 
 class AIService:
@@ -39,6 +40,18 @@ class AIService:
             },
         )
         return parse_test_response(response.content), response.model
+
+    def generate_resume_intelligence(self, *, resume_text: str) -> tuple[ResumeAIAnalysis, str]:
+        response = self.generate(
+            message=PromptManager.resume_intelligence_prompt(resume_text),
+            system_prompt=PromptManager.resume_intelligence_system_prompt(),
+            response_schema={
+                "name": "resume_ai_analysis",
+                "strict": True,
+                "schema": ResumeAIAnalysis.model_json_schema(),
+            },
+        )
+        return ResumeAIAnalysis.model_validate_json(response.content), response.model
 
 
 ai_service = AIService()
