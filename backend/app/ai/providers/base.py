@@ -15,5 +15,6 @@ class ModelProvider(Protocol):
         system_prompt: str,
         user_message: str,
         response_schema: dict[str, Any],
+        max_completion_tokens: int | None = None,
     ) -> ProviderResponse:
         """Generate a response using a structured output schema."""

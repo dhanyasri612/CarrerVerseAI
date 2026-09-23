@@ -31,6 +31,7 @@ class GroqProvider:
         system_prompt: str,
         user_message: str,
         response_schema: dict[str, Any],
+        max_completion_tokens: int | None = None,
     ) -> ProviderResponse:
         try:
             completion = self.client.chat.completions.create(
@@ -43,7 +44,7 @@ class GroqProvider:
                     "type": "json_schema",
                     "json_schema": response_schema,
                 },
-                max_completion_tokens=GROQ_MAX_COMPLETION_TOKENS,
+                max_completion_tokens=max_completion_tokens or GROQ_MAX_COMPLETION_TOKENS,
             )
         except AuthenticationError as exc:
             raise AIProviderAuthenticationError("Groq authentication failed") from exc
