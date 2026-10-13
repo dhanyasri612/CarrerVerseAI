@@ -1,0 +1,155 @@
+/**
+ * CareerVerse Design System — Motion System
+ * Micro (140ms), Standard (240ms), Emphasis (480ms), Journey (900ms)
+ */
+
+/* Keyframe Animations */
+@keyframes cv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cv-fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cv-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes cv-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--cv-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+@keyframes cv-orbit-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cv-counter-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes cv-draw-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes cv-wave-bar {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 22px;
+  }
+}
+
+@keyframes cv-orb-think {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes cv-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Motion Utilities */
+.cv-animate-fade-in {
+  animation: cv-fade-in var(--cv-dur-standard) var(--cv-ease-out) forwards;
+}
+
+.cv-animate-fade-scale {
+  animation: cv-fade-in-scale var(--cv-dur-standard) var(--cv-ease-out) forwards;
+}
+
+.cv-animate-slide-right {
+  animation: cv-slide-in-right var(--cv-dur-standard) var(--cv-ease-out) forwards;
+}
+
+.cv-pulse-glow {
+  animation: cv-pulse-glow 2s infinite var(--cv-ease-out);
+}
+
+.cv-shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    var(--cv-surface-active) 0%,
+    var(--cv-border) 50%,
+    var(--cv-surface-active) 100%
+  );
+  background-size: 200% 100%;
+  animation: cv-shimmer 1.8s infinite linear;
+}
+
+/* Transition Utilities */
+.cv-transition-all {
+  transition: all var(--cv-dur-standard) var(--cv-ease-out);
+}
+
+.cv-transition-colors {
+  transition: background-color var(--cv-dur-micro) var(--cv-ease-out),
+              border-color var(--cv-dur-micro) var(--cv-ease-out),
+              color var(--cv-dur-micro) var(--cv-ease-out);
+}
+
+.cv-transition-transform {
+  transition: transform var(--cv-dur-standard) var(--cv-ease-out);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

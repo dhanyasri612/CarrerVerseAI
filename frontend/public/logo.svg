@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="checkGrad" x1="60" y1="160" x2="160" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="arcGrad" x1="20" y1="20" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.18)"/>
+    </filter>
+  </defs>
+
+  <!-- Blue C arc -->
+  <path
+    d="M155 45
+       A80 80 0 1 0 155 155
+       L138 138
+       A60 60 0 1 1 138 62
+       Z"
+    fill="url(#arcGrad)"
+    filter="url(#shadow)"
+  />
+
+  <!-- Purple-to-blue checkmark / V shape -->
+  <path
+    d="M68 115 L95 148 L152 58"
+    stroke="url(#checkGrad)"
+    stroke-width="22"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+    filter="url(#shadow)"
+  />
+
+  <!-- Person figure — body/arms (blue) -->
+  <path
+    d="M80 118 L70 100 L95 148"
+    stroke="#1D4ED8"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+
+  <!-- Person head (cyan circle) -->
+  <circle cx="87" cy="89" r="10" fill="#38BDF8"/>
+
+  <!-- Gold 4-point star at top of checkmark -->
+  <g transform="translate(152,58)">
+    <path d="M0,-13 L3,-3 L13,0 L3,3 L0,13 L-3,3 L-13,0 L-3,-3 Z"
+          fill="#F59E0B"/>
+  </g>
+</svg>

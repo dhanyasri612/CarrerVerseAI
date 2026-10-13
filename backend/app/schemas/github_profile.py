@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
@@ -33,5 +34,7 @@ class GitHubProfileResponse(BaseModel):
     total_repositories: int
     total_stars: int
     total_forks: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

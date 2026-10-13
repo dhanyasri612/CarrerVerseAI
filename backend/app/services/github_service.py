@@ -1,5 +1,6 @@
 import base64
 import httpx
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.core.config import GITHUB_TOKEN
@@ -11,13 +12,42 @@ from app.models.github_repository_file import GitHubRepositoryFile
 
 
 GITHUB_API_URL = "https://api.github.com"
+SYNC_FRESHNESS = timedelta(minutes=30)
+
+
+def _is_fresh(profile, username: str) -> bool:
+    return bool(
+        profile
+        and profile.username.lower() == username.lower()
+        and profile.updated_at
+        and datetime.utcnow() - profile.updated_at < SYNC_FRESHNESS
+    )
+
+
+def extract_github_username(raw: str) -> str:
+    cleaned = (raw or "").strip()
+    if "/" in cleaned:
+        cleaned = cleaned.rstrip("/").split("/")[-1]
+    return cleaned.lstrip("@").strip()
 
 
 def fetch_github_profile(
     db: Session,
     username: str,
-    current_user: User
+    current_user: User,
+    force: bool = False,
 ):
+    username = extract_github_username(username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Invalid GitHub username")
+    github_profile = (
+        db.query(GitHubProfile)
+        .filter(GitHubProfile.user_id == current_user.id)
+        .first()
+    )
+    if not force and _is_fresh(github_profile, username):
+        return github_profile
+
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {GITHUB_TOKEN}"
@@ -93,14 +123,6 @@ def fetch_github_profile(
         total_forks += repo.get("forks_count", 0)
 
     # Check whether GitHub profile already exists
-    github_profile = (
-        db.query(GitHubProfile)
-        .filter(
-            GitHubProfile.user_id == current_user.id
-        )
-        .first()
-    )
-
     if not github_profile:
         github_profile = GitHubProfile(
             user_id=current_user.id,
@@ -109,6 +131,15 @@ def fetch_github_profile(
         db.add(github_profile)
         db.flush()
 
+    previous_profile = {
+        "username": github_profile.username,
+        "profile_url": github_profile.profile_url,
+        "languages": github_profile.languages,
+        "topics": github_profile.topics,
+        "total_repositories": github_profile.total_repositories,
+        "total_stars": github_profile.total_stars,
+        "total_forks": github_profile.total_forks,
+    }
     github_profile.username = username
     github_profile.profile_url = profile_data.get("html_url")
     #github_profile.repositories = repositories
@@ -118,34 +149,66 @@ def fetch_github_profile(
     github_profile.total_stars = total_stars
     github_profile.total_forks = total_forks
 
-    # Remove previously stored repository records
-    db.query(GitHubRepository).filter(
-        GitHubRepository.github_profile_id == github_profile.id
-    ).delete()
+    existing_repositories = {
+        repo.github_repo_id: {
+            "name": repo.name, "full_name": repo.full_name, "description": repo.description,
+            "url": repo.url, "default_branch": repo.default_branch, "language": repo.language,
+            "stars": repo.stars, "forks": repo.forks, "topics": repo.topics,
+            "is_fork": repo.is_fork, "is_archived": repo.is_archived
+        }
+        for repo in db.query(GitHubRepository).filter(GitHubRepository.github_profile_id == github_profile.id).all()
+    }
+    incoming_repositories = {
+        repo.get("id"): {
+            "name": repo.get("name"), "full_name": repo.get("full_name"), "description": repo.get("description"),
+            "url": repo.get("html_url"), "default_branch": repo.get("default_branch"), "language": repo.get("language"),
+            "stars": repo.get("stargazers_count", 0), "forks": repo.get("forks_count", 0), "topics": repo.get("topics", []),
+            "is_fork": repo.get("fork", False), "is_archived": repo.get("archived", False)
+        }
+        for repo in repos_data
+    }
+    changed = (
+        previous_profile != {
+            "username": username,
+            "profile_url": profile_data.get("html_url"),
+            "languages": sorted(languages),
+            "topics": sorted(topics),
+            "total_repositories": len(repositories),
+            "total_stars": total_stars,
+            "total_forks": total_forks,
+        }
+        or existing_repositories != incoming_repositories
+    )
 
-    # Store repositories as separate records
-    for repo in repos_data:
-        github_repository = GitHubRepository(
-            github_profile_id=github_profile.id,
-            github_repo_id=repo.get("id"),
-            name=repo.get("name"),
-            full_name=repo.get("full_name"),
-            description=repo.get("description"),
-            url=repo.get("html_url"),
-            default_branch=repo.get("default_branch"),
-            language=repo.get("language"),
-            stars=repo.get("stargazers_count", 0),
-            forks=repo.get("forks_count", 0),
-            topics=repo.get("topics", []),
-            is_fork=repo.get("fork", False),
-            is_archived=repo.get("archived", False),
-        )
+    if changed:
+        db.query(GitHubRepository).filter(
+            GitHubRepository.github_profile_id == github_profile.id
+        ).delete()
 
-        db.add(github_repository)
+        for repo in repos_data:
+            github_repository = GitHubRepository(
+                github_profile_id=github_profile.id,
+                github_repo_id=repo.get("id"),
+                name=repo.get("name"),
+                full_name=repo.get("full_name"),
+                description=repo.get("description"),
+                url=repo.get("html_url"),
+                default_branch=repo.get("default_branch"),
+                language=repo.get("language"),
+                stars=repo.get("stargazers_count", 0),
+                forks=repo.get("forks_count", 0),
+                topics=repo.get("topics", []),
+                is_fork=repo.get("fork", False),
+                is_archived=repo.get("archived", False),
+            )
+            db.add(github_repository)
 
+    github_profile.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(github_profile)
-
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    if changed or force:
+        sync_candidate_ai_stores_safe(db, current_user)
     return github_profile
 
 def fetch_repository_readme(

@@ -18,5 +18,9 @@ class AIProviderError(AIError):
     """The provider returned or raised an unexpected failure."""
 
 
+class AIProviderRateLimitError(AIProviderError):
+    """The provider is currently rate-limited (e.g. HTTP 429 or TPM limit)."""
+
+
 class AIInvalidResponseError(AIError):
     """The provider response could not be parsed or validated."""

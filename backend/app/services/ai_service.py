@@ -54,6 +54,7 @@ class AIService:
                 "strict": True,
                 "schema": ResumeAIAnalysis.model_json_schema(),
             },
+            max_completion_tokens=3500,
         )
         return ResumeAIAnalysis.model_validate_json(response.content), response.model
 
@@ -76,7 +77,7 @@ class AIService:
                 "strict": True,
                 "schema": SkillGapAnalysis.model_json_schema(),
             },
-            max_completion_tokens=4096,
+            max_completion_tokens=4500,
         )
         try:
             result = SkillGapAnalysis.model_validate_json(response.content)

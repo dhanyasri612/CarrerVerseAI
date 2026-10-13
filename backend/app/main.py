@@ -1,6 +1,14 @@
+import os
+os.environ["USE_TF"] = "0"
+os.environ["USE_FLAX"] = "0"
+os.environ["USE_TORCH"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["OMP_NUM_THREADS"] = "1"
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database.database import Base , engine
+from app.database.database import Base, engine, ensure_resume_cache_columns
+from app.core.config import CORS_ORIGINS
 from app.models.role import Role
 from app.models.user import User
 from app.models.resume import Resume
@@ -15,6 +23,9 @@ from app.models.leetcode_profile import LeetCodeProfile
 from app.models.hackerrank_profile import HackerRankProfile
 from app.models.linkedin_profile import LinkedInProfile
 from app.models.certification import Certification
+from app.models.interview_session import InterviewSession
+from app.models.teaching_progress import TeachingProgress
+from app.models.profile_quiz_session import ProfileQuizSession
 
 from app.routers import (
     auth,
@@ -37,13 +48,11 @@ from app.routers import (
 )
 
 Base.metadata.create_all(bind=engine)
+ensure_resume_cache_columns()
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

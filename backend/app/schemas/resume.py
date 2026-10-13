@@ -13,5 +13,8 @@ class ResumeResponse(BaseModel):
     is_public: bool
     created_at: datetime
     updated_at: datetime
+    content_hash: str | None = None
+    parser_version: str | None = None
+    parsed_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)

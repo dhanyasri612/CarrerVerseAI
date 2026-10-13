@@ -82,6 +82,7 @@ class GitHubSummary(BaseModel):
     languages: Dict[str, Any] = Field(default_factory=dict)
     top_topics: List[str] = Field(default_factory=list)
     analyzed_repositories_count: int = 0
+    updated_at: Optional[datetime] = None
 
 
 class LinkedInSummary(BaseModel):
@@ -91,6 +92,7 @@ class LinkedInSummary(BaseModel):
     email_verified: Optional[bool] = None
     profile_picture: Optional[str] = None
     locale: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 
 class LeetCodeSummary(BaseModel):
@@ -107,6 +109,7 @@ class LeetCodeSummary(BaseModel):
     contest_rating: Optional[float] = None
     badges_count: int = 0
     languages: List[Dict[str, Any]] = Field(default_factory=list)
+    updated_at: Optional[datetime] = None
 
 
 class HackerRankSummary(BaseModel):
@@ -120,6 +123,7 @@ class HackerRankSummary(BaseModel):
     badges_count: int = 0
     certificates_count: int = 0
     badges: List[Dict[str, Any]] = Field(default_factory=list)
+    updated_at: Optional[datetime] = None
 
 
 class ResumeSummary(BaseModel):
@@ -127,6 +131,7 @@ class ResumeSummary(BaseModel):
     count: int = 0
     latest_filename: Optional[str] = None
     parsed_status: bool = False
+    parsed_at: Optional[datetime] = None
 
 
 class ProfileCompleteness(BaseModel):

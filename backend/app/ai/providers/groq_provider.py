@@ -1,4 +1,6 @@
+import time
 from typing import Any
+import logging
 
 from groq import (
     APIConnectionError,
@@ -12,10 +14,13 @@ from app.ai.errors import (
     AIConfigurationError,
     AIProviderAuthenticationError,
     AIProviderError,
+    AIProviderRateLimitError,
     AIProviderTimeoutError,
 )
 from app.ai.providers.base import ProviderResponse
 from app.core.config import GROQ_API_KEY, GROQ_MAX_COMPLETION_TOKENS, GROQ_MODEL
+
+logger = logging.getLogger("careerverse.ai")
 
 
 class GroqProvider:
@@ -23,40 +28,126 @@ class GroqProvider:
         if not api_key:
             raise AIConfigurationError("GROQ_API_KEY is not configured")
         self.model = model
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=api_key, max_retries=0)
+
+    def _get_candidate_models(self) -> list[str]:
+        models = [self.model, "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+        seen = set()
+        deduped = []
+        for m in models:
+            if m and m not in seen:
+                seen.add(m)
+                deduped.append(m)
+        return deduped
 
     def generate(
         self,
         *,
         system_prompt: str,
         user_message: str,
-        response_schema: dict[str, Any],
+        response_schema: dict[str, Any] | None = None,
         max_completion_tokens: int | None = None,
     ) -> ProviderResponse:
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": response_schema,
-                },
-                max_completion_tokens=max_completion_tokens or GROQ_MAX_COMPLETION_TOKENS,
-            )
-        except AuthenticationError as exc:
-            raise AIProviderAuthenticationError("Groq authentication failed") from exc
-        except (APITimeoutError, APIConnectionError) as exc:
-            raise AIProviderTimeoutError("Groq request timed out or could not connect") from exc
-        except APIStatusError as exc:
-            raise AIProviderError("Groq request failed") from exc
-        except Exception as exc:
-            raise AIProviderError("Unexpected Groq provider failure") from exc
+        candidate_models = self._get_candidate_models()
+        max_attempts = 2
+        last_status_code = None
 
-        content = completion.choices[0].message.content if completion.choices else None
-        if not content:
-            raise AIProviderError("Groq returned an empty response")
+        for attempt in range(max_attempts):
+            for candidate in candidate_models:
+                try:
+                    kwargs: dict[str, Any] = {
+                        "model": candidate,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message},
+                        ],
+                        "max_completion_tokens": max_completion_tokens or GROQ_MAX_COMPLETION_TOKENS,
+                    }
+                    if response_schema is not None:
+                        if isinstance(response_schema, dict) and "name" in response_schema and "schema" in response_schema:
+                            kwargs["response_format"] = {
+                                "type": "json_schema",
+                                "json_schema": response_schema,
+                            }
+                        else:
+                            kwargs["response_format"] = {
+                                "type": "json_object",
+                            }
 
-        return ProviderResponse(content=content, model=completion.model or self.model)
+                    completion = self.client.chat.completions.create(**kwargs)
+                    content = completion.choices[0].message.content if completion.choices else None
+                    if content:
+                        return ProviderResponse(content=content, model=completion.model or candidate)
+                except AuthenticationError as exc:
+                    logger.error("Groq authentication failed: %s", exc)
+                    raise AIProviderAuthenticationError("Groq authentication failed") from exc
+                except (APITimeoutError, APIConnectionError) as exc:
+                    logger.warning("Groq timeout / connection error on model %s: %s", candidate, exc)
+                except APIStatusError as exc:
+                    last_status_code = exc.status_code
+                    if exc.status_code in (400, 429, 413, 503) or "json_validate_failed" in str(exc):
+                        logger.warning("Groq %s on model %s, trying next candidate...", exc.status_code, candidate)
+                        continue
+                    logger.warning("Groq status error on model %s (%s): %s", candidate, exc.status_code, exc.message)
+                except Exception as exc:
+                    logger.warning("Unexpected error on model %s: %s", candidate, exc)
+
+            if attempt < max_attempts - 1:
+                sleep_secs = 5 * (attempt + 1)
+                logger.info("All Groq candidate models busy/rate-limited. Waiting %d seconds before retry...", sleep_secs)
+                time.sleep(sleep_secs)
+
+        if last_status_code in (429, 413):
+            raise AIProviderRateLimitError("Groq provider rate limit reached (HTTP 429 / TPM quota).")
+        raise AIProviderError("All Groq model candidates failed or rate-limited after multiple retries.")
+
+    def generate_text(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        temperature: float = 0.2,
+        max_completion_tokens: int | None = None,
+    ) -> ProviderResponse:
+        """Generates natural language response without JSON schema constraints."""
+        candidate_models = self._get_candidate_models()
+        max_attempts = 2
+        last_status_code = None
+
+        for attempt in range(max_attempts):
+            for candidate in candidate_models:
+                try:
+                    completion = self.client.chat.completions.create(
+                        model=candidate,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message},
+                        ],
+                        temperature=temperature,
+                        max_completion_tokens=max_completion_tokens or GROQ_MAX_COMPLETION_TOKENS,
+                    )
+                    content = completion.choices[0].message.content if completion.choices else None
+                    if content:
+                        return ProviderResponse(content=content, model=completion.model or candidate)
+                except AuthenticationError as exc:
+                    logger.error("Groq authentication failed: %s", exc)
+                    raise AIProviderAuthenticationError("Groq authentication failed") from exc
+                except (APITimeoutError, APIConnectionError) as exc:
+                    logger.warning("Groq timeout / connection error on model %s: %s", candidate, exc)
+                except APIStatusError as exc:
+                    last_status_code = exc.status_code
+                    if exc.status_code in (429, 413, 503):
+                        logger.warning("Groq %s on model %s, trying next candidate...", exc.status_code, candidate)
+                        continue
+                    logger.warning("Groq status error on model %s (%s): %s", candidate, exc.status_code, exc.message)
+                except Exception as exc:
+                    logger.warning("Unexpected error on model %s: %s", candidate, exc)
+
+            if attempt < max_attempts - 1:
+                sleep_secs = 5 * (attempt + 1)
+                logger.info("All Groq candidate models busy/rate-limited. Waiting %d seconds before retry...", sleep_secs)
+                time.sleep(sleep_secs)
+
+        if last_status_code in (429, 413):
+            raise AIProviderRateLimitError("Groq provider rate limit reached (HTTP 429 / TPM quota).")
+        raise AIProviderError("All Groq model candidates failed or rate-limited after multiple retries.")

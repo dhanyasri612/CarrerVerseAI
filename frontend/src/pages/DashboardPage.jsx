@@ -1,125 +1,167 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { EmptyState, ErrorState, LoadingState } from "../components/AsyncState";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Sparkles, Activity, ShieldCheck } from "lucide-react";
+import { getProfileSnapshot } from "../services/careerService";
 import { getApiError } from "../services/api";
-import { getJobs, getProfile, getResumes } from "../services/careerService";
+import { useAuth } from "../context/AuthContext";
 
-export default function DashboardPage() {
-  const [state, setState] = useState(null);
-  const [error, setError] = useState("");
-  const load = async () => {
-    setError("");
-    try {
-      const [profile, resumes, jobs] = await Promise.all([
-        getProfile(),
-        getResumes(),
-        getJobs(),
-      ]);
-      setState({ profile, resumes, jobs });
-    } catch (err) {
-      setError(getApiError(err, "Unable to load your career intelligence."));
-    }
-  };
-  useEffect(() => {
-    load();
-  }, []);
-  if (!state && !error)
-    return <LoadingState label="Building your career intelligence..." />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  const { profile, resumes, jobs } = state;
-  const resume = resumes[0];
-  const firstName = profile.name?.split(" ")[0] || "there";
+/* ─── EDITORIAL SECTION PRIMITIVE ────────────────────────────────────────── */
+function EditorialSection({ index, title, body, note, list }) {
   return (
-    <div className="dashboard-page">
-      <div className="section-header compact">
-        <p className="eyebrow">Overview</p>
-        <h2>Good to see you, {firstName}</h2>
-        <p className="page-description">
-          Your workspace is ready for the next career decision.
-        </p>
+    <section className="cv-editorial-section">
+      <div className="cv-section-index">{index}</div>
+      <div className="cv-section-content">
+        <h2>{title}</h2>
+        <p>{body}</p>
+        {note && (
+          <div className="cv-note-block">
+            <Activity size={16} />
+            <div>
+              <strong>Connected.</strong>{note}
+            </div>
+          </div>
+        )}
+        {list && (
+          <div className="cv-evidence-lines">
+            {list.map(([label, detail], i) => (
+              <div className="cv-evidence-line" key={i}>
+                <strong>{label}</strong>
+                <span>{detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="stats-grid">
-        <div className="stat-card tone-purple">
-          <span>Profile focus</span>
-          <strong>{profile.degree || "In progress"}</strong>
-        </div>
-        <div className="stat-card tone-blue">
-          <span>Resume status</span>
-          <strong>{resume ? "Ready" : "Missing"}</strong>
-        </div>
-        <div className="stat-card tone-teal">
-          <span>Target roles</span>
-          <strong>{jobs.length}</strong>
-        </div>
-        <div className="stat-card tone-orange">
-          <span>Profile fields</span>
-          <strong>
-            {
-              [
-                profile.phone,
-                profile.college,
-                profile.degree,
-                profile.location,
-                profile.bio,
-              ].filter(Boolean).length
-            }
-            /5
-          </strong>
-        </div>
-      </div>
-      <div className="content-grid two-columns">
-        <div className="panel-card">
-          <h3>Profile summary</h3>
-          <p>
-            {profile.bio ||
-              "Add a short bio so CareerVerse can understand your direction."}
+    </section>
+  );
+}
+
+/* ─── DASHBOARD / HOME OPENING ────────────────────────────────────────────── */
+export default function DashboardPage() {
+  const { user }       = useAuth();
+  const navigate       = useNavigate();
+  const [snapshot, setSnapshot] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+
+  const firstName = user?.name?.split(" ")[0] || snapshot?.basic?.name?.split(" ")[0] || "Candidate";
+
+  useEffect(() => {
+    getProfileSnapshot()
+      .then((data) => setSnapshot(data))
+      .catch((err) => setError(getApiError(err, "")))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const profile   = snapshot?.unified;
+  const skills    = profile?.unified_skills     || [];
+  const projects  = profile?.projects           || [];
+  const resume    = profile?.resume_summary;
+  const connected = [
+    resume?.uploaded,
+    Boolean(profile?.github_summary?.connected),
+    Boolean(profile?.leetcode_summary?.connected),
+    Boolean(profile?.hackerrank_summary?.connected),
+  ].filter(Boolean).length;
+
+  return (
+    <div>
+      {/* ─── OPENING HERO ──────────────────────────────────────────────────── */}
+      <section className="cv-chapter-intro opening">
+        <span className="cv-chapter-number">AN OPENING NOTE</span>
+
+        <div>
+          <div className="cv-chapter-kicker">A personal career operating system</div>
+          <h1 className="cv-chapter-title">
+            {firstName}'s career<br />
+            is already<br />
+            <span className="serif">a story.</span>
+          </h1>
+          <p className="cv-chapter-deck">
+            CareerVerse helps you understand what your experience says
+            about where you could go next—grounded in real evidence,
+            not a generated summary.
           </p>
-          <Link className="text-link" to="/profile">
-            Update profile
+          <Link to="/profile" className="cv-opening-cta">
+            Enter your career <ArrowRight size={15} />
           </Link>
         </div>
-        <div className="panel-card">
-          <h3>Resume signal</h3>
-          <p>
-            {resume
-              ? `${resume.file_name} is ${resume.parsed_status ? "parsed and ready" : "uploaded and ready to parse"}.`
-              : "Upload a PDF to unlock analysis, recommendations, and a roadmap."}
+
+        <div>
+          <div className="cv-opening-mark" role="img" aria-label="Abstract editorial mark suggesting paths through a story">
+            <span>Experience<br />in motion</span>
+          </div>
+          <p className="cv-intro-aside">
+            Start with what is real. Move at your own pace. Leave room for
+            the parts of your story still taking shape.
           </p>
-          <Link
-            className="primary-button"
-            to={resume ? "/resume-analysis" : "/resume"}
-          >
-            {resume ? "View analysis" : "Upload resume"}
-          </Link>
         </div>
-      </div>
-      <div className="content-grid three-columns">
-        <div className="panel-card">
-          <h3>Skills overview</h3>
-          <EmptyState title="Build your skill profile">
-            Parse your resume to see extracted skills.
-          </EmptyState>
+      </section>
+
+      {/* ─── LIVE CAREER SIGNALS ──────────────────────────────────────────── */}
+      <EditorialSection
+        index="YOUR SIGNALS"
+        title={<>The evidence you have already built.</>}
+        body="CareerVerse reads across your verified resume, GitHub contributions, certifications, and practice sessions to build a picture of what your experience actually says."
+        list={[
+          ["Verified skills",      loading ? "Loading…" : skills.length > 0 ? `${skills.length} skills normalized` : "Connect a source to populate"],
+          ["Project evidence",     loading ? "Loading…" : projects.length > 0 ? `${projects.length} projects analyzed` : "Link GitHub to begin"],
+          ["Connected sources",    loading ? "Loading…" : `${connected} of 4 active`],
+          ["Career readiness",     loading ? "Loading…" : resume?.uploaded ? "Resume uploaded and parsed" : "Upload a resume to ground your profile"],
+        ]}
+      />
+
+      {/* ─── THE CHAPTERS ─────────────────────────────────────────────────── */}
+      <section className="cv-editorial-section">
+        <div className="cv-section-index">THE CHAPTERS</div>
+        <div className="cv-section-content">
+          <h2>Begin anywhere.<br />Follow what feels useful.</h2>
+          <p>Each chapter asks a different question about how your experience connects to what might come next.</p>
+          <div className="cv-chapter-index-list">
+            {[
+              { number: "01", label: "Your Story",     to: "/profile" },
+              { number: "02", label: "Your Options",   to: "/career-discovery" },
+              { number: "03", label: "Your Gaps",      to: "/skill-gap" },
+              { number: "04", label: "Your Journey",   to: "/career-roadmap" },
+              { number: "05", label: "Cyra Vance",     to: "/ai/interview" },
+              { number: "06", label: "Career Mirror",  to: "/ai/intelligence" },
+            ].map((ch) => (
+              <Link key={ch.to} to={ch.to} className="cv-chapter-index-row">
+                <span className="row-number">{ch.number}</span>
+                <span className="row-label">{ch.label}</span>
+                <ArrowRight size={13} />
+              </Link>
+            ))}
+          </div>
         </div>
-        <div className="panel-card">
-          <h3>Skill gap</h3>
-          <p>
-            Compare your resume against one of {jobs.length} available roles.
-          </p>
-          <Link className="text-link" to="/skill-gap">
-            Open skill gap
-          </Link>
-        </div>
-        <div className="panel-card">
-          <h3>GitHub activity</h3>
-          <p>
-            Sync a public profile to add projects, languages, and repository
-            signals.
-          </p>
-          <Link className="text-link" to="/github">
-            Connect GitHub
-          </Link>
-        </div>
-      </div>
+      </section>
+
+      {/* ─── NEXT BEST MOVE ───────────────────────────────────────────────── */}
+      <EditorialSection
+        index="NEXT BEST MOVE"
+        title={<>The clearest step forward right now.</>}
+        body={
+          !resume?.uploaded
+            ? "Upload your verified resume to ground your AI career profile. Everything else—skill gap, roadmap, and Dr. Cyra Vance—becomes more precise once your evidence is in."
+            : skills.length === 0
+            ? "Your resume is in. Connect GitHub to add project evidence and unlock role-specific skill comparisons."
+            : "Your profile has enough signal to explore role directions. Open Career Navigator to see where your current experience could take you."
+        }
+        note={null}
+      />
+
+      {/* ─── A NOTE ON EVIDENCE ───────────────────────────────────────────── */}
+      <EditorialSection
+        index="A NOTE ON EVIDENCE"
+        title={<>Nothing personal is invented for you.</>}
+        body="Every signal shown in CareerVerse is traceable to a source you connected. If a section appears empty, it is because the evidence is not there yet—not because it was hidden or replaced with a placeholder."
+      />
+
+      {/* ─── FOOTER ───────────────────────────────────────────────────────── */}
+      <footer className="cv-chapter-footer">
+        <span>CAREERVERSE · A CAREER IN MOTION</span>
+        <Link to="/profile">Begin with your story <ArrowRight size={12} /></Link>
+      </footer>
     </div>
   );
 }

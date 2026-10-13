@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.skill_gap import SkillGapResponse, UnifiedSkillGapResponse
+from app.schemas.skill_gap import ResumeSkillGapResponse, UnifiedSkillGapResponse
 from app.services.skill_gap_service import analyze_skill_gap, analyze_unified_skill_gap
 
 
@@ -52,7 +52,7 @@ def get_unified_skill_gap(
 
 @router.post(
     "/analyze/{resume_id}/{job_id}",
-    response_model=SkillGapResponse,
+    response_model=ResumeSkillGapResponse,
     status_code=status.HTTP_200_OK,
     summary="Trigger skill gap analysis for a specific resume and job"
 )
@@ -72,7 +72,7 @@ def post_skill_gap(
 
 @router.get(
     "/{resume_id}/{job_id}",
-    response_model=SkillGapResponse,
+    response_model=ResumeSkillGapResponse,
     status_code=status.HTTP_200_OK,
     summary="Analyze skill gap for a specific resume and job"
 )

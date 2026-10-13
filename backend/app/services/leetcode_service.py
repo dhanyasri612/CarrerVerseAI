@@ -1,4 +1,5 @@
 import httpx
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -206,18 +207,52 @@ def fetch_leetcode_data_from_graphql(username: str) -> dict:
     }
 
 
+SYNC_FRESHNESS = timedelta(minutes=30)
+
+
+def _is_fresh(profile, username: str) -> bool:
+    return bool(
+        profile
+        and profile.username.lower() == username.lower()
+        and profile.updated_at
+        and datetime.utcnow() - profile.updated_at < SYNC_FRESHNESS
+    )
+
+
+def extract_leetcode_username(raw: str) -> str:
+    cleaned = (raw or "").strip().rstrip("/")
+    if "/" in cleaned:
+        cleaned = cleaned.split("/")[-1]
+    return cleaned.lstrip("@").strip()
+
+
 def sync_leetcode_profile(
     db: Session,
     username: str,
     current_user: User,
+    force: bool = False,
 ) -> LeetCodeProfile:
-    parsed_data = fetch_leetcode_data_from_graphql(username)
-
+    username = extract_leetcode_username(username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Invalid LeetCode username")
     leetcode_profile = (
         db.query(LeetCodeProfile)
         .filter(LeetCodeProfile.user_id == current_user.id)
         .first()
     )
+    if not force and _is_fresh(leetcode_profile, username):
+        return leetcode_profile
+
+    parsed_data = fetch_leetcode_data_from_graphql(username)
+    fields = (
+        "username", "profile_url", "real_name", "about", "avatar_url", "ranking",
+        "reputation", "total_solved", "easy_solved", "medium_solved", "hard_solved",
+        "acceptance_rate", "total_submissions", "contest_rating", "contest_ranking",
+        "contest_attended", "contest_top_percentage", "contest_badge", "badges",
+        "languages", "skills", "recent_submissions"
+    )
+    previous = {field: getattr(leetcode_profile, field, None) for field in fields} if leetcode_profile else None
+    changed = previous != {field: parsed_data.get(field) for field in fields}
 
     if not leetcode_profile:
         leetcode_profile = LeetCodeProfile(
@@ -248,10 +283,13 @@ def sync_leetcode_profile(
     leetcode_profile.languages = parsed_data["languages"]
     leetcode_profile.skills = parsed_data["skills"]
     leetcode_profile.recent_submissions = parsed_data["recent_submissions"]
+    leetcode_profile.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(leetcode_profile)
-
+    if changed or force:
+        from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+        sync_candidate_ai_stores_safe(db, current_user)
     return leetcode_profile
 
 

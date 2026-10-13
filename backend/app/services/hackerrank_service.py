@@ -1,5 +1,6 @@
 import httpx
 from fastapi import HTTPException
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -137,18 +138,48 @@ def fetch_hackerrank_data(username: str) -> dict:
     }
 
 
+SYNC_FRESHNESS = timedelta(minutes=30)
+
+
+def _is_fresh(profile, username: str) -> bool:
+    return bool(
+        profile
+        and profile.username.lower() == username.lower()
+        and profile.updated_at
+        and datetime.utcnow() - profile.updated_at < SYNC_FRESHNESS
+    )
+
+
+def extract_hackerrank_username(raw: str) -> str:
+    cleaned = (raw or "").strip().rstrip("/")
+    if "/profile/" in cleaned:
+        cleaned = cleaned.split("/profile/")[-1].split("/")[0]
+    elif "/" in cleaned:
+        cleaned = cleaned.split("/")[-1]
+    return cleaned.lstrip("@").strip()
+
+
 def sync_hackerrank_profile(
     db: Session,
     username: str,
     current_user: User,
+    force: bool = False,
 ) -> HackerRankProfile:
-    parsed_data = fetch_hackerrank_data(username)
-
+    username = extract_hackerrank_username(username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Invalid HackerRank username")
     hackerrank_profile = (
         db.query(HackerRankProfile)
         .filter(HackerRankProfile.user_id == current_user.id)
         .first()
     )
+    if not force and _is_fresh(hackerrank_profile, username):
+        return hackerrank_profile
+
+    parsed_data = fetch_hackerrank_data(username)
+    fields = ("username", "profile_url", "display_name", "bio", "avatar_url", "country", "school", "total_solved", "badges", "certificates", "skills", "domain_statistics")
+    previous = {field: getattr(hackerrank_profile, field, None) for field in fields} if hackerrank_profile else None
+    changed = previous != {field: parsed_data.get(field) for field in fields}
 
     if not hackerrank_profile:
         hackerrank_profile = HackerRankProfile(
@@ -169,10 +200,13 @@ def sync_hackerrank_profile(
     hackerrank_profile.certificates = parsed_data["certificates"]
     hackerrank_profile.skills = parsed_data["skills"]
     hackerrank_profile.domain_statistics = parsed_data["domain_statistics"]
+    hackerrank_profile.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(hackerrank_profile)
-
+    if changed or force:
+        from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+        sync_candidate_ai_stores_safe(db, current_user)
     return hackerrank_profile
 
 

@@ -1,0 +1,360 @@
+/**
+ * CareerVerse Design System — Themes Engine
+ * 5 curated product personalities with strict contrast and semantic token mappings
+ */
+
+/* ==========================================================================
+   THEME 01 — PAPER / IRIS (Default / Editorial Career Magazine)
+   ========================================================================== */
+:root,
+[data-theme="paper-iris"],
+.theme-paper-iris {
+  --cv-bg: #F9F8F5;
+  --cv-bg-subtle: #F3F1EB;
+  --cv-surface: #FFFFFF;
+  --cv-surface-raised: #FFFFFF;
+  --cv-surface-overlay: rgba(255, 255, 255, 0.92);
+  --cv-surface-active: #EFECE4;
+
+  --cv-text: #1C1C1E;
+  --cv-text-muted: #686766;
+  --cv-text-faint: #9E9C98;
+  --cv-text-inverse: #FFFFFF;
+
+  --cv-border: #E5E2D9;
+  --cv-border-subtle: #EDEAE1;
+  --cv-border-strong: #CEC9BC;
+
+  --cv-accent: #4F46E5;          /* Iris / Indigo */
+  --cv-accent-hover: #4338CA;
+  --cv-accent-soft: #EEF2FF;
+  --cv-accent-border: #C7D2FE;
+  --cv-accent-contrast: #FFFFFF;
+
+  --cv-secondary: #7C3AED;       /* Lavender */
+  --cv-secondary-soft: #F5F3FF;
+
+  --cv-success: #059669;
+  --cv-success-soft: #ECFDF5;
+  --cv-warning: #D97706;
+  --cv-warning-soft: #FFFBEB;
+  --cv-danger: #DC2626;
+  --cv-danger-soft: #FEF2F2;
+  --cv-info: #0284C7;
+  --cv-info-soft: #F0F9FF;
+
+  --cv-shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.04);
+  --cv-shadow-md: 0 4px 12px rgba(28, 28, 30, 0.06), 0 1px 3px rgba(28, 28, 30, 0.04);
+  --cv-shadow-lg: 0 12px 28px rgba(28, 28, 30, 0.08), 0 2px 6px rgba(28, 28, 30, 0.04);
+  --cv-shadow-popover: 0 16px 36px rgba(28, 28, 30, 0.12);
+
+  --cv-rail-bg: #F3F1EB;
+  --cv-rail-border: #E5E2D9;
+  --cv-glow: rgba(79, 70, 229, 0.15);
+  --cv-badge-bg: #EDEAE1;
+}
+
+/* ==========================================================================
+   THEME 02 — MIDNIGHT / NEBULA (Deep AI Workspace)
+   ========================================================================== */
+[data-theme="midnight-nebula"],
+.theme-midnight-nebula {
+  --cv-bg: #0B0E14;
+  --cv-bg-subtle: #121620;
+  --cv-surface: #171B26;
+  --cv-surface-raised: #1F2433;
+  --cv-surface-overlay: rgba(23, 27, 38, 0.94);
+  --cv-surface-active: #282E42;
+
+  --cv-text: #F1F3F9;
+  --cv-text-muted: #8E98AB;
+  --cv-text-faint: #565F73;
+  --cv-text-inverse: #0B0E14;
+
+  --cv-border: #222838;
+  --cv-border-subtle: #1A202E;
+  --cv-border-strong: #333C52;
+
+  --cv-accent: #6366F1;          /* Electric Indigo */
+  --cv-accent-hover: #818CF8;
+  --cv-accent-soft: rgba(99, 102, 241, 0.14);
+  --cv-accent-border: rgba(99, 102, 241, 0.35);
+  --cv-accent-contrast: #FFFFFF;
+
+  --cv-secondary: #38BDF8;       /* Muted Blue */
+  --cv-secondary-soft: rgba(56, 189, 248, 0.12);
+
+  --cv-success: #10B981;
+  --cv-success-soft: rgba(16, 185, 129, 0.14);
+  --cv-warning: #F59E0B;
+  --cv-warning-soft: rgba(245, 158, 11, 0.14);
+  --cv-danger: #EF4444;
+  --cv-danger-soft: rgba(239, 68, 68, 0.14);
+  --cv-info: #06B6D4;
+  --cv-info-soft: rgba(6, 182, 212, 0.14);
+
+  --cv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --cv-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --cv-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.65);
+  --cv-shadow-popover: 0 20px 48px rgba(0, 0, 0, 0.8);
+
+  --cv-rail-bg: #0E121A;
+  --cv-rail-border: #1E2330;
+  --cv-glow: rgba(99, 102, 241, 0.28);
+  --cv-badge-bg: #1F2433;
+}
+
+/* ==========================================================================
+   THEME 03 — CLAY / SUNRISE (Creative Studio & Human Warmth)
+   ========================================================================== */
+[data-theme="clay-sunrise"],
+.theme-clay-sunrise {
+  --cv-bg: #FAF6F0;
+  --cv-bg-subtle: #F2ECE1;
+  --cv-surface: #FFFFFF;
+  --cv-surface-raised: #FFFFFF;
+  --cv-surface-overlay: rgba(255, 255, 255, 0.94);
+  --cv-surface-active: #EADFCF;
+
+  --cv-text: #261F1A;
+  --cv-text-muted: #786C62;
+  --cv-text-faint: #A89B8F;
+  --cv-text-inverse: #FFFFFF;
+
+  --cv-border: #E8DDCE;
+  --cv-border-subtle: #F0E6D8;
+  --cv-border-strong: #D4C3AD;
+
+  --cv-accent: #D9532F;          /* Terracotta / Coral */
+  --cv-accent-hover: #BF4422;
+  --cv-accent-soft: #FDEEE9;
+  --cv-accent-border: #FACBBF;
+  --cv-accent-contrast: #FFFFFF;
+
+  --cv-secondary: #8E4A68;       /* Muted Plum */
+  --cv-secondary-soft: #F9ECF2;
+
+  --cv-success: #2A8B5B;
+  --cv-success-soft: #EBF8F1;
+  --cv-warning: #C6781D;
+  --cv-warning-soft: #FDF5EA;
+  --cv-danger: #C83535;
+  --cv-danger-soft: #FDECEC;
+  --cv-info: #2B7A9B;
+  --cv-info-soft: #ECF6FA;
+
+  --cv-shadow-sm: 0 1px 2px rgba(38, 31, 26, 0.04);
+  --cv-shadow-md: 0 4px 12px rgba(38, 31, 26, 0.06);
+  --cv-shadow-lg: 0 12px 28px rgba(38, 31, 26, 0.08);
+  --cv-shadow-popover: 0 16px 36px rgba(38, 31, 26, 0.12);
+
+  --cv-rail-bg: #F3ECE1;
+  --cv-rail-border: #E6DBCB;
+  --cv-glow: rgba(217, 83, 47, 0.18);
+  --cv-badge-bg: #EAE0D2;
+}
+
+/* ==========================================================================
+   THEME 04 — MOSS / GRAPHITE (Technical & Mature Engineering)
+   ========================================================================== */
+[data-theme="moss-graphite"],
+.theme-moss-graphite {
+  --cv-bg: #181B1A;
+  --cv-bg-subtle: #202423;
+  --cv-surface: #252A28;
+  --cv-surface-raised: #2E3432;
+  --cv-surface-overlay: rgba(37, 42, 40, 0.94);
+  --cv-surface-active: #39423F;
+
+  --cv-text: #EDF2EE;
+  --cv-text-muted: #8E9C94;
+  --cv-text-faint: #5B6660;
+  --cv-text-inverse: #181B1A;
+
+  --cv-border: #303734;
+  --cv-border-subtle: #272C2A;
+  --cv-border-strong: #404B46;
+
+  --cv-accent: #34D399;          /* Emerald / Deep Moss */
+  --cv-accent-hover: #10B981;
+  --cv-accent-soft: rgba(52, 211, 153, 0.14);
+  --cv-accent-border: rgba(52, 211, 153, 0.35);
+  --cv-accent-contrast: #064E3B;
+
+  --cv-secondary: #84CC16;       /* Sage / Lime */
+  --cv-secondary-soft: rgba(132, 204, 22, 0.12);
+
+  --cv-success: #34D399;
+  --cv-success-soft: rgba(52, 211, 153, 0.14);
+  --cv-warning: #FBBF24;
+  --cv-warning-soft: rgba(251, 191, 36, 0.14);
+  --cv-danger: #F87171;
+  --cv-danger-soft: rgba(248, 113, 113, 0.14);
+  --cv-info: #38BDF8;
+  --cv-info-soft: rgba(56, 189, 248, 0.14);
+
+  --cv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --cv-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --cv-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6);
+  --cv-shadow-popover: 0 20px 48px rgba(0, 0, 0, 0.75);
+
+  --cv-rail-bg: #141716;
+  --cv-rail-border: #232826;
+  --cv-glow: rgba(52, 211, 153, 0.22);
+  --cv-badge-bg: #2E3533;
+}
+
+/* ==========================================================================
+   THEME 05 — OCEAN / MIST (Intelligent, Calm & Focused)
+   ========================================================================== */
+/* ==========================================================================
+   THEME 05 — OCEAN / MIST (Intelligent, Calm & Focused)
+   ========================================================================== */
+[data-theme="ocean-mist"],
+.theme-ocean-mist {
+  --cv-bg: #F2F7FA;
+  --cv-bg-subtle: #E5EEF4;
+  --cv-surface: #FFFFFF;
+  --cv-surface-raised: #FFFFFF;
+  --cv-surface-overlay: rgba(255, 255, 255, 0.94);
+  --cv-surface-active: #DCE7F0;
+
+  --cv-text: #0E2233;
+  --cv-text-muted: #4B647A;
+  --cv-text-faint: #8198AC;
+  --cv-text-inverse: #FFFFFF;
+
+  --cv-border: #D1DFEA;
+  --cv-border-subtle: #DEE8F0;
+  --cv-border-strong: #B6CBDC;
+
+  --cv-accent: #0284C7;          /* Deep Teal / Cyan */
+  --cv-accent-hover: #0369A1;
+  --cv-accent-soft: #E0F2FE;
+  --cv-accent-border: #BAE6FD;
+  --cv-accent-contrast: #FFFFFF;
+
+  --cv-secondary: #0D9488;       /* Teal */
+  --cv-secondary-soft: #CCFBF1;
+
+  --cv-success: #059669;
+  --cv-success-soft: #ECFDF5;
+  --cv-warning: #D97706;
+  --cv-warning-soft: #FFFBEB;
+  --cv-danger: #E11D48;
+  --cv-danger-soft: #FFE4E6;
+  --cv-info: #0284C7;
+  --cv-info-soft: #E0F2FE;
+
+  --cv-shadow-sm: 0 1px 2px rgba(14, 34, 51, 0.04);
+  --cv-shadow-md: 0 4px 12px rgba(14, 34, 51, 0.06);
+  --cv-shadow-lg: 0 12px 28px rgba(14, 34, 51, 0.08);
+  --cv-shadow-popover: 0 16px 36px rgba(14, 34, 51, 0.12);
+
+  --cv-rail-bg: #E7EFF5;
+  --cv-rail-border: #D3DFE8;
+  --cv-glow: rgba(2, 132, 199, 0.18);
+  --cv-badge-bg: #DBE7F0;
+}
+
+/* ==========================================================================
+   THEME 06 — CINEMA / NIGHT (Atmospheric, Warm Gold & Reflective)
+   ========================================================================== */
+[data-theme="cinema"],
+[data-theme="cinema-night"],
+.theme-cinema-night {
+  --cv-bg: #1C1B18;
+  --cv-bg-subtle: #25231E;
+  --cv-surface: #25231E;
+  --cv-surface-raised: #2F2C26;
+  --cv-surface-overlay: rgba(37, 35, 30, 0.94);
+  --cv-surface-active: #3C3831;
+
+  --cv-text: #F0E8D7;
+  --cv-text-muted: #B6AD99;
+  --cv-text-faint: #756D5C;
+  --cv-text-inverse: #1C1B18;
+
+  --cv-border: #484338;
+  --cv-border-subtle: #3A352C;
+  --cv-border-strong: #5C5648;
+
+  --cv-accent: #D4AD63;          /* Warm Amber Gold */
+  --cv-accent-hover: #E2C07D;
+  --cv-accent-soft: rgba(212, 173, 99, 0.16);
+  --cv-accent-border: rgba(212, 173, 99, 0.38);
+  --cv-accent-contrast: #1C1B18;
+
+  --cv-secondary: #9A674B;       /* Muted Ochre */
+  --cv-secondary-soft: rgba(154, 103, 75, 0.14);
+
+  --cv-success: #6E9B7B;
+  --cv-success-soft: rgba(110, 155, 123, 0.15);
+  --cv-warning: #E5A84B;
+  --cv-warning-soft: rgba(229, 168, 75, 0.15);
+  --cv-danger: #D96B6B;
+  --cv-danger-soft: rgba(217, 107, 107, 0.15);
+  --cv-info: #8AAAC8;
+  --cv-info-soft: rgba(138, 170, 200, 0.15);
+
+  --cv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --cv-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --cv-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.7);
+  --cv-shadow-popover: 0 20px 48px rgba(0, 0, 0, 0.85);
+
+  --cv-rail-bg: #161513;
+  --cv-rail-border: #332F27;
+  --cv-glow: rgba(212, 173, 99, 0.28);
+  --cv-badge-bg: #2F2C26;
+}
+
+/* ==========================================================================
+   THEME 07 — MONO / GRAPHITE (Technical & Precise)
+   ========================================================================== */
+[data-theme="mono"],
+[data-theme="mono-graphite"],
+.theme-mono-graphite {
+  --cv-bg: #E9E9E3;
+  --cv-bg-subtle: #F2F2EC;
+  --cv-surface: #F2F2EC;
+  --cv-surface-raised: #FFFFFF;
+  --cv-surface-overlay: rgba(242, 242, 236, 0.94);
+  --cv-surface-active: #DDDED6;
+
+  --cv-text: #292D2D;
+  --cv-text-muted: #656B68;
+  --cv-text-faint: #989E9B;
+  --cv-text-inverse: #FFFFFF;
+
+  --cv-border: #BFC3BD;
+  --cv-border-subtle: #D1D5CF;
+  --cv-border-strong: #9EA39C;
+
+  --cv-accent: #414C49;          /* Deep Slate Graphite */
+  --cv-accent-hover: #292D2D;
+  --cv-accent-soft: #D9DED9;
+  --cv-accent-border: #A8AFA9;
+  --cv-accent-contrast: #FFFFFF;
+
+  --cv-secondary: #76796E;       /* Muted Olive Slate */
+  --cv-secondary-soft: #E5E8E0;
+
+  --cv-success: #4D7A60;
+  --cv-success-soft: #E2ECE5;
+  --cv-warning: #B57E3E;
+  --cv-warning-soft: #F9EFE4;
+  --cv-danger: #AD4B4B;
+  --cv-danger-soft: #F9EBEB;
+  --cv-info: #4E738A;
+  --cv-info-soft: #E7EEF3;
+
+  --cv-shadow-sm: 0 1px 2px rgba(41, 45, 45, 0.05);
+  --cv-shadow-md: 0 4px 12px rgba(41, 45, 45, 0.08);
+  --cv-shadow-lg: 0 12px 28px rgba(41, 45, 45, 0.1);
+  --cv-shadow-popover: 0 16px 36px rgba(41, 45, 45, 0.14);
+
+  --cv-rail-bg: #DFDFD8;
+  --cv-rail-border: #C5C9C2;
+  --cv-glow: rgba(65, 76, 73, 0.18);
+  --cv-badge-bg: #E0E3DD;
+}

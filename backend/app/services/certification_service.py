@@ -221,6 +221,8 @@ def create_certification(
         merged = merge_certification_records(duplicate, cert_in.model_dump())
         db.commit()
         db.refresh(merged)
+        from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+        sync_candidate_ai_stores_safe(db, current_user)
         return merged
 
     # Evaluate trust status if URL provided and status is default UNVERIFIED
@@ -247,6 +249,8 @@ def create_certification(
     db.add(cert)
     db.commit()
     db.refresh(cert)
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return cert
 
 
@@ -319,6 +323,8 @@ def update_certification(
     cert.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(cert)
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return cert
 
 
@@ -341,6 +347,8 @@ def delete_certification(
 
     db.delete(cert)
     db.commit()
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return {"message": "Certification deleted successfully."}
 
 
@@ -517,11 +525,21 @@ def extract_certifications_from_user_resume(
         if not cert_text or len(cert_text.strip()) < 4:
             continue
 
+        # Pre-filter: skip obviously invalid lines before running full extraction
+        cert_stripped = cert_text.strip()
+        if is_invalid_or_generic_title(cert_stripped):
+            continue
+
         item_data = parse_structured_certification(
             cert_text,
             raw_metadata={"resume_id": resume.id, "resume_name": resume.file_name, "snippet": cert_text},
             filename=resume.file_name
         )
+
+        # Post-parse confidence gate: skip obviously bad extractions
+        if (item_data.get("confidence_score", 0.0) < 0.3
+                or is_invalid_or_generic_title(item_data.get("certification_name", ""))):
+            continue
 
         dup = find_duplicate_certification(
             db,
@@ -832,6 +850,10 @@ async def import_folder_from_google_drive(
                         error=f"Processing error: {str(e)}"
                     )
                 )
+
+    if duplicate_files:
+        from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+        sync_candidate_ai_stores_safe(db, current_user)
 
     return GoogleDriveFolderImportResponse(
         folder_id=req.folder_id,

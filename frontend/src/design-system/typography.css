@@ -1,0 +1,121 @@
+/**
+ * CareerVerse Design System — Typography System
+ * Dual-font editorial pairing: Instrument Serif (Display) + Plus Jakarta Sans (UI)
+ */
+
+body {
+  font-family: var(--cv-font-sans);
+  color: var(--cv-text);
+  background-color: var(--cv-bg);
+  line-height: var(--cv-leading-normal);
+  font-size: var(--cv-text-body);
+  letter-spacing: var(--cv-tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editorial Display Heading */
+.cv-display {
+  font-family: var(--cv-font-serif);
+  font-size: var(--cv-text-display);
+  line-height: var(--cv-leading-tight);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--cv-text);
+}
+
+.cv-hero {
+  font-family: var(--cv-font-serif);
+  font-size: var(--cv-text-hero);
+  line-height: var(--cv-leading-tight);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--cv-text);
+}
+
+/* Editorial Serif Emphasis Word (Selective) */
+.cv-serif-accent {
+  font-family: var(--cv-font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--cv-accent);
+}
+
+/* UI Headings */
+.cv-title {
+  font-family: var(--cv-font-sans);
+  font-size: var(--cv-text-title);
+  line-height: var(--cv-leading-snug);
+  font-weight: 700;
+  letter-spacing: var(--cv-tracking-tight);
+  color: var(--cv-text);
+}
+
+.cv-headline {
+  font-family: var(--cv-font-sans);
+  font-size: var(--cv-text-headline);
+  line-height: var(--cv-leading-snug);
+  font-weight: 600;
+  letter-spacing: var(--cv-tracking-tight);
+  color: var(--cv-text);
+}
+
+.cv-subhead {
+  font-family: var(--cv-font-sans);
+  font-size: var(--cv-text-body-lg);
+  line-height: var(--cv-leading-normal);
+  font-weight: 500;
+  color: var(--cv-text-muted);
+}
+
+/* Eyebrows & Section Markers */
+.cv-eyebrow {
+  font-family: var(--cv-font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cv-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cv-section-num {
+  font-family: var(--cv-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--cv-accent);
+}
+
+/* Body Styles */
+.cv-body-lg {
+  font-size: var(--cv-text-body-lg);
+  line-height: var(--cv-leading-relaxed);
+  color: var(--cv-text);
+}
+
+.cv-body {
+  font-size: var(--cv-text-body);
+  line-height: var(--cv-leading-normal);
+  color: var(--cv-text);
+}
+
+.cv-body-muted {
+  font-size: var(--cv-text-body);
+  line-height: var(--cv-leading-normal);
+  color: var(--cv-text-muted);
+}
+
+.cv-caption {
+  font-size: var(--cv-text-body-sm);
+  line-height: var(--cv-leading-normal);
+  color: var(--cv-text-muted);
+}
+
+.cv-mono {
+  font-family: var(--cv-font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+}

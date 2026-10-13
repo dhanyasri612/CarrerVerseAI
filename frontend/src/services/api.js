@@ -44,6 +44,9 @@ export const getApiError = (error, fallback = "Something went wrong.") => {
   if (error?.message === "Network Error") {
     return "Unable to reach CareerVerse AI. Check that the API is running.";
   }
+  if (error?.code === "ECONNABORTED" || error?.code === "ETIMEDOUT") {
+    return "CareerVerse AI took too long to respond. Please retry.";
+  }
   return fallback;
 };
 

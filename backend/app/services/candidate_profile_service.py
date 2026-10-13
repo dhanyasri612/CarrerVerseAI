@@ -68,5 +68,6 @@ def aggregate_candidate_profile(
 
     db.commit()
     db.refresh(profile)
-
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return profile

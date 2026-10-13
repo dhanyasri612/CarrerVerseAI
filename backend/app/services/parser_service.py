@@ -4,8 +4,10 @@ from datetime import datetime
 
 from app.models.resume import Resume
 from app.parsers.resume_parser import parse_resume
+from app.parsers.resume_parser import RESUME_PARSER_VERSION
 from app.models.user import User
 from app.models.parsed_resume import ParsedResume
+from app.services.resume_service import _sha256_file
 
 
 def parse_resume_by_id(db: Session, resume_id: int, current_user: User):
@@ -30,9 +32,23 @@ def parse_resume_by_id(db: Session, resume_id: int, current_user: User):
         .first()
     )
 
-    if existing:
-        db.delete(existing)
-        db.commit()
+    import os
+    if not os.path.exists(resume.file_path):
+        if existing:
+            return existing
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume file not found on disk. Please upload your resume again."
+        )
+
+    content_hash = _sha256_file(resume.file_path)
+    if (
+        existing
+        and resume.content_hash == content_hash
+        and resume.parser_version == RESUME_PARSER_VERSION
+        and resume.parsed_status
+    ):
+        return existing
 
     try:
         parsed_data = parse_resume(resume.file_path)
@@ -44,21 +60,25 @@ def parse_resume_by_id(db: Session, resume_id: int, current_user: User):
             detail=f"Failed to parse resume file: {str(e)}"
         )
 
-    parsed_resume = ParsedResume(
-        resume_id=resume.id,
-        name=parsed_data.name,
-        email=parsed_data.email,
-        phone=parsed_data.phone,
-        skills=parsed_data.skills,
-        education=parsed_data.education,
-        experience=parsed_data.experience,
-        projects=parsed_data.projects,
-        certifications=parsed_data.certifications,
-    )
-    db.add(parsed_resume)
+    parsed_resume = existing or ParsedResume(resume_id=resume.id)
+    parsed_resume.name = parsed_data.name
+    parsed_resume.email = parsed_data.email
+    parsed_resume.phone = parsed_data.phone
+    parsed_resume.skills = parsed_data.skills
+    parsed_resume.education = parsed_data.education
+    parsed_resume.experience = parsed_data.experience
+    parsed_resume.projects = parsed_data.projects
+    parsed_resume.certifications = parsed_data.certifications
+    if not existing:
+        db.add(parsed_resume)
     resume.parsed_status = True
+    resume.content_hash = content_hash
+    resume.parser_version = RESUME_PARSER_VERSION
+    resume.parsed_at = datetime.utcnow()
     db.commit()
     db.refresh(parsed_resume)
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return parsed_resume
 
 
@@ -136,6 +156,8 @@ def delete_parsed_resume(
     db.delete(parsed_resume)
     resume.parsed_status = False
     db.commit()
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
 
     return {
         "message": "Parsed resume deleted successfully"
@@ -170,10 +192,6 @@ def reparse_resume(
         .first()
     )
 
-    if existing:
-        db.delete(existing)
-        db.commit()
-
     try:
         parsed_data = parse_resume(resume.file_path)
     except Exception as e:
@@ -184,21 +202,24 @@ def reparse_resume(
             detail=f"Failed to reparse resume file: {str(e)}"
         )
 
-    parsed_resume = ParsedResume(
-        resume_id=resume.id,
-        name=parsed_data.name,
-        email=parsed_data.email,
-        phone=parsed_data.phone,
-        skills=parsed_data.skills,
-        education=parsed_data.education,
-        experience=parsed_data.experience,
-        projects=parsed_data.projects,
-        certifications=parsed_data.certifications
-    )
-
-    db.add(parsed_resume)
+    parsed_resume = existing or ParsedResume(resume_id=resume.id)
+    parsed_resume.name = parsed_data.name
+    parsed_resume.email = parsed_data.email
+    parsed_resume.phone = parsed_data.phone
+    parsed_resume.skills = parsed_data.skills
+    parsed_resume.education = parsed_data.education
+    parsed_resume.experience = parsed_data.experience
+    parsed_resume.projects = parsed_data.projects
+    parsed_resume.certifications = parsed_data.certifications
+    if not existing:
+        db.add(parsed_resume)
     resume.parsed_status = True
+    resume.content_hash = _sha256_file(resume.file_path)
+    resume.parser_version = RESUME_PARSER_VERSION
+    resume.parsed_at = datetime.utcnow()
     db.commit()
     db.refresh(parsed_resume)
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
 
     return parsed_resume

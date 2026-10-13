@@ -28,6 +28,7 @@ class PromptManager:
             "Analyze the following resume text for evidence-based resume intelligence. "
             "Identify summary, skills, education, experience, projects, certifications, and achievements. "
             "For every skill, provide name, category, evidence, source_section, and confidence. "
+            "Keep all evidence descriptions concise (one brief phrase or short sentence) to avoid verbosity. "
             "Use the source_section values that best match where the fact appears: summary, skills, education, experience, projects, certifications, achievements, or unknown. "
             "If a fact is not present or cannot be verified, use null or an empty list and set confidence to Unverified or Self-reported when appropriate. "
             "Do not improve the resume or infer missing details.\n\n"
@@ -46,6 +47,8 @@ class PromptManager:
             "Priorities must reflect the supplied role requirements, evidence status, dependencies, and learning effort. "
             "Treat strongly evidenced skills as existing capabilities and recommend strengthening rather than beginner learning. "
             "Every gap reason, evidence item, and roadmap stage must be traceable to supplied data. "
+            "Keep all reasons, evidence items, and roadmap tasks concise (1-2 sentences). "
+            "Generate between 3 and 5 focused, actionable roadmap stages. "
             "Return only valid JSON matching the required schema."
         )
 
@@ -56,7 +59,8 @@ class PromptManager:
             "Compare the candidate evidence with the target role requirements and produce an explainable skill-gap analysis. "
             "Include every required output field. Use empty arrays when no evidence exists. "
             "For missing skills, use the exact reason 'Not found in available candidate evidence.' or explain the supplied requirement and evidence comparison without claiming certainty. "
-            "Build roadmap stages only from identified gaps or supported skills that need strengthening. "
+            "Build roadmap stages only from identified gaps or supported skills that need strengthening (generate 3 to 5 stages). "
+            "Keep reasons, evidence items, and practical tasks brief and actionable. "
             "Respect reasonable prerequisites and do not recommend learning a skill from zero when it is demonstrated.\n\n"
             f"TARGET_ROLE:\n{target_role}\n\n"
             f"TARGET_ROLE_REQUIREMENTS:\n{requirements}\n\n"

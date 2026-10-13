@@ -16,6 +16,9 @@ class Resume(Base):
     is_public = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    content_hash = Column(String(64), nullable=True, index=True)
+    parser_version = Column(String(64), nullable=True)
+    parsed_at = Column(DateTime, nullable=True)
     
     user = relationship("User", back_populates="resumes")
     parsed_resume = relationship(

@@ -244,7 +244,8 @@ def sync_linkedin_profile(
 
     db.commit()
     db.refresh(profile)
-
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, user)
     return profile
 
 

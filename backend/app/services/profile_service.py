@@ -12,4 +12,6 @@ def update_profile(db: Session, current_user: User, profile: ProfileUpdate):
         setattr(current_user, key, value)
     db.commit()
     db.refresh(current_user)
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return current_user

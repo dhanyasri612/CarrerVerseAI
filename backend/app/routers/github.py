@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends , HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -29,13 +29,15 @@ router = APIRouter(
 )
 def sync_github_profile(
     username: str,
+    force: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     return fetch_github_profile(
         db,
         username,
-        current_user
+        current_user,
+        force=force,
     )
 
 @router.get(
@@ -109,7 +111,8 @@ def select_github_repository(
 
     db.commit()
     db.refresh(repository)
-
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
     return repository
 
 @router.get(

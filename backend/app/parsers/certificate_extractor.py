@@ -1,6 +1,9 @@
 import os
 import re
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 import shutil
 import subprocess
 from datetime import datetime, date
@@ -327,45 +330,84 @@ STUDENT_ID_REGEX = r"\b[0-9]{2}[A-Za-z]{2,4}[0-9]{2,5}\b"
 
 
 def is_invalid_or_generic_title(title: Optional[str]) -> bool:
-    """Check if title is empty, recipient name, student ID, or generic boilerplate phrase."""
+    """
+    Check if title is empty, a recipient name, student ID, or generic boilerplate phrase.
+    Returns True (should be rejected) when the value is any of these invalid patterns.
+    """
     if not title:
         return True
     t = title.strip()
     t_lower = t.lower()
     if len(t) < 3:
         return True
-    
+
     # 1. Exact match, prefix match, or suffix match in blacklist
     if any(g == t_lower or t_lower.startswith(g) or t_lower.endswith(g) for g in GENERIC_TITLE_BLACKLIST):
         return True
-    
-    # 2. Key phrases anywhere inside text
+
+    # 2. Key boilerplate phrases anywhere inside text
     boilerplate_phrases = [
         "presented to", "awarded to", "this is to certify", "certifies that",
         "hereby certifies", "for successfully completing", "completion of the course",
         "national board of accreditation", "authorized signature", "authorized signatory",
-        "organizing secretary", "convenor", "co-ordinator", "coordinator", "programme coordinator",
-        "department of", "ministry of", "government of"
+        "organizing secretary", "convenor", "co-ordinator", "coordinator",
+        "programme coordinator", "department of", "ministry of", "government of",
+        "the successful completion", "issuing authority",
     ]
     if any(bp in t_lower for bp in boilerplate_phrases):
         return True
-        
+
     # 3. Recipient name prefixes (e.g. "Ms. DHANYASRI K", "Dr. John Doe")
     if re.search(RECIPIENT_PREFIX_REGEX, t, re.IGNORECASE):
         return True
-        
+
     # 4. Student reg number / roll number (e.g. 23AM018)
     if re.search(STUDENT_ID_REGEX, t):
         return True
-        
-    # 5. Names like "DHANYASRI K" or "K. DHANYASRI" (two words where one is a single letter initial and neither is a course keyword)
+
     words = t.split()
+
+    # 5. Two-word pattern where one word is a single letter initial
+    #    e.g. "DHANYASRI K" or "K. DHANYASRI"
     if len(words) == 2 and (len(words[0].rstrip(".")) == 1 or len(words[1].rstrip(".")) == 1):
-        course_keywords = ["programming", "language", "test", "course", "bootcamp", "workshop", "specialization", "cert", "skills", "engineering"]
+        course_keywords = [
+            "programming", "language", "test", "course", "bootcamp", "workshop",
+            "specialization", "cert", "skills", "engineering", "development", "design",
+        ]
         if not any(k in t_lower for k in course_keywords):
             return True
-        
+
+    # 6. All-uppercase personal name pattern (2–4 all-caps words, no technical abbreviation)
+    #    e.g. "DHANYASRI K SELVARAJ" — common in Indian OCR output
+    all_upper_words = re.findall(r"[A-Z]{2,}", t)
+    technical_abbrevs = {
+        "AI", "ML", "SQL", "API", "AWS", "GCP", "CSS", "HTML", "PHP",
+        "NLP", "IOT", "ETL", "DBA", "CRM", "ERP", "SDK", "CLI", "UI",
+        "UX", "OOP", "MVC", "REST", "JWT", "TLS", "SSL", "TCP",
+    }
+    if (
+        len(words) in (2, 3, 4)
+        and len(all_upper_words) == len(words)
+        and not any(w in technical_abbrevs for w in all_upper_words)
+    ):
+        return True
+
+    # 7. Title-case personal names: 2–3 words, all title-cased, no skill-related hint
+    #    e.g. "Dhanyasri Karthikeyan", "John Michael Smith"
+    title_case_words = re.findall(r"[A-Z][a-z]+", t)
+    if len(words) in (2, 3) and len(title_case_words) == len(words):
+        skill_hints = [
+            "programming", "language", "course", "certified", "certification",
+            "developer", "engineer", "architect", "analytics", "cloud",
+            "python", "java", "react", "data", "web", "ai", "machine", "learning",
+            "security", "network", "design", "fundamentals", "professional",
+            "communication", "writing", "presentation", "foundation", "associate",
+        ]
+        if not any(hint in t_lower for hint in skill_hints):
+            return True
+
     return False
+
 
 
 def parse_flexible_date(date_str: str) -> Optional[date]:
@@ -748,28 +790,29 @@ def ocr_image_bytes(image_bytes: bytes, ext: str = "png") -> str:
         except Exception:
             pass
 
-    try:
-        clean_ext = ext.lstrip(".").lower()
-        if clean_ext not in ["png", "jpg", "jpeg", "webp", "tiff"]:
-            clean_ext = "png"
-        img_doc = fitz.open(stream=image_bytes, filetype=clean_ext)
-        pdf_doc = fitz.open()
-        p0 = img_doc[0]
-        page = pdf_doc.new_page(width=p0.rect.width, height=p0.rect.height)
-        page.insert_image(page.rect, stream=image_bytes)
-        tp = page.get_textpage_ocr()
-        ocr_text = page.get_text(textpage=tp)
-        img_doc.close()
-        pdf_doc.close()
-        if ocr_text.strip():
-            return ocr_text
-    except Exception:
-        pass
+    if fitz is not None:
+        try:
+            clean_ext = ext.lstrip(".").lower()
+            if clean_ext not in ["png", "jpg", "jpeg", "webp", "tiff"]:
+                clean_ext = "png"
+            img_doc = fitz.open(stream=image_bytes, filetype=clean_ext)
+            pdf_doc = fitz.open()
+            p0 = img_doc[0]
+            page = pdf_doc.new_page(width=p0.rect.width, height=p0.rect.height)
+            page.insert_image(page.rect, stream=image_bytes)
+            tp = page.get_textpage_ocr()
+            ocr_text = page.get_text(textpage=tp)
+            img_doc.close()
+            pdf_doc.close()
+            if ocr_text.strip():
+                return ocr_text
+        except Exception:
+            pass
 
     return ""
 
 
-def ocr_pdf_page(page: fitz.Page) -> str:
+def ocr_pdf_page(page: Any) -> str:
     """Render a scanned PDF page to high-res image and perform OCR."""
     try:
         pix = page.get_pixmap(dpi=150)
@@ -787,6 +830,14 @@ def extract_from_pdf_bytes(file_bytes: bytes, filename: Optional[str] = None) ->
     link_annotations = []
     ocr_applied_pages = []
     raw_metadata = {"filename": filename or "certificate.pdf", "extractor": "PyMuPDF"}
+
+    if fitz is None:
+        return {
+            "raw_text": "",
+            "annotations": [],
+            "ocr_applied": False,
+            "metadata": raw_metadata,
+        }
 
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")

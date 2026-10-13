@@ -1,4 +1,5 @@
 import os
+import hashlib
 import shutil
 import uuid
 from fastapi import UploadFile, HTTPException
@@ -6,10 +7,19 @@ from sqlalchemy.orm import Session
 
 from app.models.resume import Resume
 from app.models.user import User
+from app.parsers.resume_parser import RESUME_PARSER_VERSION
 
 UPLOAD_DIR = "uploads/resumes"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _sha256_file(file_path: str) -> str:
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def upload_resume(
@@ -42,6 +52,21 @@ def upload_resume(
         shutil.copyfileobj(file.file, buffer)
 
     file_size = os.path.getsize(file_path)
+    content_hash = _sha256_file(file_path)
+
+    existing = (
+        db.query(Resume)
+        .filter(Resume.user_id == current_user.id, Resume.content_hash == content_hash)
+        .order_by(Resume.updated_at.desc())
+        .first()
+    )
+    if existing:
+        os.remove(file_path)
+        if existing.parser_version != RESUME_PARSER_VERSION:
+            existing.parsed_status = False
+            existing.parser_version = None
+            db.commit()
+        return existing
 
     resume = Resume(
         user_id=current_user.id,
@@ -49,13 +74,13 @@ def upload_resume(
         file_path=file_path,
         file_type=file.content_type,
         file_size=file_size,
-        parsed_status=False
+        parsed_status=False,
+        content_hash=content_hash,
     )
 
     db.add(resume)
     db.commit()
     db.refresh(resume)
-
     return resume
 
 
@@ -109,6 +134,8 @@ def delete_resume(
 
     db.delete(resume)
     db.commit()
+    from app.ai.stores.candidate_store_sync import sync_candidate_ai_stores_safe
+    sync_candidate_ai_stores_safe(db, current_user)
 
     return {
         "message": "Resume deleted successfully."

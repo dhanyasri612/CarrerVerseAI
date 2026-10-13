@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -23,6 +23,7 @@ router = APIRouter(
 )
 def sync_profile(
     username: str,
+    force: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -30,6 +31,7 @@ def sync_profile(
         db,
         username,
         current_user,
+        force=force,
     )
 
 

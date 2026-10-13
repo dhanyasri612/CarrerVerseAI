@@ -1,0 +1,74 @@
+/**
+ * CareerVerse Design System — Design Tokens
+ * Core spatial, elevation, typography, and atomic scale tokens
+ */
+
+:root {
+  /* Font Families */
+  --cv-font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --cv-font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --cv-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography Scale with Fluid Clamps */
+  --cv-text-display: clamp(2.5rem, 5vw + 1rem, 4.25rem);    /* 40px - 68px */
+  --cv-text-hero: clamp(2rem, 3.5vw + 0.75rem, 3.25rem);     /* 32px - 52px */
+  --cv-text-title: clamp(1.5rem, 2vw + 0.5rem, 2.125rem);    /* 24px - 34px */
+  --cv-text-headline: clamp(1.2rem, 1.2vw + 0.4rem, 1.5rem);/* 19px - 24px */
+  --cv-text-body-lg: 1.125rem;                               /* 18px */
+  --cv-text-body: 0.9375rem;                                 /* 15px */
+  --cv-text-body-sm: 0.8125rem;                              /* 13px */
+  --cv-text-caption: 0.6875rem;                              /* 11px */
+
+  /* Line Heights */
+  --cv-leading-tight: 1.12;
+  --cv-leading-snug: 1.25;
+  --cv-leading-normal: 1.5;
+  --cv-leading-relaxed: 1.65;
+
+  /* Letter Spacing */
+  --cv-tracking-tight: -0.025em;
+  --cv-tracking-normal: 0em;
+  --cv-tracking-wide: 0.04em;
+  --cv-tracking-widest: 0.08em;
+
+  /* Spacing Scale */
+  --cv-space-1: 0.25rem;   /* 4px */
+  --cv-space-2: 0.5rem;    /* 8px */
+  --cv-space-3: 0.75rem;   /* 12px */
+  --cv-space-4: 1rem;      /* 16px */
+  --cv-space-5: 1.25rem;   /* 20px */
+  --cv-space-6: 1.5rem;    /* 24px */
+  --cv-space-8: 2rem;      /* 32px */
+  --cv-space-10: 2.5rem;   /* 40px */
+  --cv-space-12: 3rem;     /* 48px */
+  --cv-space-16: 4rem;     /* 64px */
+  --cv-space-20: 5rem;     /* 80px */
+
+  /* Radii */
+  --cv-radius-xs: 4px;
+  --cv-radius-sm: 8px;
+  --cv-radius-md: 12px;
+  --cv-radius-lg: 16px;
+  --cv-radius-xl: 24px;
+  --cv-radius-full: 9999px;
+
+  /* Transitions & Motion */
+  --cv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --cv-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --cv-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --cv-dur-micro: 140ms;
+  --cv-dur-standard: 240ms;
+  --cv-dur-emphasis: 480ms;
+  --cv-dur-journey: 900ms;
+
+  /* Z-Index Layers */
+  --cv-z-base: 0;
+  --cv-z-raised: 10;
+  --cv-z-nav: 50;
+  --cv-z-header: 100;
+  --cv-z-popover: 200;
+  --cv-z-drawer: 300;
+  --cv-z-modal: 400;
+  --cv-z-toast: 500;
+  --cv-z-command: 600;
+}

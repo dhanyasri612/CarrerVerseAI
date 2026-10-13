@@ -1,53 +1,162 @@
+/**
+ * CareerVerse Design System Root Index — Editorial Edition
+ * Imports the unified editorial CSS ported from CareerVerse-Reimagined.zip
+ */
+
+@import './design-system/tokens.css';
+@import './design-system/themes.css';
+@import './design-system/typography.css';
+@import './design-system/motion.css';
+@import './design-system/cv-editorial.css';
+
+/* Backwards-compatibility bridge for existing tokens */
 :root {
-  font-family: Inter, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #e2e8f0;
-  background: #07111f;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color-scheme: dark;
+  --bg-page: var(--cv-bg);
+  --bg: var(--cv-bg);
+  --bg-subtle: var(--cv-bg-subtle);
+  --bg-surface: var(--cv-surface);
+  --surface: var(--cv-surface);
+  --surface-raised: var(--cv-surface-raised);
+  --bg-surface-hover: var(--cv-surface-active);
+  --bg-surface-active: var(--cv-surface-active);
+
+  --text-primary: var(--cv-text);
+  --text-secondary: var(--cv-text-muted);
+  --text-muted: var(--cv-text-muted);
+  --text-subtle: var(--cv-text-faint);
+  --text-inverse: var(--cv-text-inverse);
+
+  --border: var(--cv-border);
+  --border-color: var(--cv-border);
+  --border-subtle: var(--cv-border-subtle);
+  --border-hover: var(--cv-border-strong);
+  --border-focus: var(--cv-accent);
+
+  --accent: var(--cv-accent);
+  --accent-soft: var(--cv-accent-soft);
+  --primary: var(--cv-accent);
+  --primary-hover: var(--cv-accent-hover);
+  --primary-active: var(--cv-accent-hover);
+  --primary-light: var(--cv-accent-soft);
+  --primary-subtle: var(--cv-accent-soft);
+  --primary-text: var(--cv-accent);
+  --primary-border: var(--cv-accent-border);
+
+  --success: var(--cv-success);
+  --success-bg: var(--cv-success-soft);
+  --success-border: var(--cv-success);
+  --success-text: var(--cv-success);
+
+  --warning: var(--cv-warning);
+  --warning-bg: var(--cv-warning-soft);
+  --warning-border: var(--cv-warning);
+  --warning-text: var(--cv-warning);
+
+  --danger: var(--cv-danger);
+  --danger-bg: var(--cv-danger-soft);
+  --danger-border: var(--cv-danger);
+  --danger-text: var(--cv-danger);
+
+  --info: var(--cv-info);
+  --info-bg: var(--cv-info-soft);
+  --info-border: var(--cv-info);
+  --info-text: var(--cv-info);
+
+  --shadow-sm: var(--cv-shadow-sm);
+  --shadow-md: var(--cv-shadow-md);
+  --shadow-lg: var(--cv-shadow-lg);
+
+  --radius-sm: var(--cv-radius-sm);
+  --radius-md: var(--cv-radius-md);
+  --radius-lg: var(--cv-radius-lg);
+  --radius-full: var(--cv-radius-full);
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
 html {
+  font-family: var(--cv-font-sans);
+  font-size: 16px;
+  line-height: var(--cv-leading-normal);
+  color: var(--cv-text);
+  background-color: var(--cv-bg);
   scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #07111f;
-}
-
-img {
-  max-width: 100%;
-  display: block;
-}
-
-button,
-input {
-  font: inherit;
+  background-color: var(--cv-bg);
+  color: var(--cv-text);
 }
 
 #root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
-h1,
-h2,
-h3,
-p {
+h1, h2, h3, h4, h5, h6, p {
   margin-top: 0;
+  margin-bottom: 0;
 }
 
+:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+}
+
+/* Card & Component Interactive Utilities */
+.cv-card--hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cv-shadow-md);
+  border-color: var(--cv-border-strong);
+}
+
+.cv-card--interactive {
+  cursor: pointer;
+}
+
+.cv-pill--interactive:hover {
+  background-color: var(--cv-surface);
+  border-color: var(--cv-accent);
+  color: var(--cv-accent);
+}
+
+/* Responsive Media Queries */
+@media (max-width: 900px) {
+  .cv-nav-rail {
+    display: none !important;
+  }
+  .cv-mobile-bottom-nav {
+    display: flex !important;
+  }
+  .cv-main-content {
+    padding: var(--cv-space-4) !important;
+    padding-bottom: 80px !important;
+  }
+  .cv-top-bar {
+    padding: 0 var(--cv-space-3) !important;
+  }
+}

@@ -229,7 +229,16 @@ def _aggregate_projects(
         if isinstance(raw_p, list):
             for item in raw_p:
                 if isinstance(item, dict):
-                    title = item.get("title") or item.get("name") or "Project"
+                    title = item.get("title") or item.get("name") or item.get("project_name")
+                    if not title or title.strip().lower() in ("project", "unnamed", "unnamed project"):
+                        techs = item.get("technologies") or item.get("skills") or []
+                        desc = item.get("description") or ""
+                        if techs and isinstance(techs, list) and len(techs) > 0:
+                            title = f"{techs[0]} Project"
+                        elif desc:
+                            title = desc[:45].strip() + ("..." if len(desc) > 45 else "")
+                        else:
+                            title = "Technical Project"
                     key = title.lower()
                     if key not in seen_titles:
                         seen_titles.add(key)
@@ -243,12 +252,15 @@ def _aggregate_projects(
                             )
                         )
                 elif isinstance(item, str) and item.strip():
-                    key = item.strip().lower()
+                    raw_str = item.strip()
+                    title = raw_str if len(raw_str) <= 60 else raw_str[:57].strip() + "..."
+                    key = title.lower()
                     if key not in seen_titles:
                         seen_titles.add(key)
                         projects_list.append(
                             ProjectSummary(
-                                title=item.strip(),
+                                title=title,
+                                description=raw_str if len(raw_str) > 60 else None,
                                 source="candidate_profile"
                             )
                         )
@@ -259,7 +271,16 @@ def _aggregate_projects(
             if isinstance(pr.projects, list):
                 for item in pr.projects:
                     if isinstance(item, dict):
-                        title = item.get("title") or item.get("name") or "Project"
+                        title = item.get("title") or item.get("name") or item.get("project_name")
+                        if not title or title.strip().lower() in ("project", "unnamed", "unnamed project"):
+                            techs = item.get("technologies") or item.get("skills") or []
+                            desc = item.get("description") or ""
+                            if techs and isinstance(techs, list) and len(techs) > 0:
+                                title = f"{techs[0]} Project"
+                            elif desc:
+                                title = desc[:45].strip() + ("..." if len(desc) > 45 else "")
+                            else:
+                                title = "Technical Project"
                         key = title.lower()
                         if key not in seen_titles:
                             seen_titles.add(key)
@@ -273,12 +294,15 @@ def _aggregate_projects(
                                 )
                             )
                     elif isinstance(item, str) and item.strip():
-                        key = item.strip().lower()
+                        raw_str = item.strip()
+                        title = raw_str if len(raw_str) <= 60 else raw_str[:57].strip() + "..."
+                        key = title.lower()
                         if key not in seen_titles:
                             seen_titles.add(key)
                             projects_list.append(
                                 ProjectSummary(
-                                    title=item.strip(),
+                                    title=title,
+                                    description=raw_str if len(raw_str) > 60 else None,
                                     source="resume"
                                 )
                             )
@@ -732,7 +756,8 @@ def build_unified_candidate_profile(
         uploaded=len(resumes) > 0,
         count=len(resumes),
         latest_filename=resumes[0].file_name if resumes else None,
-        parsed_status=has_parsed_data
+        parsed_status=has_parsed_data,
+        parsed_at=next((r.parsed_at for r in resumes if r.parsed_at), None)
     )
 
     # GitHub Summary (aggregate repo languages if profile languages dict is empty)
@@ -753,7 +778,8 @@ def build_unified_candidate_profile(
         total_forks=github_profile.total_forks if github_profile else sum(r.forks or 0 for r in github_repositories),
         languages=gh_languages,
         top_topics=github_profile.topics if github_profile and isinstance(github_profile.topics, list) else [],
-        analyzed_repositories_count=len([r for r in github_repositories if r.selected_for_analysis])
+        analyzed_repositories_count=len([r for r in github_repositories if r.selected_for_analysis]),
+        updated_at=github_profile.updated_at if github_profile else None
     )
 
     # LinkedIn Summary (Never expose tokens!)
@@ -763,7 +789,8 @@ def build_unified_candidate_profile(
         email=linkedin_profile.email if linkedin_profile else None,
         email_verified=linkedin_profile.email_verified if linkedin_profile else None,
         profile_picture=linkedin_profile.profile_picture if linkedin_profile else None,
-        locale=linkedin_profile.locale if linkedin_profile else None
+        locale=linkedin_profile.locale if linkedin_profile else None,
+        updated_at=linkedin_profile.updated_at if linkedin_profile else None
     )
 
     # LeetCode Summary
@@ -780,7 +807,8 @@ def build_unified_candidate_profile(
         acceptance_rate=leetcode_profile.acceptance_rate if leetcode_profile else None,
         contest_rating=leetcode_profile.contest_rating if leetcode_profile else None,
         badges_count=len(leetcode_profile.badges) if leetcode_profile and isinstance(leetcode_profile.badges, list) else 0,
-        languages=leetcode_profile.languages if leetcode_profile and isinstance(leetcode_profile.languages, list) else []
+        languages=leetcode_profile.languages if leetcode_profile and isinstance(leetcode_profile.languages, list) else [],
+        updated_at=leetcode_profile.updated_at if leetcode_profile else None
     )
 
     # HackerRank Summary
@@ -794,7 +822,8 @@ def build_unified_candidate_profile(
         total_solved=hackerrank_profile.total_solved if hackerrank_profile else 0,
         badges_count=len(hackerrank_profile.badges) if hackerrank_profile and isinstance(hackerrank_profile.badges, list) else 0,
         certificates_count=len(hackerrank_profile.certificates) if hackerrank_profile and isinstance(hackerrank_profile.certificates, list) else 0,
-        badges=hackerrank_profile.badges if hackerrank_profile and isinstance(hackerrank_profile.badges, list) else []
+        badges=hackerrank_profile.badges if hackerrank_profile and isinstance(hackerrank_profile.badges, list) else [],
+        updated_at=hackerrank_profile.updated_at if hackerrank_profile else None
     )
 
     # Certifications Summary

@@ -5,6 +5,24 @@ from app.models.job import Job
 from app.schemas.job import JobCreate , JobUpdate
 
 
+def _normalized_job_title(title: str) -> str:
+    return " ".join((title or "").split()).casefold()
+
+
+def deduplicate_jobs(jobs):
+    """Keep the first catalog job for each normalized display title."""
+    unique = []
+    seen_titles = set()
+    for job in jobs:
+        title = job.get("title") if isinstance(job, dict) else getattr(job, "title", "")
+        key = _normalized_job_title(title)
+        if not key or key in seen_titles:
+            continue
+        seen_titles.add(key)
+        unique.append(job)
+    return unique
+
+
 def create_job(
     db: Session,
     job_data: JobCreate
@@ -26,7 +44,7 @@ def create_job(
     return job
 
 def get_all_jobs(db: Session):
-    return db.query(Job).all()
+    return deduplicate_jobs(db.query(Job).all())
 
 def get_job_by_id(
     db: Session,

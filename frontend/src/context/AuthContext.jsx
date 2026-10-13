@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { clearProfileSnapshot } from "../services/careerService";
 
 const AuthContext = createContext(null);
 
@@ -13,6 +14,7 @@ export function AuthProvider({ children }) {
   });
 
   const login = (response, fallbackUser) => {
+    clearProfileSnapshot();
     localStorage.setItem("cv_token", response.access_token);
     if (fallbackUser)
       localStorage.setItem("cv_user", JSON.stringify(fallbackUser));
@@ -21,6 +23,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    clearProfileSnapshot();
     localStorage.removeItem("cv_token");
     localStorage.removeItem("cv_user");
     setToken(null);
@@ -29,6 +32,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const handleUnauthorized = () => {
+      clearProfileSnapshot();
       setToken(null);
       setUser(null);
     };

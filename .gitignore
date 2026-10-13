@@ -1,0 +1,55 @@
+# Environments
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Databases & local storage
+*.db
+*.sqlite3
+backend/chroma_db/
+uploads/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archives & Temp
+*.zip
+*.tar.gz
+*.tar
+scratch/
+
+# Research, Presentations & PDF References (Not pushed to main)
+research/
+*.pptx
+ppt_extracted/
+*.pdf
+TESTING_AUDIT_REPORT.md
+frontend/screenshots_e2e/
+
+# Test files and test runners (Excluded from current push)
+backend/conftest.py
+backend/test_e2e_pipeline.py
+frontend/src/test/
+frontend/e2e_assertive_verification.cjs
+frontend/e2e_browser_test.cjs
