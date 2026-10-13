@@ -92,21 +92,43 @@ class LanguageDetector:
     def detect_unicode_script(self, text: str) -> Optional[Tuple[str, float]]:
         """
         Calculates character frequency across distinct Unicode script blocks.
+
+        Covered script ranges:
+          Tamil:     U+0B80 – U+0BFF
+          Devanagari (Hindi):  U+0900 – U+097F
+          Telugu:    U+0C00 – U+0C7F
+          Kannada:   U+0C80 – U+0CFF
+          Malayalam: U+0D00 – U+0D7F
         """
         tamil_chars = 0
         devanagari_chars = 0
+        telugu_chars = 0
+        kannada_chars = 0
+        malayalam_chars = 0
         latin_chars = 0
         total_letters = 0
 
         for char in text:
             code = ord(char)
-            # Tamil: 0x0B80 - 0x0BFF
+            # Tamil: U+0B80 – U+0BFF
             if 0x0B80 <= code <= 0x0BFF:
                 tamil_chars += 1
                 total_letters += 1
-            # Devanagari (Hindi): 0x0900 - 0x097F
+            # Devanagari (Hindi/Marathi): U+0900 – U+097F
             elif 0x0900 <= code <= 0x097F:
                 devanagari_chars += 1
+                total_letters += 1
+            # Telugu: U+0C00 – U+0C7F
+            elif 0x0C00 <= code <= 0x0C7F:
+                telugu_chars += 1
+                total_letters += 1
+            # Kannada: U+0C80 – U+0CFF
+            elif 0x0C80 <= code <= 0x0CFF:
+                kannada_chars += 1
+                total_letters += 1
+            # Malayalam: U+0D00 – U+0D7F
+            elif 0x0D00 <= code <= 0x0D7F:
+                malayalam_chars += 1
                 total_letters += 1
             elif char.isalpha() and ('a' <= char.lower() <= 'z'):
                 latin_chars += 1
@@ -117,6 +139,9 @@ class LanguageDetector:
 
         tamil_ratio = tamil_chars / total_letters
         devanagari_ratio = devanagari_chars / total_letters
+        telugu_ratio = telugu_chars / total_letters
+        kannada_ratio = kannada_chars / total_letters
+        malayalam_ratio = malayalam_chars / total_letters
 
         # If significant native script is present (even with embedded English words like 'FastAPI')
         if tamil_chars >= 2 and tamil_ratio >= 0.15:
@@ -126,6 +151,18 @@ class LanguageDetector:
         if devanagari_chars >= 2 and devanagari_ratio >= 0.15:
             conf = min(0.99, max(0.85, devanagari_ratio * 1.5))
             return "hi", conf
+
+        if telugu_chars >= 2 and telugu_ratio >= 0.15:
+            conf = min(0.99, max(0.85, telugu_ratio * 1.5))
+            return "te", conf
+
+        if kannada_chars >= 2 and kannada_ratio >= 0.15:
+            conf = min(0.99, max(0.85, kannada_ratio * 1.5))
+            return "kn", conf
+
+        if malayalam_chars >= 2 and malayalam_ratio >= 0.15:
+            conf = min(0.99, max(0.85, malayalam_ratio * 1.5))
+            return "ml", conf
 
         return None
 

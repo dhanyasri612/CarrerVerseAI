@@ -72,8 +72,9 @@ export const SUPPORTED_INTERVIEW_LANGUAGES = [
   { code: "en", bcp47: "en-IN", fallbackBcp47: "en-US", label: "English", flag: "🇮🇳", native: "English (India / US)" },
   { code: "ta", bcp47: "ta-IN", fallbackBcp47: "ta", label: "Tamil", flag: "🇮🇳", native: "தமிழ் / Tanglish" },
   { code: "hi", bcp47: "hi-IN", fallbackBcp47: "hi", label: "Hindi", flag: "🇮🇳", native: "हिन्दी / Hinglish" },
-  { code: "te", bcp47: "te-IN", fallbackBcp47: "te", label: "Telugu", flag: "🇮🇳", native: "తెలుగు" },
-  { code: "kn", bcp47: "kn-IN", fallbackBcp47: "kn", label: "Kannada", flag: "🇮🇳", native: "ಕನ್ನಡ" },
+  { code: "te", bcp47: "te-IN", fallbackBcp47: "te", label: "Telugu", flag: "🇮🇳", native: "తెలుగు", limitedSupport: true, limitedSupportNote: "Voice: rare outside Android/ChromeOS" },
+  { code: "kn", bcp47: "kn-IN", fallbackBcp47: "kn", label: "Kannada", flag: "🇮🇳", native: "ಕನ್ನಡ", limitedSupport: true, limitedSupportNote: "Beta — limited voice support on most platforms" },
+  { code: "ml", bcp47: "ml-IN", fallbackBcp47: "ml", label: "Malayalam", flag: "🇮🇳", native: "മലയാളം", limitedSupport: true, limitedSupportNote: "Beta — limited voice support on most platforms" },
   { code: "es", bcp47: "es-ES", fallbackBcp47: "es", label: "Spanish", flag: "🇪🇸", native: "Español" },
   { code: "fr", bcp47: "fr-FR", fallbackBcp47: "fr", label: "French", flag: "🇫🇷", native: "Français" },
   { code: "de", bcp47: "de-DE", fallbackBcp47: "de", label: "German", flag: "🇩🇪", native: "Deutsch" },
@@ -129,6 +130,7 @@ export function isVoiceAvailableForLang(voices = [], langCode = "en") {
   if (target === "en") {
     return voices.some((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
   }
+  // te, kn, ml: check by lang prefix only (voices rare but use what the browser provides)
   return voices.some((v) => v.lang && v.lang.toLowerCase().startsWith(target));
 }
 
@@ -151,13 +153,17 @@ export function getLanguageVoiceMatch(voices = [], langCode = "en", preferredUri
 
   const voice = findBestVoiceForLang(voices, cfg.code, preferredUri);
   if (!voice) {
+    // Produce an honest, language-specific message for limited-support languages
+    const limitedNote = cfg.limitedSupportNote
+      ? ` (${cfg.limitedSupportNote})`
+      : "";
     return {
       voice: null,
       isSupported: false,
       isExactLanguageMatch: false,
       voiceName: null,
       bcp47: cfg.bcp47,
-      message: `A compatible voice for ${cfg.label} (${cfg.bcp47}) is not installed on this system. Text display and keyboard interaction are active.`,
+      message: `A compatible voice for ${cfg.label} (${cfg.bcp47}) is not installed on this system${limitedNote}. Text display and keyboard interaction are active.`,
     };
   }
 
@@ -232,7 +238,31 @@ export function findBestVoiceForLang(voices = [], langCode = "en", preferredUri 
     return candidates.find((v) => v.lang && v.lang.toLowerCase().startsWith("en")) || candidates[0];
   }
 
-  // 5. Other Languages (es, fr, de, te, kn)
+  // 5. Telugu — strict match; will NOT fall through to English
+  if (target === "te") {
+    const teVoice = candidates.find(
+      (v) => v.lang && v.lang.toLowerCase().startsWith("te")
+    );
+    return teVoice || null;
+  }
+
+  // 6. Kannada — strict match; will NOT fall through to English
+  if (target === "kn") {
+    const knVoice = candidates.find(
+      (v) => v.lang && v.lang.toLowerCase().startsWith("kn")
+    );
+    return knVoice || null;
+  }
+
+  // 7. Malayalam — strict match; will NOT fall through to English
+  if (target === "ml") {
+    const mlVoice = candidates.find(
+      (v) => v.lang && v.lang.toLowerCase().startsWith("ml")
+    );
+    return mlVoice || null;
+  }
+
+  // 8. Other Languages (es, fr, de)
   const langVoices = candidates.filter(
     (v) => v.lang && v.lang.toLowerCase().startsWith(target)
   );

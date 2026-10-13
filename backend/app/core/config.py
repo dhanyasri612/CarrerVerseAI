@@ -50,7 +50,7 @@ raw_cors_origins = os.getenv(
 CORS_ORIGINS = [origin.strip() for origin in raw_cors_origins.split(",") if origin.strip()]
 
 # Multilingual AI Settings
-raw_supported_langs = os.getenv("SUPPORTED_LANGUAGES", "en,ta,hi")
+raw_supported_langs = os.getenv("SUPPORTED_LANGUAGES", "en,ta,hi,te,kn,ml")
 SUPPORTED_LANGUAGES = [lang.strip().lower() for lang in raw_supported_langs.split(",") if lang.strip()]
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en").strip().lower()
 LANGUAGE_DETECTION_ENABLED = os.getenv("LANGUAGE_DETECTION_ENABLED", "true").strip().lower() in ("true", "1", "yes")

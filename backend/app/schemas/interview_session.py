@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.schemas.language import normalize_language_code
 
 
 INTERVIEW_MODES = {
@@ -21,7 +22,7 @@ INTERVIEW_MODES = {
     "github",
     "comprehensive",
 }
-SUPPORTED_LANGUAGES = {"en", "ta", "hi", "es", "fr", "de", "te", "kn"}
+SUPPORTED_LANGUAGES = {"en", "ta", "hi", "es", "fr", "de", "te", "kn", "ml"}
 
 
 class InterviewSessionCreateRequest(BaseModel):
@@ -41,7 +42,7 @@ class InterviewSessionCreateRequest(BaseModel):
     @field_validator("language")
     @classmethod
     def validate_language(cls, value: str) -> str:
-        value = value.strip().lower()
+        value = normalize_language_code(value)
         if value not in SUPPORTED_LANGUAGES:
             raise ValueError(f"language must be one of: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
         return value
@@ -73,8 +74,10 @@ class InterviewAnswerRequest(BaseModel):
     def validate_answer_language(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
-        v = value.strip().lower()
-        return v if v in SUPPORTED_LANGUAGES else "en"
+        v = normalize_language_code(value)
+        if v not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"language must be one of: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        return v
 
 
 class InterviewQuestionPayload(BaseModel):
