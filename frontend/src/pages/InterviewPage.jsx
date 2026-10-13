@@ -821,10 +821,10 @@ export default function InterviewPage() {
         }
         const fullText = (finalTranscript + (interimTranscript ? " " + interimTranscript : "")).trim();
         if (fullText) {
-          // Auto-detect language if user spoke in Tamil, Hindi, Telugu, or Kannada
+          // Detection is diagnostic only. The explicit selection remains the
+          // session language so recognition cannot silently switch the request context.
           const detected = detectLanguageFromText(fullText);
           if (detected && detected !== selectedLanguage) {
-            handleLanguageChange(detected);
             const dObj = getLanguageConfig(detected);
             setDetectedLangBadge(`🌐 Auto-detected ${dObj?.label || detected} (${dObj?.native || ""})`);
             setTimeout(() => setDetectedLangBadge(null), 4000);
@@ -1234,11 +1234,13 @@ export default function InterviewPage() {
       const match = getLanguageVoiceMatch(allVoices, targetLang, selectedVoiceURI);
       setVoiceStatus(match);
 
-      // If user selected Tamil or Hindi and no compatible voice is installed on device/browser:
+      // If no compatible voice found (or no voice object), block for every non-English language.
       // DO NOT silently fall back to an English voice!
-      if ((targetLang === "ta" || targetLang === "hi") && !match.isSupported) {
-        setIsAgentSpeaking(false);
-        return;
+      if (!match.isSupported || !match.voice) {
+        if (targetLang !== "en") {
+          setIsAgentSpeaking(false);
+          return;
+        }
       }
 
       const utterance = new SpeechSynthesisUtterance(clean);

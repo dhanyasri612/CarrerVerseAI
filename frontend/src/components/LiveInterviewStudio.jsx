@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import CyraRobotAvatar from "./CyraRobotAvatar";
 import { chatWithCyra } from "../services/careerService";
+import { getLanguageConfig } from "../services/speechService";
 
 export default function LiveInterviewStudio({
   role = "Software Engineer (SDE)",
@@ -108,6 +109,8 @@ export default function LiveInterviewStudio({
   connectedResources = null,
   error = null,
   setError = () => {},
+  availableVoices = [],
+  onSelectVoice = () => {},
 }) {
   // Normalize active mode
   const activeMode = (mode || interviewMode || "dsa").toLowerCase();
@@ -556,6 +559,72 @@ export default function LiveInterviewStudio({
               </select>
             </div>
 
+            {/* Voice Picker */}
+            {availableVoices && availableVoices.length > 0 && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "5px 10px",
+                  borderRadius: "10px",
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                }}
+              >
+                <Volume2 size={13} color="#7c3aed" />
+                <select
+                  value={voiceStatus?.voice?.voiceURI || ""}
+                  onChange={(e) => onSelectVoice(e.target.value)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: "#1e293b",
+                    cursor: "pointer",
+                    outline: "none",
+                    maxWidth: "160px",
+                  }}
+                  title="Select TTS Voice"
+                >
+                  <option value="">— Select Voice —</option>
+                  {(() => {
+                    const cfg = getLanguageConfig(selectedLanguage);
+                    const langVoices = availableVoices.filter((v) =>
+                      v.lang && v.lang.toLowerCase().startsWith(cfg.bcp47.toLowerCase().slice(0, 2))
+                    );
+                    const otherVoices = availableVoices.filter((v) =>
+                      !v.lang || !v.lang.toLowerCase().startsWith(cfg.bcp47.toLowerCase().slice(0, 2))
+                    );
+                    return (
+                      <>
+                        {langVoices.length > 0 && (
+                          <optgroup label={`${cfg.label} Voices`}>
+                            {langVoices.map((v) => (
+                              <option key={v.voiceURI} value={v.voiceURI}>
+                                {v.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {otherVoices.length > 0 && (
+                          <optgroup label="Other Voices">
+                            {otherVoices.map((v) => (
+                              <option key={v.voiceURI} value={v.voiceURI}>
+                                {v.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
+                    );
+                  })()}
+                </select>
+              </div>
+            )}
+
             {/* Voice & Speech State Badges */}
             {isGeneratingQuestion && (
               <span
@@ -572,7 +641,7 @@ export default function LiveInterviewStudio({
                   borderRadius: "8px",
                 }}
               >
-                <Loader2 size={12} className="animate-spin" /> Generating {selectedLanguage === "ta" ? "Tamil" : selectedLanguage === "hi" ? "Hindi" : "English"} Question...
+                <Loader2 size={12} className="animate-spin" /> Generating {getLanguageConfig(selectedLanguage).label} Question...
               </span>
             )}
             {isAgentSpeaking && (
@@ -590,7 +659,7 @@ export default function LiveInterviewStudio({
                   borderRadius: "8px",
                 }}
               >
-                <Volume2 size={12} /> Speaking ({selectedLanguage === "ta" ? "ta-IN" : selectedLanguage === "hi" ? "hi-IN" : "en-IN"})
+                <Volume2 size={12} /> Speaking ({getLanguageConfig(selectedLanguage).bcp47})
               </span>
             )}
             {isListening && (
@@ -608,10 +677,10 @@ export default function LiveInterviewStudio({
                   borderRadius: "8px",
                 }}
               >
-                <Mic size={12} /> Listening ({selectedLanguage === "ta" ? "ta-IN" : selectedLanguage === "hi" ? "hi-IN" : "en-IN"})...
+                <Mic size={12} /> Listening ({getLanguageConfig(selectedLanguage).bcp47})...
               </span>
             )}
-            {voiceStatus && !voiceStatus.isSupported && (selectedLanguage === "ta" || selectedLanguage === "hi") && (
+            {voiceStatus && !voiceStatus.isSupported && selectedLanguage !== "en" && (
               <span
                 style={{
                   display: "inline-flex",
@@ -627,7 +696,7 @@ export default function LiveInterviewStudio({
                 }}
                 title={voiceStatus.message}
               >
-                <AlertTriangle size={12} /> {selectedLanguage === "ta" ? "Tamil" : "Hindi"} Voice Not Installed (Text Active)
+                <AlertTriangle size={12} /> {getLanguageConfig(selectedLanguage).label} Voice Not Installed (Text Active)
               </span>
             )}
             {voiceStatus && voiceStatus.isSupported && (
@@ -646,7 +715,7 @@ export default function LiveInterviewStudio({
                 }}
                 title={voiceStatus.message}
               >
-                <Volume2 size={12} /> {voiceStatus.voiceName ? `${voiceStatus.voiceName} (${selectedLanguage === "ta" ? "Tamil" : selectedLanguage === "hi" ? "Hindi" : "en-IN"})` : "Voice Ready"}
+                <Volume2 size={12} /> {voiceStatus.voiceName ? `${voiceStatus.voiceName} (${getLanguageConfig(selectedLanguage).label})` : "Voice Ready"}
               </span>
             )}
             {micStatus?.state === "denied" && (
