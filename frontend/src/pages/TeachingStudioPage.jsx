@@ -48,6 +48,7 @@ import {
   chatWithTeachingMentor,
 } from "../services/careerService";
 import { useAuth } from "../context/AuthContext";
+import { speakTextInLanguage } from "../services/speechService";
 
 export const SUPPORTED_TEACHING_LANGUAGES = [
   { code: "en", bcp47: "en-US", label: "English", flag: "🇺🇸", native: "English" },
@@ -363,19 +364,11 @@ export default function TeachingStudioPage() {
 
       // Speak Cyra's affirmation & right/wrong feedback in selected language
       if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
         const speechText = result.what_is_right ? result.what_is_right.slice(0, 160) : "Great approach.";
-        const utterance = new SpeechSynthesisUtterance(speechText);
-        const langObj = SUPPORTED_TEACHING_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_TEACHING_LANGUAGES[0];
-        utterance.lang = langObj.bcp47;
-        const voices = window.speechSynthesis.getVoices();
-        const matchVoice = voices.find((v) => v.lang === langObj.bcp47 || v.lang.startsWith(langObj.code));
-        if (matchVoice) utterance.voice = matchVoice;
-        utterance.rate = 1.0;
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        setIsSpeaking(true);
-        window.speechSynthesis.speak(utterance);
+        setIsSpeaking(speakTextInLanguage(speechText, selectedLanguage, {
+          onUnsupported: (match) => setErrorMsg(match.message),
+          onStarted: (v) => setIsSpeaking(v),
+        }));
       }
     } catch (err) {
       console.error("Evaluation error:", err);
@@ -456,18 +449,13 @@ export default function TeachingStudioPage() {
       ? `${teachingResult.masterclass_lesson} Key takeaway: ${teachingResult.key_takeaway}`
       : `${activeLesson?.concept_summary} Challenge: ${activeLesson?.challenge_question}`;
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(textToSpeak.slice(0, 450));
-    const langObj = SUPPORTED_TEACHING_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_TEACHING_LANGUAGES[0];
-    utterance.lang = langObj.bcp47;
-    const voices = window.speechSynthesis.getVoices();
-    const matchVoice = voices.find((v) => v.lang === langObj.bcp47 || v.lang.startsWith(langObj.code));
-    if (matchVoice) utterance.voice = matchVoice;
-    utterance.rate = 1.0;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(speakTextInLanguage(textToSpeak.slice(0, 450), selectedLanguage, {
+      onUnsupported: (match) => {
+        setErrorMsg(match.message);
+        setIsSpeaking(false);
+      },
+      onStarted: (v) => setIsSpeaking(v),
+    }));
   };
 
   const getSectionIcon = (iconName) => {

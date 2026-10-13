@@ -243,6 +243,52 @@ export function findBestVoiceForLang(voices = [], langCode = "en", preferredUri 
 
 
 /**
+ * Speak only with a voice that matches the requested language. Returns false
+ * when the browser has no compatible voice, so callers can keep text active
+ * and show an honest capability message.
+ *
+ * @param {string} text - The text to speak.
+ * @param {string} [langCode='en'] - Two-character language code (e.g. 'ta', 'hi', 'en').
+ * @param {object} [options={}]
+ * @param {function} [options.onUnsupported] - Called with the voice-match object when no voice is available.
+ * @param {function} [options.onStarted] - Called with `true` when speech actually starts (useful for async voice load).
+ * @param {number} [options.rate=1] - Speech rate.
+ * @param {number} [options.pitch=1] - Speech pitch.
+ * @returns {boolean} true if speech started synchronously; false if voices were not yet loaded or no voice available.
+ */
+export function speakTextInLanguage(text, langCode = "en", options = {}) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window) || !text) return false;
+  const { onUnsupported, onStarted, rate = 1, pitch = 1 } = options;
+  const synth = window.speechSynthesis;
+  const cfg = getLanguageConfig(langCode);
+  const speak = () => {
+    const match = getLanguageVoiceMatch(synth.getVoices() || [], cfg.code);
+    if (!match.isSupported || !match.voice) {
+      onUnsupported?.(match);
+      return false;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(String(text));
+    utterance.lang = cfg.bcp47;
+    utterance.voice = match.voice;
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    synth.speak(utterance);
+    return true;
+  };
+  if ((synth.getVoices() || []).length === 0) {
+    const retry = () => {
+      synth.removeEventListener?.("voiceschanged", retry);
+      const started = speak();
+      if (started) onStarted?.(true);
+    };
+    synth.addEventListener?.("voiceschanged", retry);
+    return false;
+  }
+  return speak();
+}
+
+/**
  * Sanitizes technical interview question text for natural speech synthesis.
  * Strips code blocks, curly braces, technical schemas, and replaces complexity notation
  * with human-spoken equivalents so TTS is crystal clear and conversational.
