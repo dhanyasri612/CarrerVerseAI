@@ -1,0 +1,9 @@
+{
+  "backend_total": 9,
+  "backend_passed": 9,
+  "backend_failed": 0,
+  "frontend_total": 17,
+  "frontend_passed": 17,
+  "frontend_failed": 0,
+  "notes": "All 9 backend scenarios in test_multilingual_regression.py pass (English/Tamil/Hindi prompt injection, Tanglish detection, 3-turn persistence, LangGraph state preservation, mid-session language switch, session isolation, retry/repair language preservation). All 17 frontend assertions in speechServiceMultilingual.regression.test.js pass across scenarios 10-12 (speech recognition locale, missing-voice truthful fallback, English smoke tests). Full backend suite: 107 passed, 1 pre-existing flaky failure (test_cyra_chat_multilingual_response makes real LLM calls; model returned Hinglish rather than Devanagari — not introduced by FEAT-002, documented in FEAT-002.json findings). Full frontend suite: 136 passed across 15 files, 0 failed. 3 pre-existing backend collection errors (fitz module missing) are unrelated to this feature."
+}
