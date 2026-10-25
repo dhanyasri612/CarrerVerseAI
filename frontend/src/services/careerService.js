@@ -87,8 +87,8 @@ export const syncLeetCode = async (username, force = true) =>
   (await api.post(`/leetcode/sync/${encodeURIComponent(username)}?force=${force}`)).data;
 export const syncHackerRank = async (username, force = true) =>
   (await api.post(`/hackerrank/sync/${encodeURIComponent(username)}?force=${force}`)).data;
-export const getGithubRepositories = async () =>
-  (await api.get("/github/repositories")).data;
+export const getGithubRepositories = async (params = {}) =>
+  (await api.get("/github/repositories", { params })).data;
 export const getUnifiedProfile = async () =>
   (await api.get("/candidate-intelligence/unified-profile")).data;
 export const getLeetCodeProfile = async () =>
@@ -134,6 +134,7 @@ export const getLearningRoadmap = async (targetRole = null) => {
     role = sessionStorage.getItem("careerverse_target_role");
   }
   const effectiveRole = role || "Software Developer";
+
   try {
     const resumes = await getResumes();
     const resume = Array.isArray(resumes) ? resumes[0] : null;
@@ -148,7 +149,7 @@ export const getLearningRoadmap = async (targetRole = null) => {
     console.warn("Resume-based roadmap lookup fell back to AI evaluation agent:", err);
   }
 
-  // Grounded Multi-Source Fallback: Generate structured roadmap from LangGraph skill gap agent
+  // 3. Grounded Multi-Source Fallback: Generate structured roadmap from LangGraph skill gap agent
   try {
     const skillGap = await aiSkillGap(effectiveRole);
     const gaps = skillGap?.skill_gaps || [];
@@ -278,24 +279,40 @@ export const createInterviewSession = async (
   interviewMode = "technical",
   language = "en",
   focusTopic = null,
+  repositoryId = null,
+  sessionMode = "fresh",
+  totalCoreQuestions = 5,
 ) => {
   let role = targetRole;
   let mode = interviewMode;
   let lang = language;
   let focus = focusTopic;
+  let repoId = repositoryId;
+  let sessMode = sessionMode;
+  let totalQuestions = totalCoreQuestions;
   if (typeof targetRole === "object" && targetRole !== null) {
     role = targetRole.target_role || targetRole.role;
     mode = targetRole.interview_mode || mode || "technical";
     lang = targetRole.language || lang || "en";
     focus = targetRole.focus_topic || targetRole.topic || focus;
+    repoId = targetRole.repository_id || repoId;
+    sessMode = targetRole.session_mode || sessMode || "fresh";
+    totalQuestions = targetRole.total_core_questions || targetRole.totalQuestions || totalQuestions;
   }
   const payload = {
     target_role: role || null,
     interview_mode: mode || "technical",
     language: lang || "en",
+    total_core_questions: Number(totalQuestions) || 5,
   };
   if (focus && typeof focus === "string" && focus.trim()) {
     payload.focus_topic = focus.trim();
+  }
+  if (repoId) {
+    payload.repository_id = repoId;
+  }
+  if (sessMode) {
+    payload.session_mode = sessMode;
   }
   return (
     await api.post("/ai/career/interview/session", payload, aiRequestConfig)
@@ -334,6 +351,27 @@ export const completeInterviewSession = async (sessionId) => {
   const sId = typeof sessionId === "object" ? (sessionId?.session_id || sessionId?.id) : sessionId;
   return (await api.post(`/ai/career/interview/session/${sId}/complete`, undefined, aiRequestConfig)).data;
 };
+
+export const endInterviewSession = async (sessionId) => {
+  const sId = typeof sessionId === "object" ? (sessionId?.session_id || sessionId?.id) : sessionId;
+  return (await api.post(`/ai/career/interview/session/${sId}/end`, undefined, aiRequestConfig)).data;
+};
+
+export const recordProctoringEvent = async (sessionId, eventType, durationMs = null, metadata = {}) => {
+  const sId = typeof sessionId === "object" ? (sessionId?.session_id || sessionId?.id) : sessionId;
+  const payload = {
+    event_type: eventType,
+    duration_ms: durationMs,
+    metadata: metadata || {},
+  };
+  return (await api.post(`/ai/career/interview/session/${sId}/proctoring/events`, payload, aiRequestConfig)).data;
+};
+
+export const getInterviewProctoringSummary = async (sessionId) => {
+  const sId = typeof sessionId === "object" ? (sessionId?.session_id || sessionId?.id) : sessionId;
+  return (await api.get(`/ai/career/interview/session/${sId}/proctoring/summary`, aiRequestConfig)).data;
+};
+
 
 export const updateInterviewSessionLanguage = async (sessionId, language) => {
   const sId = typeof sessionId === "object" ? (sessionId?.session_id || sessionId?.id) : sessionId;
@@ -428,6 +466,19 @@ export const getTeachingConceptMap = async (lessonId = null) => {
 export const getSkillLearningPath = async (skill) => {
   return (await api.get(`/ai/career/teaching/skill-path?skill=${encodeURIComponent(skill)}`, aiRequestConfig)).data;
 };
+export const getTeachingSkillPath = getSkillLearningPath;
+
+/** GET /ai/career/teaching/lesson-detail */
+export const getTeachingLessonDetail = async ({ skill, concept, lessonId, learnerLevel = "Intermediate", section, aiGenerated }) => {
+  const params = new URLSearchParams();
+  if (skill) params.append("skill", skill);
+  if (concept) params.append("concept", concept);
+  if (lessonId) params.append("lesson_id", lessonId);
+  if (learnerLevel) params.append("learner_level", learnerLevel);
+  if (section) params.append("section", section);
+  if (aiGenerated !== undefined && aiGenerated !== null) params.append("ai_generated", String(aiGenerated));
+  return (await api.get(`/ai/career/teaching/lesson-detail?${params.toString()}`, aiRequestConfig)).data;
+};
 
 /** GET /ai/career/teaching/project-path */
 export const getProjectLearningPath = async (repositoryId, forceRefresh = false) => {
@@ -444,5 +495,62 @@ export const chatWithTeachingMentor = async (payload) => {
   return (await api.post("/ai/career/teaching/chat", payload, aiRequestConfig)).data;
 };
 
+/** GET /github/repositories/{id}/files */
+export const getRepositoryFiles = async (repositoryId) => {
+  return (await api.get(`/github/repositories/${repositoryId}/files`)).data;
+};
 
+/** GET /github/files/{id}/content */
+export const getRepositoryFileContent = async (fileId) => {
+  return (await api.get(`/github/files/${fileId}/content`)).data;
+};
 
+/** POST /ai/career/teaching/code-question */
+export const getCodeQuestionForFile = async (payload) => {
+  return (await api.post("/ai/career/teaching/code-question", payload, aiRequestConfig)).data;
+};
+
+/** POST /ai/career/teaching/file-explanation */
+export const getFileExplanation = async (payload) => {
+  return (await api.post("/ai/career/teaching/file-explanation", payload, aiRequestConfig)).data;
+};
+
+/** POST /course-documents/upload (PDF, MD, TXT - max 15MB) */
+export const uploadCourseDocument = async (file, onUploadProgress) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return (
+    await api.post("/course-documents/upload", formData, {
+      ...aiRequestConfig,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress,
+    })
+  ).data;
+};
+
+/** GET /course-documents */
+export const getCourseDocuments = async () => {
+  return (await api.get("/course-documents", aiRequestConfig)).data;
+};
+
+/** GET /course-documents/:id */
+export const getCourseDocumentDetail = async (documentId) => {
+  return (await api.get(`/course-documents/${documentId}`, aiRequestConfig)).data;
+};
+
+/** DELETE /course-documents/:id */
+export const deleteCourseDocument = async (documentId) => {
+  return (await api.delete(`/course-documents/${documentId}`, aiRequestConfig)).data;
+};
+
+/** GET /course-documents/search */
+export const searchCourseMaterials = async (query, topK = 4) => {
+  return (
+    await api.get(
+      `/course-documents/search?q=${encodeURIComponent(query)}&top_k=${topK}`,
+      aiRequestConfig
+    )
+  ).data;
+};
