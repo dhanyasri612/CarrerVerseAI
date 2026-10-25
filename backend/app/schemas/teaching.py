@@ -52,6 +52,49 @@ class TeachingLesson(BaseModel):
     code_walkthrough: Optional[str] = None
     repo_file_citations: List[Dict[str, Any]] = Field(default_factory=list)
     is_demonstrated: bool = False
+    masterclass_solution: Optional[str] = None
+    status_type: Optional[str] = "recommended"
+    # Comprehensive 15-section structured teaching fields
+    what_it_is: Optional[str] = None
+    why_it_exists: Optional[str] = None
+    detailed_explanation: Optional[str] = None
+    terminology_and_mental_models: Optional[str] = None
+    expected_output: Optional[str] = None
+    debugging_tips: Optional[str] = None
+    edge_cases_and_limitations: Optional[str] = None
+    real_world_applications: Optional[str] = None
+    interview_questions: Optional[List[Dict[str, str]]] = Field(default_factory=list)
+    practice_exercises: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    knowledge_check_questions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    verified_resources_count: Optional[int] = 0
+    what_you_will_learn: Optional[List[str]] = Field(default_factory=list)
+    key_takeaways: Optional[List[str]] = Field(default_factory=list)
+    duration: Optional[str] = "12 min"
+    quick_check: Optional[Dict[str, Any]] = None
+
+
+class TeachingLessonDetailRequest(BaseModel):
+    skill: str = Field(..., description="Selected resume skill, e.g. Python, React.js, LangChain")
+    concept_title: Optional[str] = Field(None, description="Target concept title")
+    concept: Optional[str] = Field(None, description="Alias for concept_title")
+    lesson_id: Optional[str] = Field(None, description="Optional lesson identifier")
+    learner_level: Optional[str] = Field("Intermediate", description="Beginner, Intermediate, or Advanced")
+    requested_section: Optional[str] = Field(None, description="Optional specific section requested")
+    section: Optional[str] = Field(None, description="Alias for requested_section")
+    ai_generated: Optional[bool] = Field(False, description="When True, use AI-driven lesson generation instead of curated templates")
+
+
+class TeachingLessonDetailResponse(BaseModel):
+    skill: str
+    concept_title: str
+    lesson_id: str
+    learner_level: str = "Intermediate"
+    lesson: TeachingLesson
+    validation_status: str = "verified_relevant"  # "verified_relevant" | "fallback_curated" | "insufficient_source"
+    validation_details: Optional[str] = None
+    relevance_status: Optional[str] = "verified"
+    relevance_reason: Optional[str] = None
+    citations: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 
 class TeachingSection(BaseModel):
@@ -218,6 +261,11 @@ class TeachingChatRequest(BaseModel):
     chat_history: List[TeachingChatTurn] = Field(default_factory=list)
     is_assessment: bool = False
     code_workspace: Optional[str] = None
+    workspace_code: Optional[str] = None
+    repository_id: Optional[int] = None
+    file_path: Optional[str] = None
+    file_id: Optional[int] = None
+    active_file_content: Optional[str] = None
     language: Optional[str] = "en"
 
 
@@ -226,14 +274,59 @@ class TeachingChatResponse(BaseModel):
     teaching_mode: str
     target_id: str
     lesson_id: Optional[str] = None
+    file_path: Optional[str] = None
     current_stage: str = "explanation"
     citations: List[Dict[str, Any]] = Field(default_factory=list)
+    companion_files: List[Dict[str, Any]] = Field(default_factory=list)
     suggested_follow_ups: List[str] = Field(default_factory=list)
     is_assessment: bool = False
     assessment_evaluation: Optional[Dict[str, Any]] = None
     demonstrated_understanding: bool = False
     recommended_next_action: Optional[str] = None
     audio_narrative: Optional[str] = None
+    limitations: Optional[str] = None
 
 
+# ── CODE UNDERSTANDING & FILE EXPLANATION SCHEMAS ────────────────────────────
+class CodeQuestionRequest(BaseModel):
+    repository_id: int
+    file_id: Optional[int] = None
+    file_path: Optional[str] = None
+    category: Optional[str] = None
 
+
+class CodeQuestionResponse(BaseModel):
+    question_title: str
+    question_prompt: str
+    file_path: str
+    code_snippet: str
+    start_line: int = 1
+    end_line: int = 1
+    hints: List[str] = Field(default_factory=list)
+    key_concept: str
+
+
+class FileExplanationRequest(BaseModel):
+    repository_id: int
+    file_id: Optional[int] = None
+    file_path: Optional[str] = None
+    file_content: Optional[str] = None
+
+
+class FileExplanationResponse(BaseModel):
+    file_path: str
+    file_responsibility: str
+    why_it_exists: str
+    important_symbols: List[Dict[str, Any]] = Field(default_factory=list)
+    execution_flow: str
+    dependencies: List[str] = Field(default_factory=list)
+    programming_concepts: List[str] = Field(default_factory=list)
+    edge_cases_and_security: str
+    practical_example: str
+    code_snippet: str
+    citations: List[Dict[str, Any]] = Field(default_factory=list)
+    companion_files: List[Dict[str, Any]] = Field(default_factory=list)
+    step_by_step_walkthrough: Optional[str] = None
+    loop_conditions_and_structure: Optional[str] = None
+    expected_output: Optional[str] = None
+    limitations: Optional[str] = None

@@ -26,6 +26,12 @@ from app.schemas.teaching import (
     RepositoryUnderstandingModel,
     TeachingChatRequest,
     TeachingChatResponse,
+    TeachingLessonDetailRequest,
+    TeachingLessonDetailResponse,
+    CodeQuestionRequest,
+    CodeQuestionResponse,
+    FileExplanationRequest,
+    FileExplanationResponse,
 )
 from app.services.skill_gap_ai_service import analyze_skill_gap_with_roadmap
 from app.services.resume_ai_service import analyze_resume_intelligence
@@ -146,12 +152,22 @@ from app.services.conversational_interview_service import (
     InterviewSessionStateError,
     complete_interview_session,
     create_interview_session,
+    end_interview_session,
     get_candidate_connected_resources,
     get_candidate_interview_sessions,
     get_candidate_question_history,
     get_interview_session,
     submit_interview_answer,
     update_session_language,
+)
+from app.schemas.proctoring import (
+    ProctoringEventCreateRequest,
+    ProctoringEventResponse,
+    ProctoringSummaryResponse,
+)
+from app.services.proctoring_service import (
+    record_proctoring_event,
+    get_session_proctoring_summary,
 )
 from app.schemas.profile_quiz import QuizAnswerRequest, QuizSessionCreateRequest, QuizSessionResponse
 from app.services.profile_quiz_service import (
@@ -483,6 +499,71 @@ def complete_conversational_interview(
         raise _handle_ai_error(exc) from exc
 
 
+@router.post(
+    "/career/interview/session/{session_id}/end",
+    response_model=InterviewSessionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="End an active conversational interview session early",
+)
+@router.patch(
+    "/career/interview/session/{session_id}/end",
+    response_model=InterviewSessionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="End an active conversational interview session early",
+)
+def end_conversational_interview(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> InterviewSessionResponse:
+    try:
+        return end_interview_session(db, current_user, session_id)
+    except InterviewSessionNotFound as exc:
+        raise HTTPException(status_code=404, detail="Interview session not found") from exc
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+@router.post(
+    "/career/interview/session/{session_id}/proctoring/events",
+    response_model=ProctoringEventResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Record a browser or media telemetry integrity event",
+)
+def record_interview_proctoring_event(
+    session_id: str,
+    request: ProctoringEventCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProctoringEventResponse:
+    try:
+        return record_proctoring_event(db, current_user, session_id, request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+@router.get(
+    "/career/interview/session/{session_id}/proctoring/summary",
+    response_model=ProctoringSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve session proctoring summary decoupled from technical scores",
+)
+def read_interview_proctoring_summary(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProctoringSummaryResponse:
+    try:
+        return get_session_proctoring_summary(db, current_user, session_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+
 @router.get(
     "/career/interview/sessions",
     response_model=List[InterviewSessionSummaryResponse],
@@ -547,6 +628,54 @@ def read_candidate_interview_resources_and_modes(
 ):
     try:
         return get_candidate_connected_resources(db, current_user)
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+
+@router.get(
+    "/career/teaching/lesson-detail",
+    response_model=TeachingLessonDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get comprehensive 15-section AI teaching lesson with semantic relevance validation",
+)
+def get_teaching_lesson_detail(
+    skill: str,
+    concept: Optional[str] = None,
+    lesson_id: Optional[str] = None,
+    learner_level: str = "Intermediate",
+    section: Optional[str] = None,
+    ai_generated: bool = False,
+    current_user: User = Depends(get_current_user),
+) -> TeachingLessonDetailResponse:
+    from app.services.lesson_generation_service import generate_comprehensive_lesson
+    try:
+        req = TeachingLessonDetailRequest(
+            skill=skill,
+            concept=concept,
+            lesson_id=lesson_id,
+            learner_level=learner_level,
+            section=section,
+            ai_generated=ai_generated,
+        )
+        return generate_comprehensive_lesson(req)
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+@router.post(
+    "/career/teaching/lesson-detail",
+    response_model=TeachingLessonDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate comprehensive 15-section AI teaching lesson with relevance validation",
+)
+def post_teaching_lesson_detail(
+    request: TeachingLessonDetailRequest,
+    current_user: User = Depends(get_current_user),
+) -> TeachingLessonDetailResponse:
+    from app.services.lesson_generation_service import generate_comprehensive_lesson
+    try:
+        return generate_comprehensive_lesson(request)
     except Exception as exc:
         raise _handle_ai_error(exc) from exc
 
@@ -723,6 +852,57 @@ def chat_with_teaching_mentor_endpoint(
         return chat_with_teaching_mentor(db, current_user, request)
     except Exception as exc:
         raise _handle_ai_error(exc) from exc
+
+
+@router.post(
+    "/career/teaching/code-question",
+    response_model=CodeQuestionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Dynamically generate code understanding question grounded in actual repository code",
+)
+def generate_code_question_endpoint(
+    request: CodeQuestionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CodeQuestionResponse:
+    from app.services.repository_understanding_service import generate_code_question_for_file
+    try:
+        return generate_code_question_for_file(
+            db=db,
+            repository_id=request.repository_id,
+            file_id=request.file_id,
+            file_path=request.file_path,
+            category=request.category,
+            current_user=current_user,
+        )
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
+
+@router.post(
+    "/career/teaching/file-explanation",
+    response_model=FileExplanationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate comprehensive 8-dimensional explanation grounded in repository file code",
+)
+def explain_file_endpoint(
+    request: FileExplanationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileExplanationResponse:
+    from app.services.repository_understanding_service import explain_repository_file
+    try:
+        return explain_repository_file(
+            db=db,
+            repository_id=request.repository_id,
+            file_id=request.file_id,
+            file_path=request.file_path,
+            file_content=request.file_content,
+            current_user=current_user,
+        )
+    except Exception as exc:
+        raise _handle_ai_error(exc) from exc
+
 
 
 

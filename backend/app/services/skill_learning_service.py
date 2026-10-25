@@ -301,29 +301,145 @@ CURATED_SKILL_CURRICULA: Dict[str, List[Dict[str, Any]]] = {
         {
             "stage_number": 1,
             "stage_name": "Foundations",
-            "description": "Python syntax, memory references, dynamic typing, control flow, functions, and standard data structures.",
+            "description": "Python syntax, variables, data types, dynamic typing, control flow, functions, and standard data structures.",
             "lessons": [
                 {
-                    "title": "Memory References, Object Identity & Mutability",
-                    "topic": "Pass-by-Object-Reference, id(), Mutable vs Immutable Types",
-                    "summary": "Understand how Python variables are references to objects in heap memory.",
-                    "challenge": "Explain what 'everything in Python is an object' means. What is the difference between '==' and 'is'? Why is using a mutable default argument dangerous?",
-                    "diagnostic": "What happens if a function definition has 'def append_to(item, target=[])'?",
-                    "objective": "Master object identity, memory references, and mutability invariants.",
-                    "prereqs": ["Basic programming knowledge"],
-                    "starter_code": "a = [1, 2, 3]\nb = a\nb.append(4)\nprint(a) # Output: [1, 2, 3, 4]\n",
-                    "resources": ["Python Official Docs: Data Model"],
+                    "title": "What is Python?",
+                    "topic": "Python Overview, Philosophy & Use Cases",
+                    "summary": "Understand what Python is, why it was created, and where it is used in industry.",
+                    "challenge": "Why did Guido van Rossum design Python with readability as the primary goal? What does 'The Zen of Python' mean for everyday code decisions?",
+                    "diagnostic": "Name three domains where Python is the dominant language choice and explain why it excels in each.",
+                    "objective": "Understand Python's design philosophy, execution model, and industry applications.",
+                    "prereqs": ["No prior experience required"],
+                    "starter_code": "# Run this in any Python 3 interpreter\nimport this  # Prints the Zen of Python\nprint('Python version:', __import__('sys').version)\n",
+                    "what_you_will_learn": [
+                        "What Python is and why it was created",
+                        "How Python's interpreter executes code",
+                        "Where Python is used: AI/ML, web backends, scripting, data science",
+                        "How to set up and run your first Python program",
+                    ],
+                    "key_takeaways": [
+                        "Python is interpreted, dynamically typed, and garbage-collected",
+                        "Python emphasizes readable, explicit code over clever one-liners",
+                        "Python 3 is the only supported version (Python 2 is end-of-life)",
+                    ],
+                    "quick_check": {
+                        "question": "What will `type(3.5)` return in Python?",
+                        "options": ["<class 'int'>", "<class 'float'>", "<class 'str'>"],
+                        "answer": "<class 'float'>",
+                    },
+                    "resources": ["Python Official Docs: Getting Started", "Python Official Tutorial"],
                 },
                 {
-                    "title": "Built-in Data Structures & Big-O Invariants",
-                    "topic": "Lists, Dictionaries, Sets, Tuples & Hash Tables",
-                    "summary": "Deep dive into CPython list dynamic array resizing and dictionary hash table collisions.",
-                    "challenge": "How does Python's dict achieve O(1) average lookup time? How does CPython handle hash collisions and compact dictionary key-sharing?",
-                    "diagnostic": "What requirements must an object satisfy to be used as a dictionary key or set element?",
-                    "objective": "Select optimal data structures based on memory layout and Big-O guarantees.",
-                    "prereqs": ["Memory references"],
-                    "starter_code": "# Dict hash lookup and collision simulation\n",
-                    "resources": ["Fluent Python: Dictionaries and Sets"],
+                    "title": "Setup & First Program",
+                    "topic": "Python Installation, REPL, and Hello World",
+                    "summary": "Install Python 3, use the interactive REPL, and write your first Python script.",
+                    "challenge": "What is the difference between running Python interactively (REPL) and running a .py script? When would you use each?",
+                    "diagnostic": "What happens when you run `python hello.py` on the command line?",
+                    "objective": "Successfully set up a Python development environment and run basic programs.",
+                    "prereqs": ["What is Python?"],
+                    "starter_code": "# Your first Python program\nprint('Hello, World!')\nname = input('What is your name? ')\nprint(f'Hello, {name}!')\n",
+                    "what_you_will_learn": [
+                        "How to install Python 3 and verify the installation",
+                        "How to use the Python REPL interactively",
+                        "How to write and run a .py script",
+                        "How to use f-strings for string formatting",
+                    ],
+                    "key_takeaways": [
+                        "Use `python3 --version` to verify your installation",
+                        "The REPL (Read-Eval-Print Loop) is great for quick experiments",
+                        "f-strings (f'Hello {name}') are the modern way to format Python strings",
+                    ],
+                    "quick_check": {
+                        "question": "Which command runs a Python file named 'app.py'?",
+                        "options": ["python app.py", "run app.py", "execute app.py"],
+                        "answer": "python app.py",
+                    },
+                    "resources": ["Python Official Tutorial: Using the Interpreter"],
+                },
+                {
+                    "title": "Variables & Data Types",
+                    "topic": "Dynamic Typing, Built-in Types: int, float, str, bool, list, tuple, dict, set",
+                    "summary": "Understand how Python's dynamic type system works and master the core built-in data types.",
+                    "challenge": "What does 'dynamically typed' mean in Python? How does Python decide the type of a variable at runtime, and how do you inspect it?",
+                    "diagnostic": "What will `type(3.5)` return? What about `type('hello')`? And `type([1, 2, 3])`?",
+                    "objective": "Master all Python built-in types, understand dynamic typing, and use type() and isinstance() correctly.",
+                    "prereqs": ["Setup & First Program"],
+                    "starter_code": (
+                        "name = 'Cyra'\n"
+                        "age = 21\n"
+                        "is_active = True\n"
+                        "marks = [85, 92, 78]\n"
+                        "print(type(name), type(age))  # <class 'str'> <class 'int'>\n"
+                        "\n"
+                        "# Type checking\n"
+                        "print(isinstance(age, int))   # True\n"
+                        "print(isinstance(age, float)) # False\n"
+                        "\n"
+                        "# Type conversion\n"
+                        "score = '95'\n"
+                        "print(int(score) + 5)  # 100\n"
+                    ),
+                    "what_you_will_learn": [
+                        "What variables are and how to use them in Python",
+                        "Common data types (int, float, str, bool, list, tuple, dict, set)",
+                        "Type checking with type() and isinstance()",
+                        "Type conversion between compatible types",
+                    ],
+                    "key_takeaways": [
+                        "Variables store values and can change over time",
+                        "Python has built-in types like int, float, str, bool, list, tuple, dict, set",
+                        "Use type() to check a variable's type",
+                        "Python is dynamically typed — you don't declare types, Python infers them",
+                    ],
+                    "quick_check": {
+                        "question": "What will `type(3.5)` return?",
+                        "options": ["<class 'int'>", "<class 'float'>", "<class 'str'>"],
+                        "answer": "<class 'float'>",
+                    },
+                    "resources": ["Python Official Docs: Built-in Types", "Python Tutorial: Introduction"],
+                },
+                {
+                    "title": "Operators & Expressions",
+                    "topic": "Arithmetic, Comparison, Logical & Bitwise Operators",
+                    "summary": "Master Python's operator precedence, short-circuit evaluation, and walrus operator.",
+                    "challenge": "Explain Python's short-circuit evaluation: when does `a and b` NOT evaluate `b`? What does the walrus operator `:=` do?",
+                    "diagnostic": "What is the result of `10 // 3`, `10 % 3`, and `2 ** 8` in Python?",
+                    "objective": "Write correct Python expressions using all operator categories.",
+                    "prereqs": ["Variables & Data Types"],
+                    "starter_code": (
+                        "# Arithmetic operators\n"
+                        "print(10 // 3)  # Integer division: 3\n"
+                        "print(10 % 3)   # Modulo: 1\n"
+                        "print(2 ** 8)   # Power: 256\n"
+                        "\n"
+                        "# Short-circuit evaluation\n"
+                        "x = None\n"
+                        "result = x or 'default'  # 'default' (x is falsy)\n"
+                        "print(result)\n"
+                        "\n"
+                        "# Walrus operator (Python 3.8+)\n"
+                        "data = [1, 2, 3, 4, 5]\n"
+                        "if (n := len(data)) > 3:\n"
+                        "    print(f'List has {n} elements')  # List has 5 elements\n"
+                    ),
+                    "what_you_will_learn": [
+                        "Arithmetic operators: +, -, *, /, //, %, **",
+                        "Comparison operators: ==, !=, <, >, <=, >=",
+                        "Logical operators: and, or, not with short-circuit evaluation",
+                        "The walrus operator := for assignment in expressions",
+                    ],
+                    "key_takeaways": [
+                        "// is integer division, % is modulo, ** is exponentiation",
+                        "and/or short-circuit: Python stops evaluating as soon as the result is determined",
+                        "The walrus operator := assigns and returns a value in a single expression",
+                    ],
+                    "quick_check": {
+                        "question": "What does `10 // 3` return in Python?",
+                        "options": ["3", "3.33", "1"],
+                        "answer": "3",
+                    },
+                    "resources": ["Python Official Docs: Expressions", "Python Operator Precedence Table"],
                 },
             ],
         },
@@ -818,13 +934,46 @@ def build_skill_learning_path(
     key = skill_name.strip().lower()
     norm_name = skill_name.strip()
 
-    # Look up in curated curricula or generate dynamic 7-stage curriculum
-    raw_stages = None
-    for cur_key, stages_data in CURATED_SKILL_CURRICULA.items():
-        if cur_key == key or cur_key in key or key in cur_key:
-            raw_stages = stages_data
-            norm_name = cur_key.title()
-            break
+    # Normalize common aliases before curriculum lookup
+    _SKILL_ALIASES: Dict[str, str] = {
+        "react.js": "react",
+        "reactjs": "react",
+        "python3": "python",
+        "python 3": "python",
+        "node.js": "nodejs",
+        "nodejs": "nodejs",
+        "javascript": "javascript",
+        "js": "javascript",
+        "typescript": "typescript",
+        "ts": "typescript",
+        "sql": "sql",
+        "mysql": "sql",
+        "postgresql": "sql",
+    }
+    normalized_key = _SKILL_ALIASES.get(key, key)
+
+    # 1. Exact match first (prevents "react" matching when "python" is requested)
+    raw_stages = CURATED_SKILL_CURRICULA.get(normalized_key)
+    if raw_stages:
+        norm_name = normalized_key.title()
+    else:
+        # 2. Prefix/suffix match — but ONLY if no other curated key is a more-exact prefix
+        for cur_key, stages_data in CURATED_SKILL_CURRICULA.items():
+            if cur_key == normalized_key:
+                raw_stages = stages_data
+                norm_name = cur_key.title()
+                break
+            # Allow "react" to match "react native" but NOT allow "python" to match "react"
+            if normalized_key.startswith(cur_key) or cur_key.startswith(normalized_key):
+                # Guard: don't cross-match unrelated skills
+                if not any(
+                    other in normalized_key
+                    for other in CURATED_SKILL_CURRICULA.keys()
+                    if other != cur_key and len(other) >= 4
+                ):
+                    raw_stages = stages_data
+                    norm_name = cur_key.title()
+                    break
 
     if not raw_stages:
         raw_stages = _generate_generic_dynamic_skill_stages(norm_name)
@@ -932,6 +1081,9 @@ def build_skill_learning_path(
         f"production implementation, and technical interview defense."
     )
 
+    # Validate that the stage order is well-formed before returning
+    validate_topic_sequence(built_stages)
+
     return SkillLearningPathResponse(
         skill_name=norm_name,
         normalized_skill=_slugify(norm_name),
@@ -946,3 +1098,81 @@ def build_skill_learning_path(
         connected_projects=connected_projects,
         related_skills=related,
     )
+
+
+# ── TOPIC SEQUENCE VALIDATOR ──────────────────────────────────────────────────
+
+# Canonical stage-name order pattern (each entry is a lowercase substring that
+# must appear in the stage name at that position or later in the curriculum).
+_STAGE_ORDER_PATTERNS = ["foundation", "core", "intermediate", "advanced", "project", "assessment"]
+
+# Stage names we accept as "assessment-like" even when the word 'assessment' isn't present
+_ASSESSMENT_ALIASES = {"interview readiness", "interview", "review", "assessment"}
+
+
+def validate_topic_sequence(stages: List) -> None:
+    """
+    Asserts that the curriculum stages follow a logically ascending order.
+
+    Primary check: stage_number values must be non-decreasing.  This catches
+    outright shuffles (stage 5 before stage 2) regardless of stage name.
+
+    Secondary check (name-based): if every stage name matches one of the six
+    canonical patterns (foundation, core, intermediate, advanced, project,
+    assessment/interview), their keyword positions must also be non-decreasing.
+    When stage names are skill-specific (e.g. "Asyncio & Concurrency",
+    "Hooks", "Memory Model & GIL") the keyword check is skipped so that rich,
+    curated curricula are never rejected for using descriptive names.
+
+    Args:
+        stages: list of SkillCurriculumStage objects (or dicts with
+                stage_number / stage_name keys).
+    """
+    if not stages:
+        return  # Empty curriculum is fine
+
+    # ── Primary: stage_number must be non-decreasing ──────────────────────────
+    stage_numbers: List[int] = []
+    stage_names: List[str] = []
+    for s in stages:
+        num = (
+            s.stage_number
+            if hasattr(s, "stage_number")
+            else s.get("stage_number", 0)
+        )
+        name = (
+            s.stage_name
+            if hasattr(s, "stage_name")
+            else s.get("stage_name", "")
+        )
+        stage_numbers.append(int(num))
+        stage_names.append(str(name).lower().strip())
+
+    for idx in range(1, len(stage_numbers)):
+        assert stage_numbers[idx] >= stage_numbers[idx - 1], (
+            f"Curriculum stage_number order violation: stage_number {stage_numbers[idx - 1]} "
+            f"('{stage_names[idx - 1]}') appears before stage_number {stage_numbers[idx]} "
+            f"('{stage_names[idx]}'), violating the required ascending stage order."
+        )
+
+    # ── Secondary: keyword-order check only when all names map to canonical ──
+    def _canonical_index(name: str) -> Optional[int]:
+        for i, pattern in enumerate(_STAGE_ORDER_PATTERNS):
+            if pattern in name:
+                return i
+        for alias in _ASSESSMENT_ALIASES:
+            if alias in name:
+                return len(_STAGE_ORDER_PATTERNS) - 1
+        return None  # Unknown name → skip keyword check
+
+    positions: List[Optional[int]] = [_canonical_index(n) for n in stage_names]
+    all_known = all(p is not None for p in positions)
+
+    if all_known:
+        for idx in range(1, len(positions)):
+            assert positions[idx] >= positions[idx - 1], (  # type: ignore[operator]
+                f"Curriculum stage order violation: '{stage_names[idx - 1]}' (canonical pos {positions[idx - 1]}) "
+                f"appears before '{stage_names[idx]}' (canonical pos {positions[idx]}), "
+                f"violating the expected Foundations→Core→...→Assessment order."
+            )
+

@@ -1828,6 +1828,8 @@ def chat_with_teaching_mentor(
         build_project_interview_prep,
         build_project_learning_journey,
         build_repository_understanding,
+        find_related_implementation_files,
+        extract_code_structure_and_loops,
     )
 
     mode = (req.mode or "skill").strip().lower()
@@ -1835,12 +1837,15 @@ def chat_with_teaching_mentor(
     lesson_id = req.lesson_id or f"{mode}-{_slugify(target_id)}"
     user_msg = req.message.strip()
     is_assessment = bool(req.is_assessment)
-    code_ws = (req.code_workspace or "").strip()
+    code_ws = (req.code_workspace or req.workspace_code or req.active_file_content or "").strip()
     lang_code = (req.language or "en").strip().lower()
     target_lang = LANGUAGE_NAMES_MAP.get(lang_code, "English")
 
     context_summary = ""
     citations: List[Dict[str, Any]] = []
+    companion_files: List[Dict[str, Any]] = []
+    active_path: Optional[str] = None
+    limitations_note: Optional[str] = None
     current_lesson_title = "Technical Learning Session"
     connected_projects_info = ""
 
@@ -1887,7 +1892,9 @@ def chat_with_teaching_mentor(
         try:
             # Resolve repository
             repo_record = None
-            if target_id.isdigit():
+            if req.repository_id:
+                repo_record = db.query(GitHubRepository).filter(GitHubRepository.id == req.repository_id).first()
+            if not repo_record and target_id.isdigit():
                 repo_record = db.query(GitHubRepository).filter(GitHubRepository.id == int(target_id)).first()
             if not repo_record:
                 gh_prof = db.query(GitHubProfile).filter(GitHubProfile.user_id == current_user.id).first()
@@ -1901,7 +1908,77 @@ def chat_with_teaching_mentor(
                         .first()
                     )
 
-            if repo_record:
+            # Resolve active file
+            active_path = req.file_path or (target_id if ("/" in target_id or "." in target_id) else None)
+
+            if repo_record and active_path:
+                file_rec = (
+                    db.query(GitHubRepositoryFile)
+                    .filter(
+                        GitHubRepositoryFile.github_repository_id == repo_record.id,
+                        GitHubRepositoryFile.file_path == active_path,
+                    )
+                    .first()
+                )
+
+                if not code_ws:
+                    if file_rec and file_rec.content:
+                        code_ws = file_rec.content
+                    elif file_rec and current_user:
+                        try:
+                            from app.services.github_service import fetch_repository_file_content
+                            refreshed = fetch_repository_file_content(db, file_rec.id, current_user)
+                            if refreshed and getattr(refreshed, "content", None):
+                                code_ws = refreshed.content
+                        except Exception:
+                            pass
+
+                companion_files = find_related_implementation_files(db, repo_record.id, active_path, current_user)
+                current_lesson_title = f"{os.path.basename(active_path)} in {repo_record.name}"
+
+                citations.append({
+                    "file_path": active_path,
+                    "description": f"Active inspecting file in {repo_record.name}",
+                    "verified": True,
+                })
+
+                companion_summary = ""
+                if companion_files and companion_files[0].get("content"):
+                    comp = companion_files[0]
+                    citations.append({
+                        "file_path": comp["file_path"],
+                        "description": f"Verified companion source code ({comp['file_name']})",
+                        "verified": True,
+                    })
+                    comp_analysis = extract_code_structure_and_loops(comp["content"])
+                    companion_summary = (
+                        f"\nVerified Companion Source Implementation: `{comp['file_path']}`.\n"
+                        f"Code Loop/Condition Analysis: {comp_analysis['summary']}.\n"
+                    )
+                    if comp_analysis.get("small_input_walkthrough"):
+                        companion_summary += f"{comp_analysis['small_input_walkthrough']}\n"
+                    if comp_analysis.get("derived_output"):
+                        companion_summary += f"Expected Output:\n```\n{comp_analysis['derived_output']}\n```\n"
+                    companion_summary += f"Companion Source Snippet:\n```\n{comp['content'][:1500]}\n```\n"
+                elif active_path.lower().endswith((".md", ".markdown")):
+                    dir_part = os.path.dirname(active_path)
+                    companion_summary = (
+                        f"\nVerified Finding: No companion source code implementation file was located in '{dir_part or '.'}'. "
+                        f"Do NOT invent companion source files or code functions. Explain the specification from {active_path} only."
+                    )
+
+                active_analysis = extract_code_structure_and_loops(code_ws) if code_ws else None
+
+                context_summary = (
+                    f"Selected File: {active_path} ({os.path.basename(active_path)})\n"
+                    f"Repository: {repo_record.name} ({repo_record.full_name or repo_record.name})\n"
+                    f"Active File Content:\n```\n{code_ws[:2000] if code_ws else 'No content retrieved'}\n```\n"
+                    f"{companion_summary}"
+                )
+                if active_analysis and active_analysis.get("has_loops"):
+                    context_summary += f"\nActive File Loop Analysis: {active_analysis['summary']}\n"
+
+            elif repo_record:
                 repo_model = build_repository_understanding(db, repo_record.id, current_user)
                 current_lesson_title = f"{repo_model.repository_name} Architecture"
                 context_summary = (
@@ -1944,6 +2021,8 @@ def chat_with_teaching_mentor(
     if is_assessment:
         assessment_prompt_part = (
             "THE LEARNER HAS SUBMITTED AN ASSESSMENT ATTEMPT FOR EVALUATION.\n"
+            f"Skill being assessed: {target_id}.\n"
+            f"Lesson/topic: {current_lesson_title}.\n"
             "Evaluate their understanding rigorously:\n"
             "1) Praise what they got right.\n"
             "2) Explain what was wrong, sub-optimal, or missing.\n"
@@ -1951,7 +2030,9 @@ def chat_with_teaching_mentor(
             "4) Provide the optimal code snippet if applicable.\n"
             "5) Assign a score out of 100.\n"
             "Format the response clearly with labeled sections:\n"
-            "✅ What You Got Right\n⚠️ What Was Sub-Optimal\n🎓 Masterclass Takeaway\n💻 Optimal Solution\n📊 Score: [0-100]"
+            "✅ What You Got Right\n⚠️ What Was Sub-Optimal\n🎓 Masterclass Takeaway\n💻 Optimal Solution\n📊 Score: [0-100]\n"
+            "IMPORTANT: The learner's actual submitted answer is included in the user message below. "
+            "Your feedback MUST address what they specifically wrote, not a generic answer."
         )
     else:
         assessment_prompt_part = (
@@ -1971,6 +2052,12 @@ def chat_with_teaching_mentor(
         f"Session Mode: {mode.upper()}. "
         f"Context & Grounding:\n{context_summary}\n"
         f"{connected_projects_info}\n\n"
+        "CRITICAL ANTI-HALLUCINATION & RELEVANCE DIRECTIVE:\n"
+        "- Ground your explanations strictly in the verified repository evidence above.\n"
+        "- DO NOT invent or mention Gang of Four design patterns (such as Singleton, Factory Method, Adapter, Bridge, Strategy) "
+        "unless they are genuinely present in the code evidence.\n"
+        "- If teaching a specific pattern problem (such as Hollow Square, star pattern, matrix problem), explain the actual loops, invariants, conditions, variables, and small sample inputs (e.g. n=3).\n"
+        "- If companion implementation code was found, reference its actual lines and statements. If not, state that only the documentation is present and do not fabricate implementation code.\n\n"
         f"{assessment_prompt_part}\n"
         f"{multilingual_clause}"
     )
@@ -1997,6 +2084,7 @@ def chat_with_teaching_mentor(
         "Test my understanding with an interview scenario question.",
     ]
 
+    provider_succeeded = False
     try:
         provider = get_model_provider()
         res = provider.generate_text(
@@ -2007,18 +2095,18 @@ def chat_with_teaching_mentor(
         )
         if res and res.content and res.content.strip():
             cyra_reply = res.content.strip()
+            provider_succeeded = True
     except Exception as exc:
         logger.warning("Error generating Cyra chat response: %s", exc)
 
     if not cyra_reply:
         if is_assessment:
+            # Provider failed in assessment mode — do NOT award mastery
             cyra_reply = (
-                f"✅ **What You Got Right**:\nYou clearly recognized the fundamental objective of {current_lesson_title}.\n\n"
-                f"⚠️ **What Was Sub-Optimal**:\nEnsure you account for memory overhead and edge constraints.\n\n"
-                f"🎓 **Masterclass Takeaway**:\nState invariants turn quadratic scans into deterministic lookups.\n\n"
-                f"📊 **Score**: 85/100"
+                "I couldn't evaluate your answer because the AI service is unavailable — please retry."
             )
-            demonstrated_understanding = True
+            demonstrated_understanding = False
+            limitations_note = "AI provider unavailable; assessment could not be evaluated."
         else:
             cyra_reply = (
                 f"I'm delighted you asked about that in **{current_lesson_title}**!\n\n"
@@ -2027,16 +2115,20 @@ def chat_with_teaching_mentor(
                 f"Would you like me to walk through a concrete step-by-step code example, or explore how this connects to your projects?"
             )
 
-    # Process assessment score if present
-    if is_assessment:
+    # Process assessment score if present — only when provider actually succeeded
+    if is_assessment and provider_succeeded:
         score_match = re.search(r"score[:\s]+(\d+)", cyra_reply, re.IGNORECASE)
-        score_val = int(score_match.group(1)) if score_match else 85
-        demonstrated_understanding = score_val >= 80
-        assessment_eval = {
-            "score": score_val,
-            "demonstrated": demonstrated_understanding,
-            "evaluated_at": datetime.utcnow().isoformat(),
-        }
+        if score_match:
+            score_val = int(score_match.group(1))
+            demonstrated_understanding = score_val >= 80
+            assessment_eval = {
+                "score": score_val,
+                "demonstrated": demonstrated_understanding,
+                "evaluated_at": datetime.utcnow().isoformat(),
+            }
+        else:
+            # Provider replied but no explicit numeric score — conservative: do not award mastery
+            demonstrated_understanding = False
 
     # Extract follow-ups if present in text
     fu_matches = re.findall(r"(?:•|\d\.)\s+([^\n\?]+\?)", cyra_reply)
@@ -2109,6 +2201,9 @@ def chat_with_teaching_mentor(
         assessment_evaluation=assessment_eval,
         demonstrated_understanding=demonstrated_understanding,
         recommended_next_action="Continue to next lesson" if demonstrated_understanding else "Ask Dr. Cyra a follow-up question",
+        file_path=active_path,
+        companion_files=companion_files,
+        limitations=limitations_note if not provider_succeeded and is_assessment else limitations_note,
     )
 
 
