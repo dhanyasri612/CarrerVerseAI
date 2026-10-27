@@ -1,9 +1,0 @@
-unit: learning-roadmap
-bindings:
-  - type: route-declaration
-    name: "GET /career-roadmap"
-    source_loc: "frontend/src/App.jsx:74"
-    target: LearningRoadmapPage
-    must_appear_in_target: true
-    notes: "Chapter 04 route."
-runtime_config: []

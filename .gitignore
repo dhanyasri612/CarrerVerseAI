@@ -61,6 +61,7 @@ template_logo.png
 
 # Agent tasks and internal tooling
 .agents/
+.github/
 scripts/
 frontend/scripts/
 backend/scripts/

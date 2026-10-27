@@ -1,9 +1,0 @@
-unit: skill-gap
-bindings:
-  - type: route-declaration
-    name: "GET /skill-gap"
-    source_loc: "frontend/src/App.jsx:69"
-    target: SkillGapPage
-    must_appear_in_target: true
-    notes: "Chapter 03 route."
-runtime_config: []

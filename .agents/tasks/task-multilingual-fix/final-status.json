@@ -1,8 +1,0 @@
-{
-  "frontend_tests": { "passed": 136, "failed": 0, "status": "PASS" },
-  "backend_tests": { "passed": 120, "failed": 0, "status": "PASS" },
-  "frontend_build": { "status": "PASS", "note": "Vite production build succeeded (1993 modules, 862 kB JS / 231 kB gzip). Chunk-size advisory warning present but exit code 0." },
-  "report_complete": true,
-  "overall": "CLEAN",
-  "notes": "Backend fitz/PyMuPDF module was missing in the test environment (collection errors). Installed pymupdf 1.28.2 to resolve. All 120 backend tests now pass. Frontend: 136 tests across 15 files — all pass. Build clean. Report contains all 11 required sections."
-}
