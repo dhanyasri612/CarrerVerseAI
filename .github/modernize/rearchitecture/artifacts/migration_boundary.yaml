@@ -1,0 +1,32 @@
+user_intent:
+  raw_request: "Analyze CareerVerse-Reimagined.zip and redesign the current CareerVerse frontend around the parts that work best."
+  inferred_acceptance:
+    - "Preserve current authenticated routes and backend contracts."
+    - "Adopt the reference archive's chapter-based editorial navigation."
+    - "Keep evidence-grounded loading, empty, and error states."
+  cleanup_required: false
+strategy: phased
+runtime_reachable:
+  - frontend/src/main.jsx
+  - frontend/src/App.jsx
+  - frontend/src/components/Layout.jsx
+  - frontend/src/pages
+must_rewrite:
+  - path: frontend/src/components/Layout.jsx
+    reason: "Authenticated shell and chapter navigation are the redesign boundary."
+  - path: frontend/src/pages/DashboardPage.jsx
+    reason: "Dashboard is the chapter index and first post-login experience."
+  - path: frontend/src/design-system
+    reason: "Reference visual language requires shared tokens and editorial primitives."
+copy_as_is:
+  - frontend/src/services/api.js
+  - frontend/src/services/authService.js
+  - frontend/src/context/AuthContext.jsx
+legacy_allowed_to_remain:
+  - reimagined_extracted/CareerVerse-Reimagined/artifacts/careerverse
+defer_cleanup:
+  - "Remove the extracted reference archive only after the redesign is accepted."
+full_rewrite_reason: null
+implementation_rule: >
+  Implementation scope is the redesign boundary above; source anchors document
+  existing runtime behavior and are not a blanket rewrite list.

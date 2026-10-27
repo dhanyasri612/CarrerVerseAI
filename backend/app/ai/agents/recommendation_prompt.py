@@ -86,8 +86,12 @@ class RecommendationPromptBuilder:
             len(user_message),
         )
 
+        system_prompt = language_prompt_builder.with_system_language_policy(
+            self.system_prompt, language
+        )
+
         return RAGPrompt(
-            system_prompt=self.system_prompt,
+            system_prompt=system_prompt,
             user_message=user_message,
             query=query,
         )

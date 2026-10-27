@@ -204,6 +204,22 @@ class ConceptGraphService:
                                 )
                             )
 
+                lesson_concept_key = (current_lesson_id or "").lower().replace("dsa-", "").replace("-", "_")
+                if lesson_concept_key and lesson_concept_key not in node_id_set:
+                    node_id_set.add(lesson_concept_key)
+                    nodes.append(
+                        ConceptMapNode(
+                            id=lesson_concept_key,
+                            label=lesson_concept_key.replace("_", " ").title(),
+                            category="Algorithms & DSA",
+                            status="learning",
+                            difficulty="Medium",
+                            confidence_score=0.7,
+                            is_current=True,
+                            has_project_evidence=False,
+                        )
+                    )
+
                 if nodes:
                     return ConceptMapResponse(
                         candidate_id=candidate_id,

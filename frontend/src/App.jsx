@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AIActivityProvider } from "./context/AIActivityContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 // New reimagined layout replaces the old sidebar Layout
 import LayoutReimagined from "./components/LayoutReimagined";
@@ -22,6 +23,10 @@ import CareerIntelligencePage from "./pages/CareerIntelligencePage";
 import InterviewPage      from "./pages/InterviewPage";
 import DsaPracticePage    from "./pages/DsaPracticePage";
 import TeachingStudioPage from "./pages/TeachingStudioPage";
+import RepositoryLearningPage from "./pages/RepositoryLearningPage";
+import CodingProfileLearningPage from "./pages/CodingProfileLearningPage";
+import ResumeSkillLearningPage from "./pages/ResumeSkillLearningPage";
+import QuestionBankPage from "./pages/QuestionBankPage";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -34,10 +39,11 @@ function PublicOnlyRoute({ children }) {
 
 function App() {
   return (
-    <AIActivityProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
+    <ThemeProvider>
+      <AIActivityProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
             {/* Public */}
             <Route path="/"        element={<LandingPage />} />
             <Route path="/login"   element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
@@ -47,10 +53,20 @@ function App() {
             <Route path="/ai/interview" element={<ProtectedRoute><InterviewPage /></ProtectedRoute>} />
             <Route path="/interview" element={<Navigate to="/ai/interview" replace />} />
 
-            {/* Dedicated AI Teaching & Masterclass Room */}
+            {/* Dedicated Teaching Sub-Pages */}
+            <Route path="/teaching/repositories" element={<ProtectedRoute><RepositoryLearningPage /></ProtectedRoute>} />
+            <Route path="/ai/teaching/repositories" element={<ProtectedRoute><RepositoryLearningPage /></ProtectedRoute>} />
+
+            <Route path="/teaching/coding-profile" element={<ProtectedRoute><CodingProfileLearningPage /></ProtectedRoute>} />
+            <Route path="/ai/teaching/coding-profile" element={<ProtectedRoute><CodingProfileLearningPage /></ProtectedRoute>} />
+
+            <Route path="/teaching/resume-skills" element={<ProtectedRoute><ResumeSkillLearningPage /></ProtectedRoute>} />
+            <Route path="/ai/teaching/resume-skills" element={<ProtectedRoute><ResumeSkillLearningPage /></ProtectedRoute>} />
+
+            {/* Dedicated AI Teaching & Masterclass Room Entry Hub */}
             <Route path="/ai/teaching" element={<ProtectedRoute><TeachingStudioPage /></ProtectedRoute>} />
             <Route path="/ai/teaching-studio" element={<Navigate to="/ai/teaching" replace />} />
-            <Route path="/teaching" element={<Navigate to="/ai/teaching" replace />} />
+            <Route path="/teaching" element={<ProtectedRoute><TeachingStudioPage /></ProtectedRoute>} />
 
             {/* Protected — inside reimagined layout */}
             <Route element={<ProtectedRoute><LayoutReimagined /></ProtectedRoute>}>
@@ -63,7 +79,10 @@ function App() {
               <Route path="/career-quiz"    element={<CareerQuizPage />} />
               <Route path="/ai/intelligence" element={<CareerIntelligencePage />} />
               <Route path="/dsa-practice"   element={<DsaPracticePage />} />
+              <Route path="/question-bank"  element={<QuestionBankPage />} />
               {/* Route aliases */}
+              <Route path="/ai/question-bank"   element={<Navigate to="/question-bank" replace />} />
+              <Route path="/questions"          element={<Navigate to="/question-bank" replace />} />
               <Route path="/dsa"                element={<Navigate to="/dsa-practice" replace />} />
               <Route path="/career-navigator"   element={<Navigate to="/career-discovery" replace />} />
               <Route path="/navigator"          element={<Navigate to="/career-discovery" replace />} />
@@ -85,6 +104,7 @@ function App() {
         </BrowserRouter>
       </AuthProvider>
     </AIActivityProvider>
+    </ThemeProvider>
   );
 }
 

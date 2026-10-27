@@ -5,7 +5,6 @@
  */
 
 const STORAGE_KEY = "cv_user_daily_activities";
-const STREAK_KEY = "cv_streak_data";
 
 export function getLocalDateString(d = new Date()) {
   const year = d.getFullYear();
@@ -15,67 +14,27 @@ export function getLocalDateString(d = new Date()) {
 }
 
 /**
- * Seeds realistic historical practice activities across recent months if storage is fresh,
- * ensuring the user can browse previous months just like on LeetCode & GeeksforGeeks.
+ * Reads recorded activity and removes demo records written by older versions.
+ * Empty history stays empty; the dashboard must never imply practice happened
+ * when the user did not record it.
  */
-function ensureSeededActivities() {
+function getStoredActivities() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const activities = parsed.filter(
+      (activity) => !String(activity?.id || "").startsWith("seed_")
+    );
+    if (activities.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
     }
-
-    const today = new Date();
-    const seeded = [];
-
-    // Helper to add activity on relative day offset
-    const addSample = (dayOffset, type, title, detail, count = 1) => {
-      const targetDate = new Date();
-      targetDate.setDate(today.getDate() - dayOffset);
-      const dStr = getLocalDateString(targetDate);
-      const ts = targetDate.toISOString();
-
-      for (let i = 0; i < count; i++) {
-        seeded.push({
-          id: `seed_${dStr}_${i}_${Math.random().toString(36).substring(2, 6)}`,
-          date: dStr,
-          timestamp: ts,
-          type,
-          title,
-          detail: detail || "",
-          score: 1,
-        });
-      }
-    };
-
-    // Current week: Fri (15), Sat (1), Sun (10) as seen in user's profile
-    addSample(3, "dsa", "DSA Problem: Two Sum & Lookups", "HackerRank & LeetCode Bank", 15);
-    addSample(2, "interview", "Mock Interview: SDE Technical Round", "Cyra Vance Interview Room", 1);
-    addSample(1, "teaching", "AI Teaching: Array Invariants & Modularity", "Teaching Studio Masterclass", 10);
-
-    // Realistic practice pattern for earlier in October and September (LeetCode / GFG style)
-    const activeOffsets = [
-      6, 7, 8, 10, 11, 13, 14, 15, 17, 18, 20, 21, 22, 24, 25, 27, 28, 29, 31, 32, 34, 35, 38, 40, 42, 45, 48, 50, 52, 55, 60,
-    ];
-
-    activeOffsets.forEach((offset) => {
-      const problemCount = (offset % 5) + 2; // 2 to 6 problems
-      addSample(
-        offset,
-        offset % 3 === 0 ? "interview" : offset % 2 === 0 ? "dsa" : "teaching",
-        `Algorithmic Practice & Topic Mastery (Day -${offset})`,
-        "Verified Problem Solving",
-        problemCount
-      );
-    });
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-    return seeded;
+    return activities;
   } catch (err) {
-    console.warn("Failed to seed initial activities:", err);
+    console.warn("Failed to read recorded activities:", err);
     return [];
   }
 }
@@ -87,7 +46,7 @@ export function recordActivity({ type, title, detail, score = 1, date = null }) 
   try {
     const todayStr = date || getLocalDateString();
     const timestamp = new Date().toISOString();
-    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const existing = getStoredActivities();
 
     const newEntry = {
       id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -102,41 +61,11 @@ export function recordActivity({ type, title, detail, score = 1, date = null }) 
     const updated = [newEntry, ...existing];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-    // Update streak metadata
-    updateStreakData(todayStr);
-
     return newEntry;
   } catch (err) {
     console.warn("Failed to record activity:", err);
     return null;
   }
-}
-
-function updateStreakData(todayStr) {
-  try {
-    const data = JSON.parse(localStorage.getItem(STREAK_KEY) || "{}");
-    const lastActive = data.lastActiveDate;
-
-    if (!lastActive) {
-      data.streak = 1;
-      data.lastActiveDate = todayStr;
-    } else if (lastActive === todayStr) {
-      // Already active today
-    } else {
-      const last = new Date(lastActive);
-      const curr = new Date(todayStr);
-      const diffDays = Math.round((curr - last) / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        data.streak = (data.streak || 0) + 1;
-      } else if (diffDays > 1) {
-        data.streak = 1;
-      }
-      data.lastActiveDate = todayStr;
-    }
-
-    localStorage.setItem(STREAK_KEY, JSON.stringify(data));
-  } catch (e) {}
 }
 
 /**
@@ -214,7 +143,7 @@ export function computeGlobalStreaks(activities) {
  */
 export function getMonthActivityMetrics(targetYear = null, targetMonth = null) {
   try {
-    const activities = ensureSeededActivities();
+    const activities = getStoredActivities();
     const now = new Date();
 
     const year = targetYear !== null ? targetYear : now.getFullYear();
@@ -333,9 +262,8 @@ export function getMonthActivityMetrics(targetYear = null, targetMonth = null) {
  */
 export function getActivityMetrics() {
   try {
-    const activities = ensureSeededActivities();
+    const activities = getStoredActivities();
     const todayStr = getLocalDateString();
-    const streakData = JSON.parse(localStorage.getItem(STREAK_KEY) || "{}");
 
     const todayActivities = activities.filter((a) => a.date === todayStr);
 
@@ -358,7 +286,7 @@ export function getActivityMetrics() {
     const { currentStreak, maxStreak, totalActiveDays } = computeGlobalStreaks(activities);
 
     return {
-      streak: Math.max(streakData.streak || 1, currentStreak),
+      streak: currentStreak,
       maxStreak,
       totalActiveDays,
       todayCount: todayActivities.length,
@@ -369,9 +297,9 @@ export function getActivityMetrics() {
     };
   } catch (err) {
     return {
-      streak: 1,
-      maxStreak: 1,
-      totalActiveDays: 1,
+      streak: 0,
+      maxStreak: 0,
+      totalActiveDays: 0,
       todayCount: 0,
       todayActivities: [],
       recentActivities: [],

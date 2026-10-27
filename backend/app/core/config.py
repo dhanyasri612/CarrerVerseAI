@@ -23,14 +23,14 @@ LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/linkedin/callback")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "groq").strip().lower()
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip() or None
-GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
-GROQ_MAX_COMPLETION_TOKENS = int(os.getenv("GROQ_MAX_COMPLETION_TOKENS", "800"))
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_MAX_COMPLETION_TOKENS = int(os.getenv("GROQ_MAX_COMPLETION_TOKENS", "2048"))
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 OLLAMA_MAX_COMPLETION_TOKENS = int(os.getenv("OLLAMA_MAX_COMPLETION_TOKENS", "400"))
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "180.0"))
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_configured_chroma_dir = Path(os.getenv("CHROMADB_DIR", "./chroma_db"))
+_configured_chroma_dir = Path(os.getenv("CHROMADB_DIR", "./chroma_db_v2"))
 CHROMADB_DIR = str(
     _configured_chroma_dir
     if _configured_chroma_dir.is_absolute()

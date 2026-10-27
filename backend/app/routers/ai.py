@@ -788,12 +788,22 @@ def read_learner_knowledge_profile_endpoint(
 )
 def read_skill_learning_path_endpoint(
     skill: str,
+    learner_level: Optional[str] = "Intermediate",
+    target_role: Optional[str] = None,
+    force_refresh: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SkillLearningPathResponse:
     from app.services.skill_learning_service import build_skill_learning_path
     try:
-        return build_skill_learning_path(db, skill, current_user)
+        return build_skill_learning_path(
+            db=db,
+            skill_name=skill,
+            current_user=current_user,
+            learner_level=learner_level,
+            target_role=target_role,
+            force_refresh=force_refresh,
+        )
     except Exception as exc:
         raise _handle_ai_error(exc) from exc
 

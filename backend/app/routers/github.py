@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -45,6 +46,9 @@ def sync_github_profile(
     response_model=list[GitHubRepositoryResponse]
 )
 def get_github_repositories(
+    limit: int = 1000,
+    offset: int = 0,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -59,14 +63,16 @@ def get_github_repositories(
     if not github_profile:
         return []
 
-    return (
+    q = (
         db.query(GitHubRepository)
         .filter(
             GitHubRepository.github_profile_id == github_profile.id
         )
-        .order_by(GitHubRepository.name)
-        .all()
     )
+    if search and search.strip():
+        q = q.filter(GitHubRepository.name.ilike(f"%{search.strip()}%"))
+
+    return q.order_by(GitHubRepository.name).offset(offset).limit(limit).all()
 
 @router.patch(
     "/repositories/{repository_id}/select",

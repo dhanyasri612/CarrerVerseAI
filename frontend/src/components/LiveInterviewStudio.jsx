@@ -33,16 +33,28 @@ import {
   Zap,
   Camera,
   Bot,
+  Monitor,
   Globe,
   Loader2,
   AlertTriangle,
   X,
   Volume2,
   VolumeX,
+  XCircle,
 } from "lucide-react";
 import CyraRobotAvatar from "./CyraRobotAvatar";
 import { chatWithCyra } from "../services/careerService";
-import { getLanguageConfig } from "../services/speechService";
+import { marked } from "marked";
+import "../pages/InterviewPage.css";
+
+const renderMarkdown = (text) => {
+  if (!text) return "";
+  try {
+    return marked.parse(String(text), { gfm: true, breaks: true });
+  } catch (_e) {
+    return String(text);
+  }
+};
 
 export default function LiveInterviewStudio({
   role = "Software Engineer (SDE)",
@@ -62,7 +74,11 @@ export default function LiveInterviewStudio({
   micStatus = null,
   isGeneratingQuestion = false,
   currentQuestion = null,
+  session = null,
   currentQIndex = 1,
+  coreQuestionNumber: propCoreQuestionNumber = null,
+  totalCoreQuestions: propTotalCoreQuestions = null,
+  isFollowUp: propIsFollowUp = null,
   parsedQ = null,
   selectedDomainKey = "dsa_py",
   handleDomainChange = () => {},
@@ -78,6 +94,8 @@ export default function LiveInterviewStudio({
   isAgentSpeaking = false,
   spokenSubtitle = "",
   speakText = () => {},
+  speechRate = 1.0,
+  onChangeSpeechRate = () => {},
   cameraActive = false,
   startCamera = () => {},
   stopCamera = () => {},
@@ -94,6 +112,7 @@ export default function LiveInterviewStudio({
   candidateAnswer = "",
   setCandidateAnswer = () => {},
   handleAnswerSubmit = () => {},
+  handleSubmitAnswer = null,
   handleNextQuestion = () => {},
   loading = false,
   isListening = false,
@@ -107,10 +126,9 @@ export default function LiveInterviewStudio({
   mode = "dsa",
   interviewMode = "dsa",
   connectedResources = null,
+  proctoringStatus = null,
   error = null,
   setError = () => {},
-  availableVoices = [],
-  onSelectVoice = () => {},
 }) {
   // Normalize active mode
   const activeMode = (mode || interviewMode || "dsa").toLowerCase();
@@ -220,6 +238,18 @@ export default function LiveInterviewStudio({
 
   // Extract Question metadata
   const qObj = typeof currentQuestion === "object" && currentQuestion !== null ? currentQuestion : {};
+  const coreQuestionNumber = propCoreQuestionNumber || qObj.core_question_index || session?.core_question_number || (typeof currentQIndex === "number" ? currentQIndex : 1);
+  const totalCoreQuestions = propTotalCoreQuestions || qObj.total_core_questions || session?.total_core_questions || 5;
+  const isFollowUp = propIsFollowUp !== null ? propIsFollowUp : Boolean(qObj.is_follow_up || session?.is_follow_up);
+  const competencyPhase = qObj.competency_phase || (
+    coreQuestionNumber === 1 ? "1. Architecture & Boundaries" :
+    coreQuestionNumber === 2 ? "2. Technical Implementation" :
+    coreQuestionNumber === 3 ? "3. Design Decisions & Trade-Offs" :
+    coreQuestionNumber === 4 ? "4. Debugging & Resilience" :
+    "5. Evolution & Scaling"
+  );
+  const repoCitations = Array.isArray(qObj.repository_citations) ? qObj.repository_citations : [];
+  const evidenceStatus = qObj.evidence_status || (repoCitations.length > 0 ? "grounded" : "grounded");
   const questionTitle = qObj.topic || parsedQ?.topic || (
     isDsa
       ? "Algorithmic Problem Solving"
@@ -307,6 +337,8 @@ export default function LiveInterviewStudio({
       ? "Grounded in: Resume & STAR Evaluation"
       : "Grounded in: Distributed Systems RAG"
   );
+  const technicalCitations = Array.isArray(qObj?.source_citations) ? qObj.source_citations : [];
+  const technicalSourceStatus = qObj?.technical_source_status || (technicalCitations.length ? "fresh" : "unavailable");
 
   // Time formatting
   const formatTime = (secs) => {
@@ -319,13 +351,38 @@ export default function LiveInterviewStudio({
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Quick Action in Chat with real AI
-  const handleQuickAction = async (actionType) => {
+  const effectiveSubmitAnswer = handleSubmitAnswer || handleAnswerSubmit;
+
+  // Candidate Actions in Studio & Chat with real AI (Requirements 3 & 4)
+  const handleCandidateAction = async (actionType) => {
+    if (actionType === "continue") {
+      if (typeof handleNextQuestion === "function") {
+        handleNextQuestion();
+      } else if (typeof effectiveSubmitAnswer === "function") {
+        effectiveSubmitAnswer("Continue to next question.");
+      }
+      return;
+    }
+
+    if (actionType === "retry") {
+      setCandidateAnswer("");
+      const retryMsg = "No problem! Take your time to re-evaluate and formulate your response. I'm ready whenever you are.";
+      setChatMessages((prev) => [...prev, { sender: "cyra", text: retryMsg }]);
+      if (typeof speakText === "function") {
+        speakText(retryMsg);
+      }
+      return;
+    }
+
     let userMsg = "";
-    if (actionType === "teach") {
+    if (actionType === "teach" || actionType === "explain") {
       userMsg = "Can you teach me the core concepts, mental model, and best-practice framework for this topic?";
     } else if (actionType === "hint") {
-      userMsg = "Could you give me a pedagogical hint on this question?";
+      userMsg = session?.session_type === "mock_exam"
+        ? "Could you give me a subtle hint on this question within mock exam rules?"
+        : "Could you give me a pedagogical hint on this question?";
+    } else if (actionType === "clarify") {
+      userMsg = "Could you please clarify what edge cases, constraints, or assumptions I should take into account for this question?";
     } else if (actionType === "constraints") {
       userMsg = "Can you explain the constraints and boundary conditions?";
     } else if (actionType === "approach") {
@@ -345,30 +402,47 @@ export default function LiveInterviewStudio({
         language: selectedLanguage,
       });
 
-      const reply =
-        resp?.reply ||
-        hintsList[0] ||
-        "Consider breaking the solution into modular components and evaluating edge constraints.";
+      let reply = resp?.reply;
+      if (!reply) {
+        if (actionType === "hint") {
+          reply = session?.session_type === "mock_exam"
+            ? "Mock exam mode is active — hints are constrained. Focus on clarifying input bounds, identifying the core invariant, and managing time complexity."
+            : (hintsList[0] || "Consider breaking the solution into modular components and evaluating edge constraints.");
+        } else if (actionType === "clarify") {
+          reply = "Key clarification: Maintain standard linear or logarithmic complexity where possible, handle null/empty boundary inputs, and state any concurrency or memory assumptions explicitly.";
+        } else if (actionType === "teach" || actionType === "explain") {
+          reply = "The core concept centers around choosing the right data structure invariant and isolating state to prevent redundant operations.";
+        } else {
+          reply = hintsList[0] || "Consider breaking the solution into modular components and evaluating edge constraints.";
+        }
+      }
+
       setChatMessages((prev) => [...prev, { sender: "cyra", text: reply }]);
-      if (actionType === "teach") {
+      if (actionType === "teach" || actionType === "explain") {
         setActiveLesson(reply);
       }
       if (typeof speakText === "function") {
-        speakText(reply);
+        speakText(reply, selectedLanguage);
       }
     } catch (_err) {
-      const fallbackReply =
-        actionType === "teach"
-          ? "💡 **Core Mental Model**: Store observed elements in a fast-lookup container to avoid O(N²) scanning.\n📐 **Framework**: Clarify constraints -> Identify invariant -> Choose minimal state -> Handle edge bounds."
-          : hintsList[0] || "Consider breaking the solution into modular components and evaluating edge constraints.";
+      const fallbackReply = actionType === "hint"
+        ? (hintsList[0] || "Consider breaking the problem down and validating boundary conditions.")
+        : (actionType === "teach" || actionType === "explain")
+        ? "The key mental model is identifying the mathematical or data-structure invariant before writing code."
+        : "Clarification: Ensure you address edge cases and state Big-O trade-offs.";
       setChatMessages((prev) => [...prev, { sender: "cyra", text: fallbackReply }]);
-      if (actionType === "teach") {
+      if (actionType === "teach" || actionType === "explain") {
         setActiveLesson(fallbackReply);
+      }
+      if (typeof speakText === "function") {
+        speakText(fallbackReply, selectedLanguage);
       }
     } finally {
       setIsCyraThinking(false);
     }
   };
+
+  const handleQuickAction = handleCandidateAction;
 
   const handleSendCustomChat = async (e) => {
     e?.preventDefault();
@@ -391,65 +465,44 @@ export default function LiveInterviewStudio({
       const reply = resp?.reply || "State your reasoning clearly and evaluate your trade-offs for latency, memory, and scalability.";
       setChatMessages((prev) => [...prev, { sender: "cyra", text: reply }]);
       if (typeof speakText === "function") {
-        speakText(reply);
+        speakText(reply, selectedLanguage);
       }
     } catch (_err) {
+      const msgLower = msg.toLowerCase();
+      let fallbackText = "I missed that response—could you please repeat or share your approach to this problem?";
+      if (/^(hello|hi|hey|good\s+(morning|afternoon|evening))/i.test(msgLower)) {
+        fallbackText = "Hi! Good to meet you. I am Dr. Cyra Vance, your AI Lead Interviewer. Are you ready to begin, or would you like me to explain how this interview will work?";
+      } else if (msgLower.includes("didn't say") || msgLower.includes("didnt say") || msgLower.includes("haven't said")) {
+        fallbackText = "My apologies for jumping ahead! I am listening attentively. Take your time to review the problem, and let me know whenever you'd like to share your thoughts or ask a question.";
+      } else if (msgLower.includes("hint")) {
+        fallbackText = hintsList[0] || "Consider how an auxiliary hash map or two pointers could track the state in O(1) query time.";
+      }
+
       setChatMessages((prev) => [
         ...prev,
         {
           sender: "cyra",
-          text: "I heard your idea. Make sure to consider the edge cases, memory bounds, and how you will handle unexpected input gracefully.",
+          text: fallbackText,
         },
       ]);
+      if (typeof speakText === "function") {
+        speakText(fallbackText, selectedLanguage);
+      }
     } finally {
       setIsCyraThinking(false);
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f1f5f9",
-        color: "#0f172a",
-        fontFamily: "var(--font-primary, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)",
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-      }}
-    >
+    <div className="interview-page-wrapper">
       {/* ── LIVE INTERVIEW STUDIO HEADER ─────────────────────────────────── */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderBottom: "1px solid #e2e8f0",
-          padding: "10px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
+      <header className="interview-header">
         {/* Left: Back to Modes + Mode Title + Live Badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+        <div className="interview-header-brand">
           <button
             type="button"
             onClick={handleResetToSetup}
-            style={{
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: "10px",
-              padding: "6px 12px",
-              cursor: "pointer",
-              color: "#475569",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              transition: "all 0.15s ease",
-            }}
+            className="interview-back-btn"
             title="Return to mode selection"
           >
             <ArrowLeft size={16} />
@@ -457,12 +510,12 @@ export default function LiveInterviewStudio({
           </button>
 
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <h2
                 style={{
-                  fontSize: "1.18rem",
-                  fontWeight: 800,
-                  color: "#0f172a",
+                  fontSize: "1.15rem",
+                  fontWeight: 700,
+                  color: "var(--text)",
                   margin: 0,
                   letterSpacing: "-0.01em",
                 }}
@@ -475,55 +528,47 @@ export default function LiveInterviewStudio({
                   ? "GitHub & Projects Interview"
                   : "System Design Interview"}
               </h2>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "3px 10px",
-                  borderRadius: "999px",
-                  background: "#fef2f2",
-                  border: "1px solid #fee2e2",
-                  color: "#ef4444",
-                  fontSize: "0.72rem",
-                  fontWeight: 800,
-                }}
-              >
-                <span
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: "50%",
-                    background: "#ef4444",
-                    boxShadow: "0 0 6px #ef4444",
-                  }}
-                />
+              <div className="interview-header-status live">
+                <span className="interview-pulse-dot" />
                 <span>Live Interview</span>
               </div>
             </div>
-            <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "1px" }}>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>
               Real-time AI interview with adaptive questions and feedback • {groundingEvidence}
+            </div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "3px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {technicalCitations.length ? technicalCitations.map((citation) => (
+                <a
+                  key={citation.id || citation.canonical_url}
+                  href={citation.canonical_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--accent)", textDecoration: "none" }}
+                  title={`Checked ${citation.last_checked_at || "date unavailable"}; source updated ${citation.source_last_modified || "date not reported"}`}
+                >
+                  {citation.title || citation.source || "Technical reference"} · checked {(citation.last_checked_at || "").slice(0, 10) || "date unavailable"}
+                </a>
+              )) : (
+                <span>
+                  {technicalSourceStatus === "stale"
+                    ? "Stored official references are stale; none were used."
+                    : technicalSourceStatus === "not_refreshed"
+                    ? "The official source catalog has not been refreshed yet."
+                    : technicalSourceStatus === "no_matching_fresh_sources"
+                    ? "Fresh official references exist, but none matched this question."
+                    : "Fresh official technical references are unavailable for this question."}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         {/* Right: Countdown Timer + Language Selector + End Interview + Exit Fullscreen */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="interview-header-controls">
           {/* Spoken Language Selector & Status Badges */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "5px 12px",
-                borderRadius: "10px",
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-              }}
-            >
-              <Globe size={15} color="#4f46e5" />
+            <div className="interview-evidence-pill" style={{ padding: "4px 10px" }}>
+              <Globe size={14} color="var(--accent)" />
               <select
                 value={selectedLanguage}
                 onChange={(e) =>
@@ -536,7 +581,7 @@ export default function LiveInterviewStudio({
                   border: "none",
                   fontSize: "0.82rem",
                   fontWeight: 700,
-                  color: "#1e293b",
+                  color: "var(--text)",
                   cursor: "pointer",
                   outline: "none",
                 }}
@@ -559,71 +604,40 @@ export default function LiveInterviewStudio({
               </select>
             </div>
 
-            {/* Voice Picker */}
-            {availableVoices && availableVoices.length > 0 && (
-              <div
+            {/* Speaking Speed Rate Selector */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "var(--cv-bg-subtle, var(--surface-2))",
+                border: "1px solid var(--border, var(--cv-border))",
+                borderRadius: "8px",
+                padding: "4px 8px",
+              }}
+            >
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>Speed:</span>
+              <select
+                value={speechRate}
+                onChange={(e) => onChangeSpeechRate?.(parseFloat(e.target.value))}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "5px 10px",
-                  borderRadius: "10px",
-                  background: "#ffffff",
-                  border: "1px solid #cbd5e1",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "0.76rem",
+                  fontWeight: 700,
+                  color: "var(--cv-text)",
+                  cursor: "pointer",
+                  outline: "none",
                 }}
+                title="Interviewer Speech Pacing"
               >
-                <Volume2 size={13} color="#7c3aed" />
-                <select
-                  value={voiceStatus?.voice?.voiceURI || ""}
-                  onChange={(e) => onSelectVoice(e.target.value)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
-                    color: "#1e293b",
-                    cursor: "pointer",
-                    outline: "none",
-                    maxWidth: "160px",
-                  }}
-                  title="Select TTS Voice"
-                >
-                  <option value="">— Select Voice —</option>
-                  {(() => {
-                    const cfg = getLanguageConfig(selectedLanguage);
-                    const langVoices = availableVoices.filter((v) =>
-                      v.lang && v.lang.toLowerCase().startsWith(cfg.bcp47.toLowerCase().slice(0, 2))
-                    );
-                    const otherVoices = availableVoices.filter((v) =>
-                      !v.lang || !v.lang.toLowerCase().startsWith(cfg.bcp47.toLowerCase().slice(0, 2))
-                    );
-                    return (
-                      <>
-                        {langVoices.length > 0 && (
-                          <optgroup label={`${cfg.label} Voices`}>
-                            {langVoices.map((v) => (
-                              <option key={v.voiceURI} value={v.voiceURI}>
-                                {v.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {otherVoices.length > 0 && (
-                          <optgroup label="Other Voices">
-                            {otherVoices.map((v) => (
-                              <option key={v.voiceURI} value={v.voiceURI}>
-                                {v.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </>
-                    );
-                  })()}
-                </select>
-              </div>
-            )}
+                <option value={0.75} style={{ background: "var(--cv-surface, #ffffff)" }}>0.75x (Deliberate)</option>
+                <option value={0.85} style={{ background: "var(--cv-surface, #ffffff)" }}>0.85x (Indic Natural)</option>
+                <option value={1.0} style={{ background: "var(--cv-surface, #ffffff)" }}>1.0x (Standard)</option>
+                <option value={1.15} style={{ background: "var(--cv-surface, #ffffff)" }}>1.15x (Brisk)</option>
+                <option value={1.25} style={{ background: "var(--cv-surface, #ffffff)" }}>1.25x (Fast)</option>
+              </select>
+            </div>
 
             {/* Voice & Speech State Badges */}
             {isGeneratingQuestion && (
@@ -634,14 +648,14 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#e0e7ff",
-                  color: "#4338ca",
-                  border: "1px solid #c7d2fe",
+                  background: "var(--accent-soft)",
+                  color: "var(--accent)",
+                  border: "1px solid var(--accent-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
               >
-                <Loader2 size={12} className="animate-spin" /> Generating {getLanguageConfig(selectedLanguage).label} Question...
+                <Loader2 size={12} className="animate-spin" /> Generating {selectedLanguage === "ta" ? "Tamil" : selectedLanguage === "hi" ? "Hindi" : "English"} Question...
               </span>
             )}
             {isAgentSpeaking && (
@@ -652,14 +666,14 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#ede9fe",
-                  color: "#6d28d9",
-                  border: "1px solid #ddd6fe",
+                  background: "var(--accent-soft)",
+                  color: "var(--accent)",
+                  border: "1px solid var(--accent-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
               >
-                <Volume2 size={12} /> Speaking ({getLanguageConfig(selectedLanguage).bcp47})
+                <Volume2 size={12} /> Speaking ({selectedLanguage === "ta" ? "ta-IN" : selectedLanguage === "hi" ? "hi-IN" : "en-IN"})
               </span>
             )}
             {isListening && (
@@ -670,17 +684,17 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#fee2e2",
-                  color: "#b91c1c",
-                  border: "1px solid #fca5a5",
+                  background: "var(--danger-soft)",
+                  color: "var(--danger)",
+                  border: "1px solid var(--danger-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
               >
-                <Mic size={12} /> Listening ({getLanguageConfig(selectedLanguage).bcp47})...
+                <Mic size={12} /> Listening ({selectedLanguage === "ta" ? "ta-IN" : selectedLanguage === "hi" ? "hi-IN" : "en-IN"})...
               </span>
             )}
-            {voiceStatus && !voiceStatus.isSupported && selectedLanguage !== "en" && (
+            {voiceStatus && !voiceStatus.isSupported && (selectedLanguage === "ta" || selectedLanguage === "hi") && (
               <span
                 style={{
                   display: "inline-flex",
@@ -688,15 +702,15 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  border: "1px solid #fde68a",
+                  background: "var(--warning-soft)",
+                  color: "var(--warning)",
+                  border: "1px solid var(--warning-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
                 title={voiceStatus.message}
               >
-                <AlertTriangle size={12} /> {getLanguageConfig(selectedLanguage).label} Voice Not Installed (Text Active)
+                <AlertTriangle size={12} /> {selectedLanguage === "ta" ? "Tamil" : "Hindi"} Voice Not Installed (Text Active)
               </span>
             )}
             {voiceStatus && voiceStatus.isSupported && (
@@ -707,15 +721,15 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#f0fdf4",
-                  color: "#166534",
-                  border: "1px solid #bbf7d0",
+                  background: "var(--success-soft)",
+                  color: "var(--success)",
+                  border: "1px solid var(--success-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
                 title={voiceStatus.message}
               >
-                <Volume2 size={12} /> {voiceStatus.voiceName ? `${voiceStatus.voiceName} (${getLanguageConfig(selectedLanguage).label})` : "Voice Ready"}
+                <Volume2 size={12} /> {voiceStatus.voiceName ? `${voiceStatus.voiceName} (${selectedLanguage === "ta" ? "Tamil" : selectedLanguage === "hi" ? "Hindi" : "en-IN"})` : "Voice Ready"}
               </span>
             )}
             {micStatus?.state === "denied" && (
@@ -726,11 +740,11 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#fee2e2",
-                  color: "#b91c1c",
-                  border: "1px solid #fca5a5",
+                  background: "var(--danger-soft)",
+                  color: "var(--danger)",
+                  border: "1px solid var(--danger-border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
                 title={micStatus.message}
               >
@@ -745,11 +759,11 @@ export default function LiveInterviewStudio({
                   gap: "4px",
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  border: "1px solid #cbd5e1",
+                  background: "var(--surface-2)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border)",
                   padding: "4px 8px",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
                 title={micStatus.message}
               >
@@ -759,32 +773,21 @@ export default function LiveInterviewStudio({
           </div>
 
           {/* Timer Card */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "6px 14px",
-              borderRadius: "10px",
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-            }}
-          >
-            <Clock size={16} color="#6366f1" />
+          <div className="interview-timer-badge">
+            <Clock size={16} color="var(--accent)" />
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span
                 style={{
                   fontSize: "0.92rem",
                   fontWeight: 800,
-                  color: "#0f172a",
+                  color: "var(--text)",
                   fontVariantNumeric: "tabular-nums",
                   lineHeight: 1.1,
                 }}
               >
                 {formatTime(timeLeft)}
               </span>
-              <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 600 }}>
+              <span style={{ fontSize: "0.64rem", color: "var(--text-muted)", fontWeight: 600 }}>
                 Time Remaining
               </span>
             </div>
@@ -795,18 +798,18 @@ export default function LiveInterviewStudio({
             type="button"
             onClick={handleCompleteInterview}
             style={{
-              background: "#fff1f2",
-              border: "1px solid #fecdd3",
-              borderRadius: "10px",
+              background: "var(--danger-soft, rgba(239, 68, 68, 0.12))",
+              border: "1px solid var(--danger-border, rgba(239, 68, 68, 0.25))",
+              borderRadius: "6px",
               padding: "7px 14px",
-              color: "#e11d48",
+              color: "var(--danger, #ef4444)",
               fontSize: "0.82rem",
               fontWeight: 700,
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              transition: "background 0.15s ease",
+              transition: "all 0.15s ease",
             }}
           >
             <PhoneOff size={15} />
@@ -817,41 +820,16 @@ export default function LiveInterviewStudio({
           <button
             type="button"
             onClick={toggleFullscreen}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "10px",
-              padding: "7px 12px",
-              color: "#475569",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
+            className="interview-back-btn"
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* ── MAIN 3-PANEL RESPONSIVE WORKSPACE ─────────────────────────────── */}
-      <div
-        style={{
-          flex: 1,
-          padding: "16px 24px",
-          display: "grid",
-          gridTemplateColumns: "290px minmax(0, 1fr) 350px",
-          gap: "16px",
-          boxSizing: "border-box",
-          maxWidth: "1800px",
-          width: "100%",
-          margin: "0 auto",
-          alignItems: "start",
-        }}
-      >
+      <div className="interview-studio-layout">
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* PANEL 1 (LEFT): CYRA ROBOTIC AGENT & CANDIDATE CAMERA FEED          */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -859,9 +837,9 @@ export default function LiveInterviewStudio({
           {/* Main Agent Avatar & Video Feed Container */}
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--cv-surface)",
               borderRadius: "18px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border, var(--cv-border))",
               boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
               padding: "16px",
               display: "flex",
@@ -874,7 +852,7 @@ export default function LiveInterviewStudio({
             <div
               style={{
                 display: "flex",
-                background: "#f1f5f9",
+                background: "var(--cv-bg-subtle)",
                 borderRadius: "10px",
                 padding: "3px",
                 marginBottom: "12px",
@@ -1022,8 +1000,8 @@ export default function LiveInterviewStudio({
                         onClick={startCamera}
                         style={{
                           marginTop: "8px",
-                          background: "#6366f1",
-                          color: "#ffffff",
+                          background: "var(--cv-accent)",
+                          color: "var(--cv-text-inverse)",
                           border: "none",
                           padding: "5px 12px",
                           borderRadius: "6px",
@@ -1040,44 +1018,133 @@ export default function LiveInterviewStudio({
               )}
             </div>
 
-            {/* Cyra Name & Character Bubble */}
+            {/* Cyra Live Dialogue Bubble */}
             <div style={{ width: "100%", marginTop: "12px", textAlign: "left" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>Cyra</span>
-                <span
-                  style={{
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    background: "#e0e7ff",
-                    color: "#4338ca",
-                    padding: "2px 8px",
-                    borderRadius: "10px",
-                  }}
-                >
-                  Robotic Interviewer
-                </span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "1rem", fontWeight: 800, color: "var(--cv-text)" }}>Cyra</span>
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      background: "#e0e7ff",
+                      color: "#4338ca",
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    AI Lead Interviewer
+                  </span>
+                </div>
+                {isAgentSpeaking && (
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      color: "#6366f1",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1" }} />
+                    Speaking…
+                  </span>
+                )}
               </div>
-              <p
+              <div
                 style={{
                   margin: "8px 0 0 0",
                   fontSize: "0.8rem",
-                  color: "#475569",
-                  lineHeight: 1.4,
-                  background: "#f8fafc",
+                  color: "var(--cv-text)",
+                  lineHeight: 1.45,
+                  background: "var(--surface-2, var(--cv-bg-subtle))",
                   padding: "10px 12px",
                   borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
+                  maxHeight: "120px",
+                  overflowY: "auto",
                 }}
               >
-                {isGithub
-                  ? "I'll ask questions about your CareerVerseAI GitHub repository. I've analyzed your architecture, commits, and code files to test real technical decisions."
+                {spokenSubtitle || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.sender === "cyra" ? chatMessages[chatMessages.length - 1]?.text : null) || (isGithub
+                  ? "I'm assessing your verified CareerVerseAI repositories and implementation decisions. Let's discuss your architectural trade-offs."
                   : isDsa
-                  ? "Here's an algorithmic problem grounded in HackerRank Problem Solving & LeetCode. Take your time to think through time and space complexity."
+                  ? "Let's explore your problem-solving approach and time-complexity trade-offs."
                   : isBehavioral
-                  ? "This is a behavioral evaluation. Please structure your response using the STAR method (Situation, Task, Action, Result)."
-                  : "Let's explore your architectural thinking, trade-offs, and how you design systems under scale."}
-              </p>
+                  ? "Please structure your response using the STAR framework (Situation, Task, Action, Result)."
+                  : "Let's analyze system architecture, bottlenecks, and scaling under load.")}
+              </div>
             </div>
+          </div>
+
+          {/* Transparent Integrity & Peripheral Status Card */}
+          <div
+            style={{
+              background: "var(--cv-surface)",
+              borderRadius: "16px",
+              border: "1px solid var(--border, var(--cv-border))",
+              padding: "14px 16px",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <ShieldCheck size={15} color="#6366f1" />
+                <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                  Integrity & Peripheral Status
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                  padding: "2px 7px",
+                  borderRadius: "6px",
+                  background: proctoringStatus?.unproctored ? "#f1f5f9" : "rgba(34, 197, 94, 0.14)",
+                  color: proctoringStatus?.unproctored ? "#64748b" : "#16a34a",
+                }}
+              >
+                {proctoringStatus?.unproctored ? "Practice Mode" : "● Transparent Live Telemetry"}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "0.74rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "var(--cv-text-muted)" }}>
+                <Camera size={13} color={cameraActive ? "#16a34a" : "#94a3b8"} />
+                <span>Camera: {cameraActive ? "Active" : "Muted"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "var(--cv-text-muted)" }}>
+                <Mic size={13} color={isListening ? "#6366f1" : "#16a34a"} />
+                <span>Mic: {isListening ? "Listening" : "Ready"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "var(--cv-text-muted)" }}>
+                <Monitor size={13} color={isFullscreen ? "#16a34a" : "#94a3b8"} />
+                <span>Screen: {isFullscreen ? "Full" : "Window"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "var(--cv-text-muted)" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: proctoringStatus?.online !== false ? "#16a34a" : "#ef4444" }} />
+                <span>Net: {proctoringStatus?.online !== false ? "Online" : "Offline"}</span>
+              </div>
+            </div>
+
+            {proctoringStatus?.warning && (
+              <div
+                style={{
+                  background: "#fffbeb",
+                  border: "1px solid #fef3c7",
+                  color: "#b45309",
+                  padding: "6px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.72rem",
+                  lineHeight: 1.3,
+                }}
+              >
+                ⚠️ {proctoringStatus.warning}
+              </div>
+            )}
           </div>
 
           {/* Mode-Specific Context Card */}
@@ -1085,20 +1152,20 @@ export default function LiveInterviewStudio({
             /* Cyra's Tips Card for DSA */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "16px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 padding: "14px 16px",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                 <span style={{ fontSize: "1rem" }}>💡</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)" }}>
                   Cyra's Tips
                 </span>
               </div>
-              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.78rem", color: "var(--cv-text-muted)", lineHeight: 1.6 }}>
                 <li>Think about edge cases and boundary inputs</li>
                 <li>Consider time and space complexity (Big-O)</li>
                 <li>Explain your reasoning clearly before writing code</li>
@@ -1109,32 +1176,32 @@ export default function LiveInterviewStudio({
             /* STAR Framework Card for Behavioral */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "16px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 padding: "14px 16px",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
               }}
             >
-              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
+              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "10px" }}>
                 STAR Framework
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.76rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#e0e7ff", color: "#4338ca", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>S</span>
-                  <span style={{ color: "#334155", fontWeight: 600 }}>Situation — Set the context</span>
+                  <span style={{ color: "var(--cv-text-muted)", fontWeight: 600 }}>Situation — Set the context</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>T</span>
-                  <span style={{ color: "#334155", fontWeight: 600 }}>Task — Your specific responsibility</span>
+                  <span style={{ color: "var(--cv-text-muted)", fontWeight: 600 }}>Task — Your specific responsibility</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#dcfce7", color: "#15803d", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>A</span>
-                  <span style={{ color: "#334155", fontWeight: 600 }}>Action — Steps and code you implemented</span>
+                  <span style={{ color: "var(--cv-text-muted)", fontWeight: 600 }}>Action — Steps and code you implemented</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#fee2e2", color: "#b91c1c", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>R</span>
-                  <span style={{ color: "#334155", fontWeight: 600 }}>Result — Measurable impact & learnings</span>
+                  <span style={{ color: "var(--cv-text-muted)", fontWeight: 600 }}>Result — Measurable impact & learnings</span>
                 </div>
               </div>
             </div>
@@ -1142,14 +1209,14 @@ export default function LiveInterviewStudio({
             /* Analyzed Repositories Card for GitHub */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "16px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 padding: "14px 16px",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
               }}
             >
-              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
+              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "8px" }}>
                 Analyzed Repositories
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1159,18 +1226,18 @@ export default function LiveInterviewStudio({
                     style={{
                       padding: "8px 10px",
                       borderRadius: "10px",
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
+                      background: "var(--surface-2, var(--cv-bg-subtle))",
+                      border: "1px solid var(--border, var(--cv-border))",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#0f172a" }}>
+                      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--cv-text)" }}>
                         {repo.name}
                       </div>
-                      <div style={{ fontSize: "0.7rem", color: "#64748b" }}>
+                      <div style={{ fontSize: "0.7rem", color: "var(--cv-text-muted)" }}>
                         {repo.desc || repo.description || "Connected repository"}
                       </div>
                     </div>
@@ -1183,17 +1250,17 @@ export default function LiveInterviewStudio({
             /* System Design Card */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "16px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 padding: "14px 16px",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
               }}
             >
-              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
+              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "8px" }}>
                 Architecture Guidelines
               </div>
-              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.78rem", color: "var(--cv-text-muted)", lineHeight: 1.6 }}>
                 <li>Identify functional requirements & scale</li>
                 <li>Define throughput and latency SLA bounds</li>
                 <li>Design data schemas, indexes & caching tiers</li>
@@ -1205,9 +1272,9 @@ export default function LiveInterviewStudio({
           {/* Media Audio/Video Controls at Bottom of Panel 1 */}
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--cv-surface)",
               borderRadius: "16px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border, var(--cv-border))",
               padding: "12px",
               display: "flex",
               alignItems: "center",
@@ -1226,7 +1293,7 @@ export default function LiveInterviewStudio({
                 borderRadius: "50%",
                 border: "none",
                 background: isAgentSpeaking ? "#818cf8" : "#4f46e5",
-                color: "#ffffff",
+                color: "var(--cv-text-inverse)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1249,7 +1316,7 @@ export default function LiveInterviewStudio({
                 borderRadius: "50%",
                 border: "none",
                 background: isListening ? "#ef4444" : "#3b82f6",
-                color: "#ffffff",
+                color: "var(--cv-text-inverse)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1272,7 +1339,7 @@ export default function LiveInterviewStudio({
                 borderRadius: "50%",
                 border: "none",
                 background: "#ef4444",
-                color: "#ffffff",
+                color: "var(--cv-text-inverse)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1302,7 +1369,7 @@ export default function LiveInterviewStudio({
                 borderRadius: "50%",
                 border: "none",
                 background: cameraActive ? "#0f172a" : "#64748b",
-                color: "#ffffff",
+                color: "var(--cv-text-inverse)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1326,9 +1393,9 @@ export default function LiveInterviewStudio({
               {/* Workbench Tabs & Code Area Card */}
               <div
                 style={{
-                  background: "#ffffff",
+                  background: "var(--cv-surface)",
                   borderRadius: "18px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                   overflow: "hidden",
                   display: "flex",
@@ -1338,8 +1405,8 @@ export default function LiveInterviewStudio({
                 {/* Workbench Navigation Bar */}
                 <div
                   style={{
-                    background: "#ffffff",
-                    borderBottom: "1px solid #e2e8f0",
+                    background: "var(--cv-surface)",
+                    borderBottom: "1px solid var(--border, var(--cv-border))",
                     padding: "8px 14px",
                     display: "flex",
                     alignItems: "center",
@@ -1468,7 +1535,7 @@ export default function LiveInterviewStudio({
                     style={{
                       background: "transparent",
                       border: "none",
-                      color: "#64748b",
+                      color: "var(--cv-text-muted)",
                       cursor: "pointer",
                       padding: "4px",
                     }}
@@ -1481,7 +1548,7 @@ export default function LiveInterviewStudio({
                 {centerTab === "teach" ? (
                   <div
                     style={{
-                      background: "#ffffff",
+                      background: "var(--cv-surface)",
                       padding: "24px 28px",
                       minHeight: "360px",
                       overflowY: "auto",
@@ -1497,7 +1564,7 @@ export default function LiveInterviewStudio({
                         justifyContent: "space-between",
                         flexWrap: "wrap",
                         gap: "10px",
-                        borderBottom: "1px solid #e2e8f0",
+                        borderBottom: "1px solid var(--border, var(--cv-border))",
                         paddingBottom: "14px",
                       }}
                     >
@@ -1511,16 +1578,16 @@ export default function LiveInterviewStudio({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#ffffff",
+                            color: "var(--cv-text-inverse)",
                           }}
                         >
                           <Sparkles size={18} />
                         </div>
                         <div>
-                          <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>
+                          <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--cv-text)" }}>
                             Dr. Cyra Vance Concept Masterclass & Framework
                           </h4>
-                          <p style={{ margin: "2px 0 0 0", fontSize: "0.76rem", color: "#64748b" }}>
+                          <p style={{ margin: "2px 0 0 0", fontSize: "0.76rem", color: "var(--cv-text-muted)" }}>
                             Interactive teaching breakdown for {currentQuestion?.topic || "Active Problem Concepts"}
                           </p>
                         </div>
@@ -1531,13 +1598,13 @@ export default function LiveInterviewStudio({
                           onClick={() => handleQuickAction("teach")}
                           disabled={isCyraThinking}
                           style={{
-                            background: "#f1f5f9",
+                            background: "var(--cv-bg-subtle)",
                             border: "1px solid #cbd5e1",
                             borderRadius: "8px",
                             padding: "6px 12px",
                             fontSize: "0.76rem",
                             fontWeight: 700,
-                            color: "#334155",
+                            color: "var(--cv-text-muted)",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -1551,13 +1618,13 @@ export default function LiveInterviewStudio({
                           type="button"
                           onClick={() => setCenterTab("editor")}
                           style={{
-                            background: "#4f46e5",
+                            background: "var(--cv-accent)",
                             border: "none",
                             borderRadius: "8px",
                             padding: "6px 14px",
                             fontSize: "0.76rem",
                             fontWeight: 700,
-                            color: "#ffffff",
+                            color: "var(--cv-text-inverse)",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -1583,8 +1650,8 @@ export default function LiveInterviewStudio({
                     ) : (
                       <div
                         style={{
-                          background: "#f8fafc",
-                          border: "1px solid #e2e8f0",
+                          background: "var(--surface-2, var(--cv-bg-subtle))",
+                          border: "1px solid var(--border, var(--cv-border))",
                           borderRadius: "14px",
                           padding: "20px 24px",
                           fontSize: "0.88rem",
@@ -1642,7 +1709,7 @@ Can you identify what happens if there are duplicate values in the array? Click 
                       <FileText size={12} color="#60a5fa" />
                       <span>solution.py</span>
                     </div>
-                    <span style={{ color: "#64748b", fontSize: "0.8rem" }}>+</span>
+                    <span style={{ color: "var(--cv-text-muted)", fontSize: "0.8rem" }}>+</span>
                   </div>
 
                   {/* Language Selector */}
@@ -1689,7 +1756,7 @@ Can you identify what happens if there are duplicate values in the array? Click 
                       padding: "12px 6px",
                       textAlign: "right",
                       userSelect: "none",
-                      color: "#475569",
+                      color: "var(--cv-text-muted)",
                       lineHeight: "1.6",
                       fontSize: "0.75rem",
                     }}
@@ -1749,7 +1816,7 @@ class Solution:
                     justifyContent: "space-between",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.72rem", color: "#64748b" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.72rem", color: "var(--cv-text-muted)" }}>
                     <RotateCcw
                       size={13}
                       style={{ cursor: "pointer" }}
@@ -1785,7 +1852,7 @@ class Solution:
                       style={{
                         background: "#2563eb",
                         border: "none",
-                        color: "#ffffff",
+                        color: "var(--cv-text-inverse)",
                         padding: "5px 16px",
                         borderRadius: "6px",
                         fontSize: "0.76rem",
@@ -1808,7 +1875,7 @@ class Solution:
                           ? "#818cf8"
                           : "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
                         border: "none",
-                        color: "#ffffff",
+                        color: "var(--cv-text-inverse)",
                         padding: "5px 16px",
                         borderRadius: "6px",
                         fontSize: "0.76rem",
@@ -1849,9 +1916,9 @@ class Solution:
                 {/* Test Cases Card */}
                 <div
                   style={{
-                    background: "#ffffff",
+                    background: "var(--cv-surface)",
                     borderRadius: "16px",
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--border, var(--cv-border))",
                     padding: "14px 16px",
                     boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
                   }}
@@ -1866,11 +1933,11 @@ class Solution:
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <span style={{ fontSize: "1rem" }}>🧪</span>
-                      <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a" }}>
+                      <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)" }}>
                         Test Cases
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 600 }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--cv-text-muted)", fontWeight: 600 }}>
                       {testCasesList.length} Active Vectors
                     </span>
                   </div>
@@ -1884,7 +1951,7 @@ class Solution:
                     }}
                   >
                     <thead>
-                      <tr style={{ color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
+                      <tr style={{ color: "var(--cv-text-muted)", borderBottom: "1px solid var(--border, var(--cv-border))" }}>
                         <th style={{ padding: "4px 6px" }}>#</th>
                         <th style={{ padding: "4px 6px" }}>Input</th>
                         <th style={{ padding: "4px 6px" }}>Expected</th>
@@ -1900,11 +1967,11 @@ class Solution:
                         const isRunning = isRunningCode || tc.status === "running";
                         return (
                           <tr key={tc.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                            <td style={{ padding: "6px", fontWeight: 700, color: "#64748b" }}>{tc.id}</td>
-                            <td style={{ padding: "6px", fontFamily: "monospace", color: "#334155", maxWidth: "110px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tc.input}>
+                            <td style={{ padding: "6px", fontWeight: 700, color: "var(--cv-text-muted)" }}>{tc.id}</td>
+                            <td style={{ padding: "6px", fontFamily: "monospace", color: "var(--cv-text-muted)", maxWidth: "110px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tc.input}>
                               {tc.input}
                             </td>
-                            <td style={{ padding: "6px", fontFamily: "monospace", color: "#334155", maxWidth: "90px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tc.expected}>
+                            <td style={{ padding: "6px", fontFamily: "monospace", color: "var(--cv-text-muted)", maxWidth: "90px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tc.expected}>
                               {tc.expected}
                             </td>
                             <td style={{ padding: "6px", fontFamily: "monospace", color: tc.actual !== null ? (isPassed ? "#16a34a" : "#dc2626") : "#94a3b8" }}>
@@ -1924,7 +1991,7 @@ class Solution:
                                   <XCircle size={12} /> Failed
                                 </span>
                               ) : (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "#64748b", fontWeight: 600 }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--cv-text-muted)", fontWeight: 600 }}>
                                   ⏳ Not Run
                                 </span>
                               )}
@@ -1935,7 +2002,7 @@ class Solution:
                                 onClick={handleRunCode}
                                 disabled={isRunningCode}
                                 style={{
-                                  background: "#f8fafc",
+                                  background: "var(--surface-2, var(--cv-bg-subtle))",
                                   border: "1px solid #cbd5e1",
                                   padding: "2px 8px",
                                   borderRadius: "4px",
@@ -1957,9 +2024,9 @@ class Solution:
                 {/* AI Feedback Card */}
                 <div
                   style={{
-                    background: "#ffffff",
+                    background: "var(--cv-surface)",
                     borderRadius: "16px",
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--border, var(--cv-border))",
                     padding: "14px 16px",
                     boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
                     display: "flex",
@@ -1970,7 +2037,7 @@ class Solution:
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
                       <Sparkles size={14} color="#6366f1" />
-                      <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a" }}>
+                      <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)" }}>
                         AI Evaluation & Feedback
                       </span>
                     </div>
@@ -1998,7 +2065,7 @@ class Solution:
                               </>
                             )}
                           </div>
-                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "#64748b", lineHeight: 1.4 }}>
+                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "var(--cv-text-muted)", lineHeight: 1.4 }}>
                             {codeExecutionResults.stdout || (
                               codeExecutionResults.status === "Accepted"
                                 ? "All test vectors satisfied with optimal computational complexity."
@@ -2021,10 +2088,10 @@ class Solution:
                             flexShrink: 0,
                           }}
                         >
-                          <span style={{ fontSize: "0.84rem", fontWeight: 800, color: "#0f172a" }}>
+                          <span style={{ fontSize: "0.84rem", fontWeight: 800, color: "var(--cv-text)" }}>
                             {Math.round(((codeExecutionResults.passedCount || 0) / Math.max(codeExecutionResults.totalCount || 1, 1)) * 100)}
                           </span>
-                          <span style={{ fontSize: "0.55rem", color: "#64748b" }}>/100</span>
+                          <span style={{ fontSize: "0.55rem", color: "var(--cv-text-muted)" }}>/100</span>
                         </div>
                       </div>
                     ) : feedback ? (
@@ -2042,7 +2109,7 @@ class Solution:
                           >
                             <CheckCircle2 size={13} /> Evaluated Answer
                           </div>
-                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "#64748b", lineHeight: 1.4 }}>
+                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "var(--cv-text-muted)", lineHeight: 1.4 }}>
                             {feedback.assessment || feedback.summary || "Answer recorded successfully."}
                           </p>
                         </div>
@@ -2059,8 +2126,8 @@ class Solution:
                             flexShrink: 0,
                           }}
                         >
-                          <span style={{ fontSize: "0.84rem", fontWeight: 800, color: "#0f172a" }}>{feedback.score || 85}</span>
-                          <span style={{ fontSize: "0.55rem", color: "#64748b" }}>/100</span>
+                          <span style={{ fontSize: "0.84rem", fontWeight: 800, color: "var(--cv-text)" }}>{feedback.score || 85}</span>
+                          <span style={{ fontSize: "0.55rem", color: "var(--cv-text-muted)" }}>/100</span>
                         </div>
                       </div>
                     ) : (
@@ -2070,7 +2137,7 @@ class Solution:
                             style={{
                               fontSize: "0.8rem",
                               fontWeight: 700,
-                              color: "#475569",
+                              color: "var(--cv-text-muted)",
                               display: "flex",
                               alignItems: "center",
                               gap: "4px",
@@ -2078,7 +2145,7 @@ class Solution:
                           >
                             <Clock size={13} /> Waiting for Execution
                           </div>
-                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "#64748b", lineHeight: 1.4 }}>
+                          <p style={{ margin: "4px 0 0 0", fontSize: "0.74rem", color: "var(--cv-text-muted)", lineHeight: 1.4 }}>
                             Write your solution above and click <strong>Run ▶</strong> to test against test cases. Click <strong>Submit Solution to Cyra 🚀</strong> when ready to proceed.
                           </p>
                         </div>
@@ -2147,9 +2214,9 @@ class Solution:
             /* BEHAVIORAL & GITHUB PROJECTS WORKBENCH */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "18px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 padding: "20px",
                 display: "flex",
@@ -2158,8 +2225,8 @@ class Solution:
               }}
             >
               {/* Question Header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                   <span
                     style={{
                       fontSize: "0.76rem",
@@ -2170,8 +2237,24 @@ class Solution:
                       borderRadius: "12px",
                     }}
                   >
-                    Question {currentQIndex} of 8
+                    Question {coreQuestionNumber} of {totalCoreQuestions}
+                    {isFollowUp ? " • Follow-up" : ""}
                   </span>
+                  {isFollowUp && (
+                    <span
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        color: "#b45309",
+                        background: "#fef3c7",
+                        border: "1px solid #fde68a",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                      }}
+                    >
+                      Adaptive Socratic Probe
+                    </span>
+                  )}
                   <span
                     style={{
                       fontSize: "0.72rem",
@@ -2182,7 +2265,19 @@ class Solution:
                       borderRadius: "10px",
                     }}
                   >
-                    {isBehavioral ? "Behavioral STAR" : "Project Discussion (CareerVerseAI)"}
+                    {competencyPhase}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.70rem",
+                      fontWeight: 600,
+                      color: evidenceStatus === "grounded" ? "#0284c7" : "#d97706",
+                      background: evidenceStatus === "grounded" ? "#e0f2fe" : "#fef3c7",
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    {evidenceStatus === "grounded" ? "RAG Grounded" : "General Technical Limitation Notice"}
                   </span>
                   {handleSpeakAgain && (
                     <button
@@ -2212,58 +2307,114 @@ class Solution:
                 </div>
               </div>
 
-              {/* Big Question Prompt */}
-              <h3
+              {/* Big Question Prompt rendered with Markdown */}
+              <div
+                className="cv-markdown-content"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(questionText) }}
                 style={{
-                  margin: 0,
-                  fontSize: "1.08rem",
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  lineHeight: 1.45,
+                  margin: "4px 0",
+                  fontSize: "1.02rem",
+                  fontWeight: 500,
+                  color: "var(--cv-text)",
+                  lineHeight: 1.55,
                 }}
-              >
-                {questionText}
-              </h3>
+              />
+
+              {/* Verified Codebase Repository Citations */}
+              {repoCitations.length > 0 && (
+                <div
+                  style={{
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "12px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontWeight: 800,
+                      fontSize: "0.78rem",
+                      color: "#6366f1",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <GitBranch size={13} /> Grounded Repository Citations ({repoCitations.length} files)
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {repoCitations.map((cit, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: "var(--cv-surface, #ffffff)",
+                          border: "1px solid var(--cv-border, #e2e8f0)",
+                          borderRadius: "8px",
+                          padding: "6px 10px",
+                          fontSize: "0.74rem",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--cv-text)" }}>
+                            📄 {cit.file_path || cit.file}
+                          </span>
+                          {cit.line_range && (
+                            <span style={{ fontSize: "0.68rem", color: "#64748b", background: "#f1f5f9", padding: "1px 6px", borderRadius: "4px" }}>
+                              Lines {cit.line_range}
+                            </span>
+                          )}
+                        </div>
+                        {cit.rationale && (
+                          <p style={{ margin: "2px 0 0 0", color: "var(--cv-text-muted)", fontSize: "0.72rem" }}>
+                            {cit.rationale}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Suggested Points or Repository Context */}
               {isGithub ? (
                 <div
                   style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    border: "1px solid var(--border, var(--cv-border))",
                     borderRadius: "12px",
                     padding: "12px 14px",
                     fontSize: "0.78rem",
-                    color: "#475569",
+                    color: "var(--cv-text-muted)",
                   }}
                 >
-                  <div style={{ fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                  <div style={{ fontWeight: 800, color: "var(--cv-text)", marginBottom: "6px" }}>
                     Your Repository Context
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     <div>
-                      <strong style={{ color: "#334155" }}>Tech Stack:</strong> {repoContext.tech_stack}
+                      <strong style={{ color: "var(--cv-text-muted)" }}>Tech Stack:</strong> {repoContext.tech_stack}
                     </div>
                     <div>
-                      <strong style={{ color: "#334155" }}>Key Features:</strong> {repoContext.key_features}
+                      <strong style={{ color: "var(--cv-text-muted)" }}>Key Features:</strong> {repoContext.key_features}
                     </div>
                     <div>
-                      <strong style={{ color: "#334155" }}>Architecture:</strong> {repoContext.architecture}
+                      <strong style={{ color: "var(--cv-text-muted)" }}>Architecture:</strong> {repoContext.architecture}
                     </div>
                   </div>
                 </div>
               ) : (
                 <div
                   style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    border: "1px solid var(--border, var(--cv-border))",
                     borderRadius: "12px",
                     padding: "12px 14px",
                     fontSize: "0.78rem",
-                    color: "#475569",
+                    color: "var(--cv-text-muted)",
                   }}
                 >
-                  <div style={{ fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                  <div style={{ fontWeight: 800, color: "var(--cv-text)", marginBottom: "6px" }}>
                     Suggested Points
                   </div>
                   <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
@@ -2323,6 +2474,136 @@ class Solution:
                 </button>
               </div>
 
+              {/* 5 Candidate Action Buttons (Requirement 3: Human-like interaction flow) */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  flexWrap: "wrap",
+                  padding: "6px 0",
+                }}
+              >
+                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--cv-text-muted)", marginRight: "2px" }}>
+                  Candidate Actions:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCandidateAction("hint")}
+                  disabled={isCyraThinking || loading}
+                  style={{
+                    background: "var(--cv-bg-subtle, #f8fafc)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "4px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    color: "var(--cv-text)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Receive a pedagogical hint"
+                >
+                  <Sparkles size={12} color="#f59e0b" />
+                  <span>Give me a hint</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCandidateAction("clarify")}
+                  disabled={isCyraThinking || loading}
+                  style={{
+                    background: "var(--cv-bg-subtle, #f8fafc)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "4px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    color: "var(--cv-text)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Ask interviewer to clarify requirements"
+                >
+                  <HelpCircle size={12} color="#6366f1" />
+                  <span>Ask me to clarify</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCandidateAction("explain")}
+                  disabled={isCyraThinking || loading}
+                  style={{
+                    background: "var(--cv-bg-subtle, #f8fafc)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "4px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    color: "var(--cv-text)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Explain the underlying architectural or algorithmic concept"
+                >
+                  <Bot size={12} color="#0ea5e9" />
+                  <span>Explain the concept</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCandidateAction("retry")}
+                  disabled={isCyraThinking || loading}
+                  style={{
+                    background: "var(--cv-bg-subtle, #f8fafc)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "4px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    color: "var(--cv-text)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Clear response and reformulate approach"
+                >
+                  <RotateCcw size={12} color="#64748b" />
+                  <span>Let me try again</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCandidateAction("continue")}
+                  disabled={isCyraThinking || loading}
+                  style={{
+                    background: "var(--cv-bg-subtle, #f8fafc)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "4px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    color: "var(--cv-accent)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="Continue directly to the next question"
+                >
+                  <Check size={12} color="var(--cv-accent)" />
+                  <span>Continue to next question</span>
+                </button>
+              </div>
+
               {/* Textarea Input */}
               <textarea
                 value={candidateAnswer}
@@ -2339,7 +2620,7 @@ class Solution:
                   borderRadius: "12px",
                   border: "1px solid #cbd5e1",
                   fontSize: "0.88rem",
-                  color: "#0f172a",
+                  color: "var(--cv-text)",
                   lineHeight: 1.5,
                   boxSizing: "border-box",
                   outline: "none",
@@ -2347,15 +2628,150 @@ class Solution:
                 }}
               />
 
+              {/* Socratic Feedback & Rubric Breakdown Card */}
+              {feedback && !dismissFeedback && (
+                <div
+                  style={{
+                    background: "var(--cv-surface, #ffffff)",
+                    border: "1px solid var(--cv-border, #e2e8f0)",
+                    borderRadius: "14px",
+                    padding: "14px 16px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Sparkles size={16} color="#6366f1" />
+                      <span style={{ fontSize: "0.88rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                        Socratic Evaluation &amp; Feedback
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          fontSize: "0.82rem",
+                          fontWeight: 800,
+                          color: "#6366f1",
+                          background: "#e0e7ff",
+                          padding: "2px 10px",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        Score: {feedback.score ?? 85}/100
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDismissFeedback(true)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#94a3b8",
+                          cursor: "pointer",
+                          padding: "2px",
+                        }}
+                        title="Dismiss"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rubric Breakdown Grid */}
+                  {feedback.rubric_scores && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                        gap: "8px",
+                        padding: "8px",
+                        background: "var(--cv-bg-subtle, #f8fafc)",
+                        borderRadius: "10px",
+                      }}
+                    >
+                      <div style={{ fontSize: "0.72rem" }}>
+                        <div style={{ color: "var(--cv-text-muted)" }}>Technical Accuracy</div>
+                        <strong style={{ color: "#16a34a" }}>{feedback.rubric_scores.technical_accuracy ?? 85}/100</strong>
+                      </div>
+                      <div style={{ fontSize: "0.72rem" }}>
+                        <div style={{ color: "var(--cv-text-muted)" }}>System Design Rigor</div>
+                        <strong style={{ color: "#6366f1" }}>{feedback.rubric_scores.system_design_or_dsa_rigor ?? 80}/100</strong>
+                      </div>
+                      <div style={{ fontSize: "0.72rem" }}>
+                        <div style={{ color: "var(--cv-text-muted)" }}>Tradeoff Analysis</div>
+                        <strong style={{ color: "#d97706" }}>{feedback.rubric_scores.tradeoff_analysis ?? 75}/100</strong>
+                      </div>
+                      <div style={{ fontSize: "0.72rem" }}>
+                        <div style={{ color: "var(--cv-text-muted)" }}>Communication Clarity</div>
+                        <strong style={{ color: "#0284c7" }}>{feedback.rubric_scores.communication_clarity ?? 85}/100</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assessment Text */}
+                  <div
+                    className="cv-markdown-content"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdown(feedback.assessment || feedback.summary || "Response evaluated."),
+                    }}
+                    style={{ fontSize: "0.78rem", color: "var(--cv-text)", lineHeight: 1.5 }}
+                  />
+
+                  {/* Strengths & Missing Areas */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "0.74rem" }}>
+                    {(feedback.strengths || feedback.what_candidate_got_right) && (
+                      <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "8px", borderRadius: "8px" }}>
+                        <strong style={{ color: "#166534" }}>✓ What You Covered Well:</strong>
+                        <p style={{ margin: "4px 0 0 0", color: "#15803d" }}>
+                          {feedback.strengths || feedback.what_candidate_got_right}
+                        </p>
+                      </div>
+                    )}
+                    {(feedback.growth_areas || feedback.what_was_missing) && (
+                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: "8px", borderRadius: "8px" }}>
+                        <strong style={{ color: "#92400e" }}>⚠ Areas to Deepen:</strong>
+                        <p style={{ margin: "4px 0 0 0", color: "#b45309" }}>
+                          {feedback.growth_areas || feedback.what_was_missing}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Follow-up Probe Notice */}
+                  {(feedback.is_follow_up_needed || isFollowUp) && (
+                    <div
+                      style={{
+                        background: "#fef3c7",
+                        border: "1px solid #fde68a",
+                        borderRadius: "8px",
+                        padding: "8px 10px",
+                        fontSize: "0.75rem",
+                        color: "#92400e",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <AlertCircle size={14} color="#d97706" />
+                      <span>
+                        <strong>Adaptive Socratic Probe:</strong> The interviewer is diving deeper into your response without advancing the core question counter.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button
                   type="button"
                   onClick={() => setCandidateAnswer("")}
                   style={{
-                    background: "#f1f5f9",
-                    border: "1px solid #e2e8f0",
-                    color: "#64748b",
+                    background: "var(--cv-bg-subtle)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    color: "var(--cv-text-muted)",
                     padding: "8px 16px",
                     borderRadius: "8px",
                     fontSize: "0.82rem",
@@ -2366,27 +2782,49 @@ class Solution:
                   Clear
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleAnswerSubmit(candidateAnswer)}
-                  style={{
-                    background: "#6366f1",
-                    border: "none",
-                    color: "#ffffff",
-                    padding: "8px 22px",
-                    borderRadius: "8px",
-                    fontSize: "0.84rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    boxShadow: "0 2px 6px rgba(99,102,241,0.3)",
-                  }}
-                >
-                  <span>Submit Answer</span>
-                  <Send size={14} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {feedback && (
+                    <button
+                      type="button"
+                      onClick={handleNextQuestion}
+                      style={{
+                        background: "var(--cv-bg-subtle)",
+                        border: "1px solid var(--cv-border, #cbd5e1)",
+                        color: "var(--cv-text)",
+                        padding: "8px 16px",
+                        borderRadius: "8px",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Skip to Next
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => effectiveSubmitAnswer(candidateAnswer)}
+                    disabled={loading || !candidateAnswer.trim()}
+                    style={{
+                      background: "var(--cv-accent)",
+                      border: "none",
+                      color: "var(--cv-text-inverse)",
+                      padding: "8px 22px",
+                      borderRadius: "8px",
+                      fontSize: "0.84rem",
+                      fontWeight: 700,
+                      cursor: loading || !candidateAnswer.trim() ? "not-allowed" : "pointer",
+                      opacity: loading || !candidateAnswer.trim() ? 0.6 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 2px 6px rgba(99,102,241,0.3)",
+                    }}
+                  >
+                    <span>{loading ? "Evaluating..." : isFollowUp ? "Submit Follow-up Response" : "Submit Answer"}</span>
+                    <Send size={14} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -2400,9 +2838,9 @@ class Solution:
             /* DSA QUESTION SPECIFICATION CARD */
             <div
               style={{
-                background: "#ffffff",
+                background: "var(--cv-surface)",
                 borderRadius: "18px",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border, var(--cv-border))",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 padding: "16px",
                 display: "flex",
@@ -2410,12 +2848,39 @@ class Solution:
                 gap: "10px",
               }}
             >
-              {/* Header: Question 1 of 5 + Easy Tag + DSA */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {/* Header: Question X of 5 + Easy Tag + Competency Phase */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                   <Clock size={13} color="#64748b" />
-                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>
-                    Question {currentQIndex} of 5
+                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>
+                    Question {coreQuestionNumber} of {totalCoreQuestions}
+                    {isFollowUp ? " • Follow-up" : ""}
+                  </span>
+                  {isFollowUp && (
+                    <span
+                      style={{
+                        background: "#fef3c7",
+                        color: "#b45309",
+                        fontSize: "0.68rem",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      Adaptive Probe
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      background: "#dcfce7",
+                      color: "#166534",
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    {competencyPhase}
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -2433,8 +2898,8 @@ class Solution:
                   </span>
                   <span
                     style={{
-                      background: "#f1f5f9",
-                      color: "#475569",
+                      background: "var(--cv-bg-subtle)",
+                      color: "var(--cv-text-muted)",
                       fontSize: "0.7rem",
                       fontWeight: 700,
                       padding: "2px 8px",
@@ -2471,30 +2936,32 @@ class Solution:
                 </div>
               </div>
 
-              {/* Title & Description */}
+              {/* Title & Description rendered with clean Markdown */}
               <div>
-                <h4 style={{ margin: "4px 0 6px 0", fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>
+                <h4 style={{ margin: "4px 0 6px 0", fontSize: "1rem", fontWeight: 800, color: "var(--cv-text)" }}>
                   {questionTitle}
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.78rem", color: "#475569", lineHeight: 1.45 }}>
-                  {questionText.split("\n\n")[0]}
-                </p>
+                <div
+                  className="cv-markdown-content"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(questionText) }}
+                  style={{ margin: 0, fontSize: "0.80rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}
+                />
               </div>
 
               {/* Sample Example */}
               {examplesList.length > 0 && (
                 <div
                   style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    border: "1px solid var(--border, var(--cv-border))",
                     borderRadius: "10px",
                     padding: "8px 10px",
                     fontSize: "0.74rem",
-                    color: "#334155",
+                    color: "var(--cv-text-muted)",
                     fontFamily: "monospace",
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>
+                  <div style={{ fontWeight: 700, color: "var(--cv-text)", marginBottom: "4px" }}>
                     Example:
                   </div>
                   <div>Input: {examplesList[0].input}</div>
@@ -2502,15 +2969,15 @@ class Solution:
                 </div>
               )}
 
-              {/* Tabs: Constraints / Examples / Follow-up */}
+              {/* Tabs: Constraints / Examples / Citations / Follow-up */}
               <div
                 style={{
                   display: "flex",
-                  borderBottom: "1px solid #e2e8f0",
+                  borderBottom: "1px solid var(--border, var(--cv-border))",
                   marginTop: "4px",
                 }}
               >
-                {["constraints", "examples", "followup"].map((tab) => (
+                {["constraints", "examples", "evidence", "followup"].map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -2534,7 +3001,7 @@ class Solution:
               </div>
 
               {/* Tab Content */}
-              <div style={{ fontSize: "0.74rem", color: "#475569", lineHeight: 1.5 }}>
+              <div style={{ fontSize: "0.74rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}>
                 {rightTab === "constraints" && (
                   <ul style={{ margin: 0, paddingLeft: "16px" }}>
                     {constraintsList.map((c, i) => (
@@ -2553,6 +3020,30 @@ class Solution:
                     ))}
                   </div>
                 )}
+                {rightTab === "evidence" && (
+                  <div>
+                    <div style={{ marginBottom: "6px", fontWeight: 700, color: "var(--cv-text)" }}>
+                      Source Grounding: {groundingEvidence}
+                    </div>
+                    {repoCitations.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {repoCitations.map((cit, idx) => (
+                          <div key={idx} style={{ background: "var(--cv-bg-subtle)", padding: "6px 8px", borderRadius: "6px" }}>
+                            <div style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--cv-text)" }}>
+                              📄 {cit.file_path || cit.file}
+                            </div>
+                            {cit.line_range && <div style={{ fontSize: "0.68rem", color: "#64748b" }}>Lines: {cit.line_range}</div>}
+                            {cit.rationale && <div style={{ fontSize: "0.70rem", color: "var(--cv-text-muted)" }}>{cit.rationale}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--cv-text-muted)" }}>
+                        {qObj.evidence_source || "Evidence drawn from validated technical curriculum and problem bank."}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {rightTab === "followup" && (
                   <ul style={{ margin: 0, paddingLeft: "16px" }}>
                     {followUpsList.map((fu, i) => (
@@ -2567,14 +3058,14 @@ class Solution:
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div
                 style={{
-                  background: "#ffffff",
+                  background: "var(--cv-surface)",
                   borderRadius: "18px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                   padding: "16px",
                 }}
               >
-                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "8px" }}>
                   Interview Progress (2/10)
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.76rem" }}>
@@ -2591,16 +3082,16 @@ class Solution:
 
               <div
                 style={{
-                  background: "#ffffff",
+                  background: "var(--cv-surface)",
                   borderRadius: "18px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
                   padding: "16px",
                 }}
               >
-                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "6px" }}>
                   💡 Pro Tips
                 </div>
-                <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.76rem", color: "#475569", lineHeight: 1.6 }}>
+                <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.76rem", color: "var(--cv-text-muted)", lineHeight: 1.6 }}>
                   <li>Be specific with examples</li>
                   <li>Use the STAR framework</li>
                   <li>Highlight your direct technical impact</li>
@@ -2613,14 +3104,14 @@ class Solution:
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div
                 style={{
-                  background: "#ffffff",
+                  background: "var(--cv-surface)",
                   borderRadius: "18px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                   padding: "16px",
                 }}
               >
-                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "10px" }}>
                   Related Files (CareerVerseAI)
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -2630,15 +3121,15 @@ class Solution:
                       style={{
                         padding: "6px 10px",
                         borderRadius: "8px",
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
+                        background: "var(--surface-2, var(--cv-bg-subtle))",
+                        border: "1px solid var(--border, var(--cv-border))",
                         fontSize: "0.74rem",
                       }}
                     >
-                      <div style={{ fontFamily: "monospace", fontWeight: 700, color: "#0f172a" }}>
+                      <div style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--cv-text)" }}>
                         {rf.file}
                       </div>
-                      <div style={{ color: "#64748b" }}>{rf.desc}</div>
+                      <div style={{ color: "var(--cv-text-muted)" }}>{rf.desc}</div>
                     </div>
                   ))}
                 </div>
@@ -2646,16 +3137,16 @@ class Solution:
 
               <div
                 style={{
-                  background: "#ffffff",
+                  background: "var(--cv-surface)",
                   borderRadius: "18px",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border, var(--cv-border))",
                   padding: "16px",
                 }}
               >
-                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)", marginBottom: "6px" }}>
                   Follow-up Suggestions
                 </div>
-                <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.74rem", color: "#475569", lineHeight: 1.5 }}>
+                <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.74rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}>
                   {followUpsList.map((fu, i) => (
                     <li key={i}>{fu}</li>
                   ))}
@@ -2664,200 +3155,31 @@ class Solution:
             </div>
           )}
 
-          {/* Chat with Cyra Box */}
+          {/* Evaluation Rubric & Quality Expectations Card */}
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--cv-surface)",
               borderRadius: "18px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border, var(--cv-border))",
               boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-              padding: "14px 16px",
+              padding: "16px",
               display: "flex",
               flexDirection: "column",
-              gap: "10px",
+              gap: "8px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <MessageSquare size={14} color="#6366f1" />
-              <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a" }}>
-                Chat with Cyra
+              <Award size={15} color="#6366f1" />
+              <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                Interviewer Rubric Expectations
               </span>
             </div>
-
-            {/* Message Thread */}
-            <div
-              style={{
-                maxHeight: "130px",
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-              }}
-            >
-              {chatMessages.map((msg, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "8px",
-                    justifyContent: msg.sender === "user" ? "flex-end" : "flex-start",
-                  }}
-                >
-                  {msg.sender === "cyra" && (
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        background: "#6366f1",
-                        color: "#ffffff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "0.65rem",
-                        fontWeight: 800,
-                        flexShrink: 0,
-                      }}
-                    >
-                      🤖
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      background: msg.sender === "user" ? "#6366f1" : "#f1f5f9",
-                      color: msg.sender === "user" ? "#ffffff" : "#0f172a",
-                      padding: "6px 10px",
-                      borderRadius: "10px",
-                      fontSize: "0.74rem",
-                      lineHeight: 1.4,
-                      maxWidth: "85%",
-                    }}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isCyraThinking && (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.72rem", color: "#6366f1", fontStyle: "italic", padding: "4px 8px" }}>
-                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#6366f1", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem" }}>
-                    🤖
-                  </div>
-                  <span>Cyra is thinking...</span>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Action Chips */}
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  handleQuickAction("teach");
-                  setCenterTab("teach");
-                }}
-                style={{
-                  background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-                  border: "none",
-                  padding: "3px 10px",
-                  borderRadius: "6px",
-                  fontSize: "0.68rem",
-                  fontWeight: 700,
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  boxShadow: "0 2px 6px rgba(79,70,229,0.3)",
-                }}
-              >
-                <Sparkles size={11} />
-                <span>Teach me this</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAction("hint")}
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  fontSize: "0.68rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                  cursor: "pointer",
-                }}
-              >
-                Give me a hint
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAction("constraints")}
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  fontSize: "0.68rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                  cursor: "pointer",
-                }}
-              >
-                Explain constraints
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAction("approach")}
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  fontSize: "0.68rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                  cursor: "pointer",
-                }}
-              >
-                Discuss approach
-              </button>
-            </div>
-
-            {/* Input Bar */}
-            <form onSubmit={handleSendCustomChat} style={{ display: "flex", gap: "6px" }}>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type message to Cyra..."
-                style={{
-                  flex: 1,
-                  background: "#f8fafc",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "8px",
-                  padding: "6px 10px",
-                  fontSize: "0.74rem",
-                  outline: "none",
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  background: "#6366f1",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "6px 12px",
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Send size={12} />
-              </button>
-            </form>
+            <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "0.75rem", color: "var(--cv-text-muted)", lineHeight: 1.55 }}>
+              <li>Technical correctness and logical explanation</li>
+              <li>Boundary condition and edge case verification</li>
+              <li>Rigorous complexity proofs (Big-O time and space)</li>
+              <li>Concrete repository architecture or algorithm trade-offs</li>
+            </ul>
           </div>
         </div>
       </div>

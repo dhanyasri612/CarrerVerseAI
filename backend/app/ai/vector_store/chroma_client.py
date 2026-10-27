@@ -39,7 +39,7 @@ class ChromaVectorStore:
             try:
                 self._client = chromadb.PersistentClient(
                     path=self.persist_directory,
-                    settings=Settings(anonymized_telemetry=False, is_persistent=True, allow_reset=True),
+                    settings=Settings(anonymized_telemetry=False, is_persistent=True),
                 )
                 self._client.heartbeat()
             except (Exception, BaseException) as exc:

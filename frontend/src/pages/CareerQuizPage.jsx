@@ -136,8 +136,10 @@ export default function CareerQuizPage() {
         <section className="cv-editorial-section">
           <div className="cv-section-index">01 / DISCOVERY ASSESSMENT</div>
           <div className="cv-section-content">
-            <h2>Find Your Direction Through Reflection</h2>
-            <p>
+            <h2 style={{ color: "var(--text, var(--cv-text))", fontSize: "1.45rem", marginTop: "8px", marginBottom: "16px" }}>
+              Find Your Direction Through Reflection
+            </h2>
+            <p style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>
               Answer 5 situational questions designed to test your instincts regarding systems design,
               product trade-offs, team leadership, and autonomy.
             </p>
@@ -172,10 +174,10 @@ export default function CareerQuizPage() {
             {session?.current_question_index !== undefined ? `0${session.current_question_index + 1} / 05` : "QUESTION"}
           </div>
           <div className="cv-section-content">
-            <span style={{ fontSize: "0.75rem", fontFamily: "var(--cv-font-mono)", color: "var(--cv-accent)", textTransform: "uppercase", fontWeight: 700 }}>
+            <span style={{ fontSize: "0.75rem", fontFamily: "var(--cv-font-mono)", color: "var(--accent, var(--cv-accent))", textTransform: "uppercase", fontWeight: 700 }}>
               {currentQuestion.category || "Career Preference"}
             </span>
-            <h2 style={{ fontSize: "1.45rem", marginTop: "8px", marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "1.45rem", marginTop: "8px", marginBottom: "20px", color: "var(--text, var(--cv-text))" }}>
               {currentQuestion.question_text || currentQuestion.text || currentQuestion.question}
             </h2>
             
@@ -187,16 +189,16 @@ export default function CareerQuizPage() {
                   style={{
                     width: 8, height: 8, borderRadius: "50%",
                     background: i < (session?.question_number || session?.answers?.length || 0)
-                      ? "var(--cv-accent)"
+                      ? "var(--accent, var(--cv-accent))"
                       : i === (session?.question_number || session?.answers?.length || 0)
-                      ? "var(--cv-accent)"
-                      : "var(--cv-rule)",
-                    border: i === (session?.question_number || session?.answers?.length || 0) ? "2px solid var(--cv-accent)" : "none",
+                      ? "var(--accent, var(--cv-accent))"
+                      : "var(--border, var(--cv-rule))",
+                    border: i === (session?.question_number || session?.answers?.length || 0) ? "2px solid var(--accent, var(--cv-accent))" : "none",
                     transition: "all 0.2s",
                   }}
                 />
               ))}
-              <span style={{ fontSize: "0.72rem", color: "var(--cv-muted)", marginLeft: "4px" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", marginLeft: "4px" }}>
                 {(session?.question_number || (session?.answers?.length || 0) + 1)} of {session?.total_questions || 5}
               </span>
             </div>
@@ -206,6 +208,7 @@ export default function CareerQuizPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
                 {(currentQuestion.options || currentQuestion.choices).map((opt, i) => {
                   const optText = typeof opt === "object" ? opt.text || opt.label || JSON.stringify(opt) : opt;
+                  const isSelected = selectedAnswer === optText;
                   return (
                     <button
                       key={i}
@@ -217,17 +220,17 @@ export default function CareerQuizPage() {
                         alignItems: "center",
                         gap: "12px",
                         padding: "16px 20px",
-                        border: "1px solid var(--cv-rule)",
-                        borderRadius: "4px",
-                        background: selectedAnswer === optText ? "var(--cv-accent-soft)" : "var(--cv-paper)",
-                        color: "var(--cv-text)",
+                        border: isSelected ? "1px solid var(--accent-border, var(--cv-accent-border, var(--accent)))" : "1px solid var(--border, var(--cv-rule))",
+                        borderRadius: "6px",
+                        background: isSelected ? "var(--accent-soft, var(--cv-accent-soft))" : "var(--surface, var(--cv-paper))",
+                        color: "var(--text, var(--cv-text))",
                         textAlign: "left",
                         fontSize: "0.9rem",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
                     >
-                      <Circle size={16} color="var(--cv-accent)" />
+                      <Circle size={16} color="var(--accent, var(--cv-accent))" />
                       <span>{optText}</span>
                     </button>
                   );
@@ -237,8 +240,8 @@ export default function CareerQuizPage() {
 
             {/* Open-Ended Textarea & Custom Input Support */}
             {(currentQuestion.question_type === "text" || !currentQuestion.options || currentQuestion.options.length === 0 || (currentQuestion.options || []).length <= 4) && (
-              <div style={{ marginTop: "20px", paddingTop: (currentQuestion.options && currentQuestion.options.length > 0) ? "16px" : "0", borderTop: (currentQuestion.options && currentQuestion.options.length > 0) ? "1px dashed var(--cv-rule)" : "none" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--cv-muted)", marginBottom: "8px" }}>
+              <div style={{ marginTop: "20px", paddingTop: (currentQuestion.options && currentQuestion.options.length > 0) ? "16px" : "0", borderTop: (currentQuestion.options && currentQuestion.options.length > 0) ? "1px dashed var(--border, var(--cv-rule))" : "none" }}>
+                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted, var(--cv-muted))", marginBottom: "8px" }}>
                   {currentQuestion.question_type === "text" || !currentQuestion.options || currentQuestion.options.length === 0
                     ? "Write your personal reflection or project highlight:"
                     : "Or elaborate in your own words:"}
@@ -252,9 +255,9 @@ export default function CareerQuizPage() {
                     width: "100%",
                     padding: "12px 14px",
                     borderRadius: "6px",
-                    border: "1px solid var(--cv-rule)",
-                    background: "var(--cv-paper)",
-                    color: "var(--cv-text)",
+                    border: "1px solid var(--border, var(--cv-rule))",
+                    background: "var(--surface, var(--cv-paper))",
+                    color: "var(--text, var(--cv-text))",
                     fontSize: "0.9rem",
                     fontFamily: "inherit",
                     lineHeight: 1.5,
@@ -280,9 +283,9 @@ export default function CareerQuizPage() {
                           fontSize: "0.78rem",
                           padding: "4px 10px",
                           borderRadius: "14px",
-                          border: "1px solid var(--cv-rule)",
-                          background: "var(--cv-card-bg, #f8fafc)",
-                          color: "var(--cv-muted)",
+                          border: "1px solid var(--border, var(--cv-rule))",
+                          background: "var(--surface-2, var(--cv-card-bg, #f8fafc))",
+                          color: "var(--text-muted, var(--cv-muted))",
                           cursor: "pointer",
                         }}
                       >
@@ -314,15 +317,17 @@ export default function CareerQuizPage() {
         <section className="cv-editorial-section">
           <div className="cv-section-index">RESULTS</div>
           <div className="cv-section-content">
-            <h2>Your Natural Trajectory Profile</h2>
-            <p>Based on your choices, CareerVerse has synthesized your core strengths and alignment:</p>
+            <h2 style={{ color: "var(--text, var(--cv-text))", fontSize: "1.45rem", marginTop: "8px", marginBottom: "16px" }}>
+              Your Natural Trajectory Profile
+            </h2>
+            <p style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>Based on your choices, CareerVerse has synthesized your core strengths and alignment:</p>
 
             <div
               style={{
-                border: "1px solid var(--cv-rule)",
-                borderRadius: "4px",
+                border: "1px solid var(--border, var(--cv-rule))",
+                borderRadius: "8px",
                 padding: "24px",
-                background: "var(--cv-paper)",
+                background: "var(--surface, var(--cv-paper))",
                 marginTop: "20px",
                 display: "flex",
                 flexDirection: "column",
@@ -330,12 +335,12 @@ export default function CareerQuizPage() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <Sparkles size={24} color="var(--cv-accent)" />
-                <h3 style={{ margin: 0, fontSize: "1.2rem" }}>
+                <Sparkles size={24} color="var(--accent, var(--cv-accent))" />
+                <h3 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text, var(--cv-text))" }}>
                   {result?.top_archetype || result?.primary_direction || "System Architect & Problem Solver"}
                 </h3>
               </div>
-              <p style={{ color: "var(--cv-muted)", fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ color: "var(--text-muted, var(--cv-muted))", fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>
                 {result?.summary || result?.analysis || "You thrive when balancing technical depth with end-to-end architectural autonomy. Consider exploring backend engineering, systems design, and technical leadership roles."}
               </p>
             </div>
@@ -350,9 +355,9 @@ export default function CareerQuizPage() {
                 style={{
                   padding: "0 18px",
                   height: "44px",
-                  background: "transparent",
-                  border: "1px solid var(--cv-rule)",
-                  color: "var(--cv-text)",
+                  background: "var(--surface, transparent)",
+                  border: "1px solid var(--border, var(--cv-rule))",
+                  color: "var(--text, var(--cv-text))",
                   borderRadius: "4px",
                   fontSize: "0.82rem",
                   cursor: "pointer",

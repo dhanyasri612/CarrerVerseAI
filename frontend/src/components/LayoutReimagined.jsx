@@ -32,6 +32,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme, THEMES } from "../context/ThemeContext";
 
 /* ── Chapters (numbered exactly like the reimagined design) ──────────────── */
 export const CHAPTERS = [
@@ -47,47 +48,11 @@ export const CHAPTERS = [
 
 const EXTRAS = [
   { number: "⚡", label: "DSA Practice",     href: "/dsa-practice", key: "dsa" },
+  { number: "📚", label: "Question Bank",    href: "/question-bank", key: "questions" },
   { number: "↗", label: "Dashboard",        href: "/dashboard",    key: "home"   },
   { number: "↗", label: "Career Navigator", href: "/career-discovery", key: "nav" },
   { number: "↗", label: "Career Compass",   href: "/career-quiz", key: "compass" },
 ];
-
-/* ── Theme registry (matches reimagined exactly) ─────────────────────────── */
-const THEMES = [
-  { id: "paper",    name: "Paper / Ink",       desc: "Editorial, tactile, measured"  },
-  { id: "black",    name: "Black / Cobalt",    desc: "Independent, hard-edged"       },
-  { id: "clay",     name: "Clay / Poster",     desc: "Warm, expressive, graphic"     },
-  { id: "botanical",name: "Botanical / Moss",  desc: "Organic, grounded, quiet"      },
-  { id: "mono",     name: "Mono / Graphite",   desc: "Technical, precise, spare"     },
-  { id: "cinema",   name: "Cinema / Night",    desc: "Atmospheric, reflective"       },
-];
-
-const THEME_KEY = "careerverse-theme-v3";
-
-function useTheme() {
-  const [theme, setThemeState] = useState(() => {
-    try {
-      const stored = localStorage.getItem(THEME_KEY);
-      return stored || "paper";
-    } catch {
-      return "paper";
-    }
-  });
-
-  const setTheme = (next) => {
-    setThemeState(next);
-    try {
-      localStorage.setItem(THEME_KEY, next);
-      document.documentElement.setAttribute("data-theme", next);
-    } catch {}
-  };
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
-  return { theme, setTheme };
-}
 
 /* ── Main Layout ─────────────────────────────────────────────────────────── */
 export default function LayoutReimagined() {
@@ -352,15 +317,16 @@ export default function LayoutReimagined() {
                       height: "18px",
                       borderRadius: "50%",
                       border: theme === t.id ? "2px solid var(--cv-accent)" : "1px solid var(--cv-rule)",
-                      background:
+                      background: t.preview?.bg || (
                         t.id === "paper" ? "#f1eee4" :
                         t.id === "black" ? "#11141c" :
                         t.id === "clay" ? "#eee3d5" :
-                        t.id === "botanical" ? "#e9ebdf" :
-                        t.id === "mono" ? "#e9e9e3" : "#1c1b18",
+                        t.id === "moss-graphite" || t.id === "botanical" ? "#181B1A" :
+                        t.id === "mono" ? "#e9e9e3" : "#1c1b18"
+                      ),
                       cursor: "pointer",
                       padding: 0,
-                      boxShadow: theme === t.id ? "0 0 0 2px var(--cv-paper)" : "none",
+                      boxShadow: theme === t.id ? "0 0 0 2px var(--cv-paper), 0 0 8px var(--cv-glow)" : "none",
                     }}
                   />
                 ))}

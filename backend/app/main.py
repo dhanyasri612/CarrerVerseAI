@@ -7,7 +7,14 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database.database import Base, engine, ensure_resume_cache_columns
+from app.database.database import (
+    Base,
+    engine,
+    ensure_resume_cache_columns,
+    ensure_course_document_table,
+    ensure_proctoring_table,
+    ensure_roadmap_tables,
+)
 from app.core.config import CORS_ORIGINS
 from app.models.role import Role
 from app.models.user import User
@@ -26,6 +33,8 @@ from app.models.certification import Certification
 from app.models.interview_session import InterviewSession
 from app.models.teaching_progress import TeachingProgress
 from app.models.profile_quiz_session import ProfileQuizSession
+from app.models.course_document import CourseDocument
+from app.models.proctoring_event import ProctoringEvent
 
 from app.routers import (
     auth,
@@ -45,10 +54,14 @@ from app.routers import (
     certification,
     candidate_intelligence,
     ai,
+    course_document,
 )
 
 Base.metadata.create_all(bind=engine)
 ensure_resume_cache_columns()
+ensure_course_document_table()
+ensure_proctoring_table()
+ensure_roadmap_tables()
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +87,8 @@ app.include_router(linkedin.router)
 app.include_router(certification.router)
 app.include_router(candidate_intelligence.router)
 app.include_router(ai.router)
+app.include_router(course_document.router)
+app.include_router(course_document.router, prefix="/api/v1")
 
 
 @app.get("/", tags=["Health Check"])

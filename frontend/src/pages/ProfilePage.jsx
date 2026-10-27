@@ -237,8 +237,8 @@ export default function ProfilePage() {
       <div
         style={{
           display: "flex",
-          borderBottom: "1px solid #e2e8f0",
-          background: "#ffffff",
+          borderBottom: "1px solid var(--border, var(--cv-border))",
+          background: "var(--surface, var(--cv-surface))",
           overflowX: "auto",
           gap: "8px",
           padding: "8px 0",
@@ -263,9 +263,9 @@ export default function ProfilePage() {
             style={{
               padding: "8px 16px",
               borderRadius: "8px",
-              border: "none",
-              background: activeTab === tab.id ? "#0f172a" : "transparent",
-              color: activeTab === tab.id ? "#fbbf24" : "#64748b",
+              border: activeTab === tab.id ? "1px solid var(--accent-border, var(--cv-accent-border))" : "1px solid transparent",
+              background: activeTab === tab.id ? "var(--accent-soft, var(--cv-accent-soft))" : "transparent",
+              color: activeTab === tab.id ? "var(--accent, var(--cv-accent))" : "var(--text-muted, var(--cv-muted))",
               fontWeight: activeTab === tab.id ? 700 : 500,
               fontSize: "0.85rem",
               cursor: "pointer",
@@ -399,10 +399,10 @@ export default function ProfilePage() {
             </div>
 
             {certifications.length === 0 ? (
-              <div style={{ background: "#f8fafc", padding: "2.5rem", borderRadius: "12px", textAlign: "center", border: "1px dashed #cbd5e1" }}>
-                <Award size={36} color="#94a3b8" style={{ marginBottom: "10px" }} />
-                <h3 style={{ margin: "0 0 6px 0", color: "#0f172a" }}>No certifications attached yet</h3>
-                <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "0.88rem" }}>
+              <div style={{ background: "var(--surface-2, var(--cv-bg-subtle))", padding: "2.5rem", borderRadius: "12px", textAlign: "center", border: "1px dashed var(--border, var(--cv-border))" }}>
+                <Award size={36} color="var(--accent, var(--cv-accent))" style={{ marginBottom: "10px" }} />
+                <h3 style={{ margin: "0 0 6px 0", color: "var(--text, var(--cv-text))" }}>No certifications attached yet</h3>
+                <p style={{ margin: "0 0 16px 0", color: "var(--text-muted, var(--cv-muted))", fontSize: "0.88rem" }}>
                   Attach a Google Drive share link or upload a PDF to extract certificate skills and credentials.
                 </p>
                 <button
@@ -426,8 +426,8 @@ export default function ProfilePage() {
                     <div
                       key={c.id || i}
                       style={{
-                        background: "#ffffff",
-                        border: "1px solid #e2e8f0",
+                        background: "var(--surface, var(--cv-surface))",
+                        border: "1px solid var(--border, var(--cv-border))",
                         borderRadius: "14px",
                         padding: "1.5rem",
                         boxShadow: "0 2px 5px rgba(0,0,0,0.03)",
@@ -443,8 +443,8 @@ export default function ProfilePage() {
                               width: 44,
                               height: 44,
                               borderRadius: "10px",
-                              background: "#fef3c7",
-                              color: "#d97706",
+                              background: "var(--accent-soft, var(--cv-accent-soft))",
+                              color: "var(--accent, var(--cv-accent))",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -455,7 +455,7 @@ export default function ProfilePage() {
                           </div>
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a", fontWeight: 700 }}>
+                              <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text, var(--cv-text))", fontWeight: 700 }}>
                                 {certTitle}
                               </h3>
                               <span
@@ -463,15 +463,15 @@ export default function ProfilePage() {
                                   fontSize: "0.72rem",
                                   padding: "2px 8px",
                                   borderRadius: "12px",
-                                  background: isVerified ? "#dcfce7" : "#fef3c7",
-                                  color: isVerified ? "#15803d" : "#b45309",
+                                  background: isVerified ? "var(--success-soft, rgba(22, 163, 74, 0.12))" : "var(--accent-soft, var(--cv-accent-soft))",
+                                  color: isVerified ? "var(--success, var(--cv-success))" : "var(--accent, var(--cv-accent))",
                                   fontWeight: 700,
                                 }}
                               >
                                 {isVerified ? "✓ Verified Credential" : "Verification Pending"}
                               </span>
                             </div>
-                            <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "3px" }}>
+                            <div style={{ fontSize: "0.85rem", color: "var(--text-muted, var(--cv-muted))", marginTop: "3px" }}>
                               <strong>{issuer}</strong> {c.issue_date && <> • Issued {c.issue_date}</>}
                               {c.credential_id && <> • ID: <code>{c.credential_id}</code></>}
                             </div>
@@ -489,12 +489,13 @@ export default function ProfilePage() {
                               gap: "6px",
                               padding: "7px 14px",
                               borderRadius: "8px",
-                              background: "#0f172a",
-                              color: "#fbbf24",
+                              background: "var(--accent-soft, var(--cv-accent-soft))",
+                              color: "var(--accent, var(--cv-accent))",
+                              border: "1px solid var(--accent-border, var(--cv-accent-border))",
                               fontSize: "0.82rem",
                               fontWeight: 600,
                               textDecoration: "none",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                             }}
                           >
                             <ExternalLink size={13} />
@@ -505,9 +506,9 @@ export default function ProfilePage() {
 
                       {/* PDF Extracted Skills */}
                       {skillsList.length > 0 && (
-                        <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
-                            <Sparkles size={12} color="#f59e0b" /> Extracted Skills from PDF Content:
+                        <div style={{ background: "var(--surface-2, var(--cv-bg-subtle))", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--border, var(--cv-border))" }}>
+                          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted, var(--cv-muted))", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                            <Sparkles size={12} color="var(--accent, var(--cv-accent))" /> Extracted Skills from PDF Content:
                           </div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                             {skillsList.map((sk, ski) => (
@@ -517,9 +518,9 @@ export default function ProfilePage() {
                                   fontSize: "0.78rem",
                                   padding: "3px 10px",
                                   borderRadius: "6px",
-                                  border: "1px solid #e2e8f0",
-                                  background: "#ffffff",
-                                  color: "#334155",
+                                  border: "1px solid var(--border, var(--cv-border))",
+                                  background: "var(--surface, var(--cv-surface))",
+                                  color: "var(--text, var(--cv-text))",
                                   fontWeight: 600,
                                 }}
                               >
@@ -561,32 +562,32 @@ export default function ProfilePage() {
 
             {/* Solved Stats Grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
-                <div style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 700 }}>TOTAL SOLVED</div>
-                <div style={{ fontSize: "2rem", fontWeight: 800, color: "#0f172a" }}>{lcSummary?.total_solved || 0}</div>
-                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>LeetCode verified</div>
+              <div style={{ background: "var(--surface, var(--cv-surface))", border: "1px solid var(--border, var(--cv-border))", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "var(--cv-text-muted)", fontWeight: 700 }}>TOTAL SOLVED</div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--cv-text)" }}>{lcSummary?.total_solved || 0}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>LeetCode verified</div>
               </div>
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
-                <div style={{ fontSize: "0.8rem", color: "#16a34a", fontWeight: 700 }}>EASY</div>
-                <div style={{ fontSize: "2rem", fontWeight: 800, color: "#16a34a" }}>{lcSummary?.easy_solved || 0}</div>
-                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>Foundational</div>
+              <div style={{ background: "var(--cv-surface)", border: "1px solid var(--cv-border)", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "var(--cv-success)", fontWeight: 700 }}>EASY</div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--cv-success)" }}>{lcSummary?.easy_solved || 0}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>Foundational</div>
               </div>
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
-                <div style={{ fontSize: "0.8rem", color: "#ca8a04", fontWeight: 700 }}>MEDIUM</div>
-                <div style={{ fontSize: "2rem", fontWeight: 800, color: "#ca8a04" }}>{lcSummary?.medium_solved || 0}</div>
-                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>Core interview standard</div>
+              <div style={{ background: "var(--cv-surface)", border: "1px solid var(--cv-border)", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "var(--cv-warning)", fontWeight: 700 }}>MEDIUM</div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--cv-warning)" }}>{lcSummary?.medium_solved || 0}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>Core interview standard</div>
               </div>
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
-                <div style={{ fontSize: "0.8rem", color: "#dc2626", fontWeight: 700 }}>HARD</div>
-                <div style={{ fontSize: "2rem", fontWeight: 800, color: "#dc2626" }}>{lcSummary?.hard_solved || 0}</div>
-                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>Advanced subproblems</div>
+              <div style={{ background: "var(--cv-surface)", border: "1px solid var(--cv-border)", borderRadius: "12px", padding: "1.25rem", textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "var(--cv-danger)", fontWeight: 700 }}>HARD</div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--cv-danger)" }}>{lcSummary?.hard_solved || 0}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>Advanced subproblems</div>
               </div>
             </div>
 
-            <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ background: "var(--cv-bg-subtle)", padding: "1.5rem", borderRadius: "12px", border: "1px solid var(--cv-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <h4 style={{ margin: "0 0 4px 0", color: "#0f172a" }}>Adaptive DSA Problem Generator Ready</h4>
-                <p style={{ margin: 0, fontSize: "0.88rem", color: "#64748b" }}>
+                <h4 style={{ margin: "0 0 4px 0", color: "var(--cv-text)" }}>Adaptive DSA Problem Generator Ready</h4>
+                <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--cv-text-muted)" }}>
                   The agent creates questions identical in flavor to your weak topics (DP, Graphs, Binary Search) with step-by-step hints and roadmap progression.
                 </p>
               </div>
@@ -610,7 +611,7 @@ export default function ProfilePage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
               <div>
                 <h2 style={{ margin: "0 0 4px 0" }}>GitHub Engineering Portfolio</h2>
-                <p style={{ margin: 0, color: "#64748b", fontSize: "0.9rem" }}>
+                <p style={{ margin: 0, color: "var(--text-muted, var(--cv-muted))", fontSize: "0.9rem" }}>
                   Synced repositories, commit evidence, and primary technologies.
                 </p>
               </div>
@@ -618,7 +619,7 @@ export default function ProfilePage() {
                 type="button"
                 className="cv-text-button"
                 onClick={() => syncSource(syncGithub, "GitHub", ghSummary?.username)}
-                style={{ border: "1px solid #cbd5e1", padding: "6px 14px" }}
+                style={{ border: "1px solid var(--border, var(--cv-border))", padding: "6px 14px" }}
               >
                 <RefreshCw size={13} /> Re-sync GitHub
               </button>
@@ -632,8 +633,8 @@ export default function ProfilePage() {
                   <div
                     key={i}
                     style={{
-                      background: "#ffffff",
-                      border: "1px solid #e2e8f0",
+                      background: "var(--surface, var(--cv-surface))",
+                      border: "1px solid var(--border, var(--cv-border))",
                       borderRadius: "10px",
                       padding: "1rem 1.25rem",
                       display: "flex",
@@ -642,10 +643,10 @@ export default function ProfilePage() {
                     }}
                   >
                     <div>
-                      <strong style={{ fontSize: "0.95rem", color: "#0f172a" }}>
+                      <strong style={{ fontSize: "0.95rem", color: "var(--text, var(--cv-text))" }}>
                         {p.title || p.name || p.repo_name}
                       </strong>
-                      <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "2px" }}>
+                      <div style={{ fontSize: "0.82rem", color: "var(--text-muted, var(--cv-muted))", marginTop: "2px" }}>
                         {p.language || p.primary_language || "Code repository"}
                         {p.stars !== undefined && ` • ⭐ ${p.stars} stars`}
                       </div>
@@ -655,7 +656,7 @@ export default function ProfilePage() {
                         href={p.repo_url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ color: "#2563eb", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        style={{ color: "var(--accent, var(--cv-accent))", fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       >
                         View code <ExternalLink size={12} />
                       </a>
@@ -674,14 +675,14 @@ export default function ProfilePage() {
           <div className="cv-section-index">SKILLS INDEX</div>
           <div className="cv-section-content">
             <h2 style={{ margin: "0 0 4px 0" }}>Verified Skills & Interview Cheat Sheets</h2>
-            <p style={{ margin: "0 0 1.5rem 0", color: "#64748b", fontSize: "0.9rem" }}>
+            <p style={{ margin: "0 0 1.5rem 0", color: "var(--text-muted, var(--cv-muted))", fontSize: "0.9rem" }}>
               Click any skill badge to inspect its <strong>Top 5 Interview Questions</strong>, model answers, and practical challenge.
             </p>
 
             {groupedSkills.length > 0 ? (
               groupedSkills.map((group) => (
                 <div key={group.category} style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted, var(--cv-muted))", textTransform: "uppercase", marginBottom: "0.5rem" }}>
                     {group.category}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -689,19 +690,19 @@ export default function ProfilePage() {
                       <span
                         key={s.name}
                         style={{
-                          border: "1px solid #cbd5e1",
+                          border: "1px solid var(--border, var(--cv-border))",
                           padding: "6px 12px",
                           fontSize: "0.85rem",
                           display: "inline-flex",
                           alignItems: "center",
                           gap: "6px",
-                          background: "#ffffff",
+                          background: "var(--surface, var(--cv-surface))",
                           borderRadius: "6px",
                           fontWeight: 600,
-                          color: "#1e293b",
+                          color: "var(--text, var(--cv-text))",
                         }}
                       >
-                        <CheckCircle2 size={13} color="#10b981" />
+                        <CheckCircle2 size={13} color="var(--success, var(--cv-success))" />
                         {s.name}
                       </span>
                     ))}
@@ -714,13 +715,13 @@ export default function ProfilePage() {
                   <span
                     key={s.name}
                     style={{
-                      border: "1px solid #cbd5e1",
+                      border: "1px solid var(--border, var(--cv-border))",
                       padding: "6px 12px",
                       borderRadius: "6px",
-                      background: "#ffffff",
+                      background: "var(--surface, var(--cv-surface))",
                       fontSize: "0.84rem",
                       fontWeight: 600,
-                      color: "#334155",
+                      color: "var(--text, var(--cv-text))",
                     }}
                   >
                     {s.name}
@@ -790,21 +791,22 @@ export default function ProfilePage() {
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--surface, var(--cv-surface))",
+              border: "1px solid var(--border, var(--cv-border))",
               width: "100%",
               maxWidth: "540px",
               borderRadius: "14px",
               padding: "2rem",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.2rem", color: "#0f172a" }}>Attach Google Drive Certificate</h3>
+              <h3 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text, var(--cv-text))" }}>Attach Google Drive Certificate</h3>
               <button
                 type="button"
                 onClick={() => setShowAddCertModal(false)}
-                style={{ border: "none", background: "none", cursor: "pointer" }}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "var(--text-muted, var(--cv-muted))" }}
               >
                 <X size={18} />
               </button>
@@ -812,7 +814,7 @@ export default function ProfilePage() {
 
             <form onSubmit={handleDriveImport} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted, var(--cv-muted))", marginBottom: "4px" }}>
                   Google Drive Shareable Link (or public URL)
                 </label>
                 <input
@@ -821,12 +823,12 @@ export default function ProfilePage() {
                   placeholder="https://drive.google.com/file/d/.../view"
                   value={newCertDriveUrl}
                   onChange={(e) => setNewCertDriveUrl(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                  style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--border, var(--cv-border))", background: "var(--surface-2, var(--cv-bg-subtle))", color: "var(--text, var(--cv-text))", borderRadius: "6px", outline: "none" }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted, var(--cv-muted))", marginBottom: "4px" }}>
                   Certificate / Course Title
                 </label>
                 <input
@@ -834,12 +836,12 @@ export default function ProfilePage() {
                   placeholder="e.g. Meta Front-End Developer Certificate"
                   value={newCertName}
                   onChange={(e) => setNewCertName(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                  style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--border, var(--cv-border))", background: "var(--surface-2, var(--cv-bg-subtle))", color: "var(--text, var(--cv-text))", borderRadius: "6px", outline: "none" }}
                 />
               </div>
 
               {certActionMsg && (
-                <div style={{ fontSize: "0.85rem", color: certActionMsg.includes("success") ? "#16a34a" : "#dc2626" }}>
+                <div style={{ fontSize: "0.85rem", color: certActionMsg.includes("success") ? "var(--success, var(--cv-success))" : "var(--danger, var(--cv-danger))" }}>
                   {certActionMsg}
                 </div>
               )}

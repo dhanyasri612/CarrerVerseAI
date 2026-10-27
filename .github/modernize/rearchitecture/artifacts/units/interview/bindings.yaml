@@ -1,0 +1,9 @@
+unit: interview
+bindings:
+  - type: route-declaration
+    name: "GET /ai/interview"
+    source_loc: "frontend/src/App.jsx:86"
+    target: InterviewPage
+    must_appear_in_target: true
+    notes: "Authenticated interview route."
+runtime_config: []

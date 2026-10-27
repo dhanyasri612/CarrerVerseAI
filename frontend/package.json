@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run --reporter=verbose"
+    "test": "vitest run --reporter=verbose",
+    "test:activity-tracker": "node --test tests/activityTracker.node.mjs"
   },
   "dependencies": {
     "axios": "^1.20.0",

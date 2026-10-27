@@ -162,8 +162,12 @@ CRITICAL INSTRUCTIONS & STRICT BOUNDARIES:
 
         user_message = "\n\n".join(sections)
 
+        system_prompt = language_prompt_builder.with_system_language_policy(
+            self.SYSTEM_PROMPT, language
+        )
+
         return RAGPrompt(
-            system_prompt=self.SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_message=user_message,
             query=query,
         )

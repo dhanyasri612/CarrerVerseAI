@@ -1,0 +1,14 @@
+unit: profile
+side_effects:
+  - source_loc: "frontend/src/pages/ProfilePage.jsx:68"
+    effect: "loads and updates unified profile evidence and connected-source sync state"
+    must_preserve: true
+branches:
+  - source_loc: "frontend/src/pages/ProfilePage.jsx:68"
+    condition: "profile request is loading, empty, or failed"
+    behavior: "show loading, evidence-empty, or retryable error state"
+    must_preserve: true
+error_paths: []
+concurrency:
+  model: async
+  tx_boundary: null

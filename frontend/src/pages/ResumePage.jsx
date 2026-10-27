@@ -259,11 +259,11 @@ export default function ResumePage() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: "2px dashed var(--cv-rule)",
-              borderRadius: "6px",
+              border: "2px dashed var(--border, var(--cv-border))",
+              borderRadius: "8px",
               padding: "clamp(32px, 5vw, 48px)",
               textAlign: "center",
-              background: "color-mix(in srgb, var(--cv-paper) 70%, var(--cv-bg))",
+              background: "var(--surface-2, var(--cv-bg-subtle))",
               cursor: uploading ? "not-allowed" : "pointer",
               transition: "all 0.2s ease",
               display: "flex",
@@ -287,8 +287,8 @@ export default function ResumePage() {
                 width: "52px",
                 height: "52px",
                 borderRadius: "50%",
-                background: "color-mix(in srgb, var(--cv-accent) 12%, transparent)",
-                color: "var(--cv-accent)",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
+                color: "var(--accent, var(--cv-accent))",
                 display: "grid",
                 placeItems: "center",
               }}
@@ -314,10 +314,10 @@ export default function ResumePage() {
               </h3>
               <div
                 style={{
-                  border: "1px solid var(--cv-rule)",
-                  borderRadius: "4px",
+                  border: "1px solid var(--border, var(--cv-border))",
+                  borderRadius: "8px",
                   padding: "16px 20px",
-                  background: "var(--cv-paper)",
+                  background: "var(--surface, var(--cv-surface))",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -330,9 +330,9 @@ export default function ResumePage() {
                     style={{
                       width: "40px",
                       height: "40px",
-                      borderRadius: "4px",
-                      background: "var(--cv-accent)",
-                      color: "#ffffff",
+                      borderRadius: "8px",
+                      background: "var(--accent-soft, var(--cv-accent-soft))",
+                      color: "var(--accent, var(--cv-accent))",
                       display: "grid",
                       placeItems: "center",
                     }}
@@ -410,10 +410,10 @@ export default function ResumePage() {
             {/* GitHub Card */}
             <div
               style={{
-                border: "1px solid var(--cv-rule)",
-                borderRadius: "4px",
+                border: "1px solid var(--border, var(--cv-border))",
+                borderRadius: "8px",
                 padding: "20px",
-                background: "var(--cv-paper)",
+                background: "var(--surface, var(--cv-surface))",
                 display: "flex",
                 flexDirection: "column",
                 gap: "14px",
@@ -421,19 +421,19 @@ export default function ResumePage() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <GitBranch size={20} color="var(--cv-accent)" />
-                  <strong style={{ fontSize: "0.95rem" }}>GitHub</strong>
+                  <GitBranch size={20} color="var(--accent, var(--cv-accent))" />
+                  <strong style={{ fontSize: "0.95rem", color: "var(--text, var(--cv-text))" }}>GitHub</strong>
                 </div>
                 {profile?.github_summary?.connected ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--cv-success)", fontSize: "0.72rem", fontWeight: 700 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--success, var(--cv-success))", fontSize: "0.72rem", fontWeight: 700 }}>
                     <Check size={12} /> CONNECTED
                   </span>
                 ) : (
-                  <span style={{ fontSize: "0.72rem", color: "var(--cv-muted)" }}>NOT CONNECTED</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))" }}>NOT CONNECTED</span>
                 )}
               </div>
 
-              <p style={{ fontSize: "0.78rem", color: "var(--cv-muted)", margin: 0, lineHeight: 1.45 }}>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted, var(--cv-muted))", margin: 0, lineHeight: 1.45 }}>
                 Sync repositories, commits, and language stats to verify practical project execution.
               </p>
 
@@ -447,11 +447,11 @@ export default function ResumePage() {
                     flex: 1,
                     height: "38px",
                     padding: "0 12px",
-                    border: "1px solid var(--cv-rule)",
-                    background: "var(--cv-bg)",
-                    color: "var(--cv-text)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    color: "var(--text, var(--cv-text))",
                     fontSize: "0.82rem",
-                    borderRadius: "4px",
+                    borderRadius: "6px",
                     outline: "none",
                   }}
                 />
@@ -462,10 +462,10 @@ export default function ResumePage() {
                   style={{
                     padding: "0 14px",
                     height: "38px",
-                    background: "var(--cv-text)",
-                    color: "var(--cv-bg)",
-                    border: "none",
-                    borderRadius: "4px",
+                    background: "var(--accent-soft, var(--cv-accent-soft))",
+                    color: "var(--accent, var(--cv-accent))",
+                    border: "1px solid var(--accent-border, var(--cv-accent-border))",
+                    borderRadius: "6px",
                     fontSize: "0.8rem",
                     fontWeight: 600,
                     cursor: "pointer",
@@ -483,10 +483,10 @@ export default function ResumePage() {
             {/* LeetCode Card */}
             <div
               style={{
-                border: "1px solid var(--cv-rule)",
-                borderRadius: "4px",
+                border: "1px solid var(--border, var(--cv-border))",
+                borderRadius: "8px",
                 padding: "20px",
-                background: "var(--cv-paper)",
+                background: "var(--surface, var(--cv-surface))",
                 display: "flex",
                 flexDirection: "column",
                 gap: "14px",
@@ -494,19 +494,19 @@ export default function ResumePage() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <Code2 size={20} color="var(--cv-accent)" />
-                  <strong style={{ fontSize: "0.95rem" }}>LeetCode</strong>
+                  <Code2 size={20} color="var(--accent, var(--cv-accent))" />
+                  <strong style={{ fontSize: "0.95rem", color: "var(--text, var(--cv-text))" }}>LeetCode</strong>
                 </div>
                 {profile?.leetcode_summary?.connected ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--cv-success)", fontSize: "0.72rem", fontWeight: 700 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--success, var(--cv-success))", fontSize: "0.72rem", fontWeight: 700 }}>
                     <Check size={12} /> CONNECTED
                   </span>
                 ) : (
-                  <span style={{ fontSize: "0.72rem", color: "var(--cv-muted)" }}>NOT CONNECTED</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))" }}>NOT CONNECTED</span>
                 )}
               </div>
 
-              <p style={{ fontSize: "0.78rem", color: "var(--cv-muted)", margin: 0, lineHeight: 1.45 }}>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted, var(--cv-muted))", margin: 0, lineHeight: 1.45 }}>
                 Sync problem solving statistics (Easy, Medium, Hard) and algorithm capability signals.
               </p>
 
@@ -520,11 +520,11 @@ export default function ResumePage() {
                     flex: 1,
                     height: "38px",
                     padding: "0 12px",
-                    border: "1px solid var(--cv-rule)",
-                    background: "var(--cv-bg)",
-                    color: "var(--cv-text)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    color: "var(--text, var(--cv-text))",
                     fontSize: "0.82rem",
-                    borderRadius: "4px",
+                    borderRadius: "6px",
                     outline: "none",
                   }}
                 />
@@ -535,10 +535,10 @@ export default function ResumePage() {
                   style={{
                     padding: "0 14px",
                     height: "38px",
-                    background: "var(--cv-text)",
-                    color: "var(--cv-bg)",
-                    border: "none",
-                    borderRadius: "4px",
+                    background: "var(--accent-soft, var(--cv-accent-soft))",
+                    color: "var(--accent, var(--cv-accent))",
+                    border: "1px solid var(--accent-border, var(--cv-accent-border))",
+                    borderRadius: "6px",
                     fontSize: "0.8rem",
                     fontWeight: 600,
                     cursor: "pointer",
@@ -556,10 +556,10 @@ export default function ResumePage() {
             {/* HackerRank Card */}
             <div
               style={{
-                border: "1px solid var(--cv-rule)",
-                borderRadius: "4px",
+                border: "1px solid var(--border, var(--cv-border))",
+                borderRadius: "8px",
                 padding: "20px",
-                background: "var(--cv-paper)",
+                background: "var(--surface, var(--cv-surface))",
                 display: "flex",
                 flexDirection: "column",
                 gap: "14px",
@@ -567,19 +567,19 @@ export default function ResumePage() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <Trophy size={20} color="var(--cv-accent)" />
-                  <strong style={{ fontSize: "0.95rem" }}>HackerRank</strong>
+                  <Trophy size={20} color="var(--accent, var(--cv-accent))" />
+                  <strong style={{ fontSize: "0.95rem", color: "var(--text, var(--cv-text))" }}>HackerRank</strong>
                 </div>
                 {profile?.hackerrank_summary?.connected ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--cv-success)", fontSize: "0.72rem", fontWeight: 700 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--success, var(--cv-success))", fontSize: "0.72rem", fontWeight: 700 }}>
                     <Check size={12} /> CONNECTED
                   </span>
                 ) : (
-                  <span style={{ fontSize: "0.72rem", color: "var(--cv-muted)" }}>NOT CONNECTED</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))" }}>NOT CONNECTED</span>
                 )}
               </div>
 
-              <p style={{ fontSize: "0.78rem", color: "var(--cv-muted)", margin: 0, lineHeight: 1.45 }}>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted, var(--cv-muted))", margin: 0, lineHeight: 1.45 }}>
                 Sync badges, problem solving ranks, and domain mastery credentials.
               </p>
 
@@ -593,11 +593,11 @@ export default function ResumePage() {
                     flex: 1,
                     height: "38px",
                     padding: "0 12px",
-                    border: "1px solid var(--cv-rule)",
-                    background: "var(--cv-bg)",
-                    color: "var(--cv-text)",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    background: "var(--surface-2, var(--cv-bg-subtle))",
+                    color: "var(--text, var(--cv-text))",
                     fontSize: "0.82rem",
-                    borderRadius: "4px",
+                    borderRadius: "6px",
                     outline: "none",
                   }}
                 />
@@ -608,10 +608,10 @@ export default function ResumePage() {
                   style={{
                     padding: "0 14px",
                     height: "38px",
-                    background: "var(--cv-text)",
-                    color: "var(--cv-bg)",
-                    border: "none",
-                    borderRadius: "4px",
+                    background: "var(--accent-soft, var(--cv-accent-soft))",
+                    color: "var(--accent, var(--cv-accent))",
+                    border: "1px solid var(--accent-border, var(--cv-accent-border))",
+                    borderRadius: "6px",
                     fontSize: "0.8rem",
                     fontWeight: 600,
                     cursor: "pointer",

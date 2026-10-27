@@ -75,6 +75,12 @@ describe("Scenario 10 — Speech recognition receives correct recognition.lang p
     expect(recognition.lang).toBe("ta-IN");
   });
 
+  it("sets recognition.lang to ml-IN when Malayalam is selected", () => {
+    const recognition = { lang: "" };
+    recognition.lang = getLanguageConfig("ml").bcp47;
+    expect(recognition.lang).toBe("ml-IN");
+  });
+
   it("sets recognition.lang to hi-IN when Hindi is selected", () => {
     const recognition = { lang: "" };
     recognition.lang = getLanguageConfig("hi").bcp47;
@@ -161,14 +167,44 @@ describe("Scenario 11 — Missing/unsupported voice triggers a truthful fallback
   });
 });
 
-// ── Scenario 12 — Smoke test: English features still intact ──────────────────
+// ── Scenario 13 — Speech rate is applied to the utterance ──────────────────────
 
-describe("Scenario 12 — English interview/teaching features still pass smoke test", () => {
+describe("Scenario 13 — Speech rate is applied to the utterance", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("speakTextInLanguage is exported and callable", () => {
+  it("speakTextInLanguage applies a custom rate to the utterance", () => {
+    const voices = [{ name: "Samantha", lang: "en-US", voiceURI: "en-us" }];
+    const synth = mockSynth(voices);
+    vi.stubGlobal("SpeechSynthesisUtterance", SpeechSynthesisUtteranceStub);
+
+    speakTextInLanguage("Hello world", "en", { rate: 0.75 });
+
+    expect(synth.speak).toHaveBeenCalledOnce();
+    const utterance = synth.speak.mock.calls[0][0];
+    expect(utterance.rate).toBe(0.75);
+  });
+
+  it("speakTextInLanguage defaults rate to 1 when not provided", () => {
+    const voices = [{ name: "Samantha", lang: "en-US", voiceURI: "en-us" }];
+    const synth = mockSynth(voices);
+    vi.stubGlobal("SpeechSynthesisUtterance", SpeechSynthesisUtteranceStub);
+
+    speakTextInLanguage("Hello world", "en");
+
+    const utterance = synth.speak.mock.calls[0][0];
+    expect(utterance.rate).toBe(1);
+  });
+});
+  // ── Scenario 12 — Smoke test: English features still intact ──────────────────
+
+  describe("Scenario 12 — English interview/teaching features still pass smoke test", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("speakTextInLanguage is exported and callable", () => {
     expect(typeof speakTextInLanguage).toBe("function");
   });
 
@@ -239,5 +275,16 @@ describe("Scenario 12 — English interview/teaching features still pass smoke t
     expect(result).toBe(true);
     const utterance = synth.speak.mock.calls[0][0];
     expect(utterance.lang).toBe("ta-IN");
+  });
+
+  it("speakTextInLanguage with Malayalam voice works for Malayalam bcp47", () => {
+    const voices = [{ name: "Google മലയാളം", lang: "ml-IN", voiceURI: "ml-in" }];
+    const synth = mockSynth(voices);
+    vi.stubGlobal("SpeechSynthesisUtterance", SpeechSynthesisUtteranceStub);
+
+    const result = speakTextInLanguage("നന്ദി", "ml");
+    expect(result).toBe(true);
+    const utterance = synth.speak.mock.calls[0][0];
+    expect(utterance.lang).toBe("ml-IN");
   });
 });

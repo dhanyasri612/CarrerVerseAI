@@ -24,7 +24,9 @@ dist-ssr/
 *.db
 *.sqlite3
 backend/chroma_db/
+backend/chroma_db_v2/
 uploads/
+screenshots/
 
 # OS / IDE
 .DS_Store
@@ -42,10 +44,26 @@ scratch/
 # Research, Presentations & PDF References (Not pushed to main)
 research/
 *.pptx
+*.docx
+roadmap.docx
+RESEARCH_PAPER_SECTION_4_RESULTS.*
 ppt_extracted/
+ppt_charts/
+paper_screenshots/
+extracted_roadmap_docx_images/
+attached_assets/
 *.pdf
 TESTING_AUDIT_REPORT.md
 frontend/screenshots_e2e/
+build_review_2_presentation.py
+template_bg.jpg
+template_logo.png
+
+# Agent tasks and internal tooling
+.agents/
+scripts/
+frontend/scripts/
+backend/scripts/
 
 # Test files and test runners (Excluded from current push)
 backend/conftest.py

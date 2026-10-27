@@ -1,0 +1,9 @@
+unit: career-discovery
+bindings:
+  - type: route-declaration
+    name: "GET /career-discovery"
+    source_loc: "frontend/src/App.jsx:59"
+    target: CareerDiscoveryPage
+    must_appear_in_target: true
+    notes: "Chapter 02 route."
+runtime_config: []

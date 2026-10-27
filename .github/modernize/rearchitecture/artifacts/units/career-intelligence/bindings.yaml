@@ -1,0 +1,9 @@
+unit: career-intelligence
+bindings:
+  - type: route-declaration
+    name: "GET /ai/intelligence"
+    source_loc: "frontend/src/App.jsx:92"
+    target: CareerIntelligencePage
+    must_appear_in_target: true
+    notes: "Evidence-grounded multi-agent workspace."
+runtime_config: []

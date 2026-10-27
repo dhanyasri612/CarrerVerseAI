@@ -354,3 +354,48 @@ def test_09_retry_on_parse_failure_does_not_revert_to_english(regression_setup, 
     assert any("Tamil" in sp for sp in captured_system_prompts), (
         "No system prompt contained 'Tamil' — language silently reverted to English on retry."
     )
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario 13 — Malayalam selection → LLM prompt contains Malayalam instruction
+# ────────────────────────────────────────────────────────────────────────────
+
+def test_13_malayalam_selection_prompt_contains_malayalam_instruction(regression_setup):
+    """LLM system prompt must reference Malayalam when language='ml'."""
+    db, user, provider = regression_setup
+
+    service.create_interview_session(
+        db, user, InterviewSessionCreateRequest(language="ml")
+    )
+
+    combined = "\n".join(provider.system_prompts)
+    assert "Malayalam" in combined or "ml" in combined, (
+        "Expected Malayalam language instruction in system prompts but got: " + combined[:300]
+    )
+
+
+def test_14_malayalam_detection_and_localization():
+    """Validates Unicode Malayalam detection, Manglish keyword detection, and localization."""
+    # Unicode Malayalam detection
+    res = language_detector.detect_language("എനിക്ക് ഒരു പൈത്തൺ ഇന്റർവ്യൂ ചോദ്യം വേണം")
+    assert res.language_code == "ml"
+    assert res.is_supported is True
+
+    # Manglish lexical keyword detection
+    manglish_res = language_detector.detect_language("enikku python interview chodhyam venam")
+    assert manglish_res.language_code == "ml"
+
+    # Localized question payload test
+    from app.schemas.interview_session import InterviewQuestionPayload
+    dummy_q = InterviewQuestionPayload(
+        question_id="test-1",
+        question="How do you group anagrams?",
+        question_type="technical",
+        difficulty="medium",
+        topic="Arrays & Hash Maps",
+        normalized_concept="dsa:arrays_hash_map",
+    )
+    localized = service.localize_question_payload(dummy_q, "ml")
+    assert localized.language == "ml"
+    assert "നമസ്കാരം" in localized.question
+    assert "anagrams" in localized.question

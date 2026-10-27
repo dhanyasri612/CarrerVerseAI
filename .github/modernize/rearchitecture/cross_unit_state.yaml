@@ -1,0 +1,29 @@
+flows:
+  - name: auth-session
+    medium: cookie
+    key: cv_token
+    writer:
+      unit: profile
+      source_loc: "frontend/src/context/AuthContext.jsx:18"
+    reader:
+      unit: career-intelligence
+      source_loc: "frontend/src/services/api.js:11"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Authenticated navigation keeps the bearer token after a page refresh."
+    notes: "The token is localStorage-backed and injected into every API request."
+  - name: interview-session
+    medium: database
+    key: careerverse_interview_session_id
+    writer:
+      unit: interview
+      source_loc: "frontend/src/pages/AIPage.jsx:981"
+    reader:
+      unit: interview
+      source_loc: "frontend/src/pages/AIPage.jsx:903"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Refreshing the interview page restores the active session."
+    notes: "The session id is a resumable client-side pointer to the backend session."

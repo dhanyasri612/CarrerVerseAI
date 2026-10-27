@@ -1,0 +1,11 @@
+unit: opening
+side_effects: []
+branches:
+  - source_loc: "frontend/src/pages/LandingPage.jsx:134"
+    condition: "user selects Sign In or Get Started"
+    behavior: "navigate to the corresponding authentication route"
+    must_preserve: true
+error_paths: []
+concurrency:
+  model: sync
+  tx_boundary: null

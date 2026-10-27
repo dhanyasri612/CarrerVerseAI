@@ -351,142 +351,9 @@ def generate_dsa_practice_and_roadmap(
         ),
     ]
 
-    # Similar-style problems curated based on candidate standing with learning resources
-    recommended_problems: List[DsaRecommendedProblem] = [
-        DsaRecommendedProblem(
-            id="dsa-p1",
-            title="Max Contiguous Subarray with Bounded Distinct Elements",
-            difficulty="Medium",
-            topic="Sliding Window",
-            similar_to="LeetCode 3: Longest Substring Without Repeating Characters",
-            description="Given an array of integers nums and an integer k, return the length of the longest contiguous subarray containing at most k distinct elements.",
-            examples=[
-                DsaProblemExample(
-                    input="nums = [1, 2, 1, 2, 3], k = 2",
-                    output="4",
-                    explanation="The longest valid subarray is [1, 2, 1, 2] with length 4.",
-                ),
-                DsaProblemExample(
-                    input="nums = [1, 2, 3, 1, 2, 3], k = 1",
-                    output="1",
-                    explanation="Any single element subarray contains 1 distinct element.",
-                ),
-            ],
-            constraints=["1 <= nums.length <= 10^5", "0 <= nums[i] <= 10^5", "1 <= k <= nums.length"],
-            hints=[
-                "Maintain a sliding window [left, right] and a hash map tracking element frequencies.",
-                "Whenever the map size exceeds k, shrink the window from the left until map size is <= k.",
-            ],
-            approach="Use a two-pointer sliding window with an element frequency hash map to achieve O(N) time and O(K) space.",
-            time_complexity="O(N)",
-            space_complexity="O(K)",
-            resources=_build_topic_resources("Two Pointers & Sliding Window"),
-            starter_code={
-                "python": "def maxSubarrayLength(nums: list[int], k: int) -> int:\n    # Implement sliding window [left, right] with frequency map\n    left = 0\n    max_len = 0\n    counts = {}\n    # Complete your solution here\n    return max_len\n",
-                "javascript": "function maxSubarrayLength(nums, k) {\n    // Implement sliding window with frequency map\n    let left = 0, maxLen = 0;\n    const counts = new Map();\n    // Complete your solution here\n    return maxLen;\n}\n",
-                "typescript": "function maxSubarrayLength(nums: number[], k: number): number {\n    let left = 0, maxLen = 0;\n    const counts = new Map<number, number>();\n    // Complete your solution here\n    return maxLen;\n}\n",
-                "java": "import java.util.*;\n\nclass Solution {\n    public int maxSubarrayLength(int[] nums, int k) {\n        int left = 0, maxLen = 0;\n        Map<Integer, Integer> counts = new HashMap<>();\n        // Complete your solution here\n        return maxLen;\n    }\n}\n",
-                "cpp": "#include <vector>\n#include <unordered_map>\n#include <algorithm>\nusing namespace std;\n\nclass Solution {\npublic:\n    int maxSubarrayLength(vector<int>& nums, int k) {\n        int left = 0, maxLen = 0;\n        unordered_map<int, int> counts;\n        // Complete your solution here\n        return maxLen;\n    }\n};\n",
-                "golang": "package main\n\nfunc maxSubarrayLength(nums []int, k int) int {\n    left := 0\n    maxLen := 0\n    counts := make(map[int]int)\n    // Complete your solution here\n    return maxLen\n}\n",
-            },
-        ),
-        DsaRecommendedProblem(
-            id="dsa-p2",
-            title="Island Perimeter and River Network Diameter",
-            difficulty="Medium",
-            topic="Graph BFS / DFS",
-            similar_to="LeetCode 200: Number of Islands & LeetCode 695: Max Area of Island",
-            description="You are given an m x n binary grid where 1 represents land and 0 represents water. An island is formed by horizontally or vertically adjacent lands. Return the maximum perimeter of any single connected island in the grid.",
-            examples=[
-                DsaProblemExample(
-                    input="grid = [[0,1,0,0],[1,1,1,0],[0,1,0,0],[1,1,0,0]]",
-                    output="12",
-                    explanation="The top connected island has perimeter 12.",
-                )
-            ],
-            constraints=["m == grid.length", "n == grid[i].length", "1 <= m, n <= 100"],
-            hints=[
-                "Traverse every unvisited 1 using Breadth-First Search (BFS) or Depth-First Search (DFS).",
-                "For each cell in the island, its contribution to perimeter is 4 minus the number of valid land neighbors.",
-            ],
-            approach="Standard grid flood-fill traversal. Compute each cell's exposed perimeter boundaries directly.",
-            time_complexity="O(M * N)",
-            space_complexity="O(M * N)",
-            resources=_build_topic_resources("Graphs & BFS / DFS"),
-            starter_code={
-                "python": "def maxIslandPerimeter(grid: list[list[int]]) -> int:\n    # BFS/DFS on grid cells\n    rows, cols = len(grid), len(grid[0])\n    visited = set()\n    # Complete your solution here\n    return 0\n",
-                "javascript": "function maxIslandPerimeter(grid) {\n    const rows = grid.length, cols = grid[0].length;\n    // Complete your solution here\n    return 0;\n}\n",
-                "typescript": "function maxIslandPerimeter(grid: number[][]): number {\n    const rows = grid.length, cols = grid[0].length;\n    // Complete your solution here\n    return 0;\n}\n",
-                "java": "class Solution {\n    public int maxIslandPerimeter(int[][] grid) {\n        int rows = grid.length, cols = grid[0].length;\n        // Complete your solution here\n        return 0;\n    }\n}\n",
-                "cpp": "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    int maxIslandPerimeter(vector<vector<int>>& grid) {\n        int rows = grid.size(), cols = grid[0].size();\n        // Complete your solution here\n        return 0;\n    }\n};\n",
-                "golang": "package main\n\nfunc maxIslandPerimeter(grid [][]int) int {\n    // Complete your solution here\n    return 0\n}\n",
-            },
-        ),
-        DsaRecommendedProblem(
-            id="dsa-p3",
-            title="Stock Trading with Transaction Cooldown and Fee",
-            difficulty="Medium",
-            topic="Dynamic Programming",
-            similar_to="LeetCode 309: Best Time to Buy and Sell Stock with Cooldown",
-            description="You are given an array prices where prices[i] is the price of a given stock on the ith day, and an integer fee representing a transaction fee. Find the maximum profit you can achieve. You may complete as many transactions as you like, but you cannot engage in multiple transactions simultaneously, and you must pay the fee for each transaction.",
-            examples=[
-                DsaProblemExample(
-                    input="prices = [1, 3, 2, 8, 4, 9], fee = 2",
-                    output="8",
-                    explanation="Maximum profit = ((8 - 1) - 2) + ((9 - 4) - 2) = 5 + 3 = 8.",
-                )
-            ],
-            constraints=["1 <= prices.length <= 5 * 10^4", "1 <= prices[i] <= 5 * 10^4", "0 <= fee <= 10^4"],
-            hints=[
-                "Define two states for each day: 'hold' (holding stock) and 'cash' (not holding stock).",
-                "State transitions: cash = max(cash, hold + prices[i] - fee), hold = max(hold, cash_prev - prices[i]).",
-            ],
-            approach="State machine DP with 2 variables. Space can be compressed from O(N) to O(1).",
-            time_complexity="O(N)",
-            space_complexity="O(1)",
-            resources=_build_topic_resources("Dynamic Programming"),
-            starter_code={
-                "python": "def maxProfit(prices: list[int], fee: int) -> int:\n    # State machine DP with compressed space\n    # cash = max profit without stock, hold = max profit with stock\n    cash, hold = 0, -prices[0]\n    # Complete your transition loop\n    return cash\n",
-                "javascript": "function maxProfit(prices, fee) {\n    let cash = 0, hold = -prices[0];\n    // Complete your transition loop\n    return cash;\n}\n",
-                "typescript": "function maxProfit(prices: number[], fee: number): number {\n    let cash = 0, hold = -prices[0];\n    // Complete your transition loop\n    return cash;\n}\n",
-                "java": "class Solution {\n    public int maxProfit(int[] prices, int fee) {\n        int cash = 0, hold = -prices[0];\n        // Complete your transition loop\n        return cash;\n    }\n}\n",
-                "cpp": "#include <vector>\n#include <algorithm>\nusing namespace std;\n\nclass Solution {\npublic:\n    int maxProfit(vector<int>& prices, int fee) {\n        int cash = 0, hold = -prices[0];\n        // Complete your transition loop\n        return cash;\n    }\n};\n",
-                "golang": "package main\n\nfunc maxProfit(prices []int, fee int) int {\n    cash, hold := 0, -prices[0]\n    // Complete your transition loop\n    return cash\n}\n",
-            },
-        ),
-        DsaRecommendedProblem(
-            id="dsa-p4",
-            title="Validate Lowest Ancestral Dependency Path",
-            difficulty="Medium",
-            topic="Trees & Recursion",
-            similar_to="LeetCode 236: Lowest Common Ancestor of a Binary Tree",
-            description="Given the root of a binary tree and two nodes p and q, find the lowest common ancestor (LCA) node such that all nodes on the path between p and q have unique values within a specified range.",
-            examples=[
-                DsaProblemExample(
-                    input="root = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 1",
-                    output="3",
-                    explanation="The LCA of nodes 5 and 1 is 3.",
-                )
-            ],
-            constraints=["Number of nodes is in [2, 10^5]", "-10^9 <= Node.val <= 10^9", "All Node.val are unique"],
-            hints=[
-                "Recursive post-order traversal: check if left subtree and right subtree contain p or q.",
-                "If both subtrees return non-null, the current root is the LCA.",
-            ],
-            approach="Bottom-up recursive post-order traversal returning matched target references.",
-            time_complexity="O(N)",
-            space_complexity="O(H)",
-            resources=_build_topic_resources("Trees & Binary Search Trees"),
-            starter_code={
-                "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, x):\n#         self.val = x\n#         self.left = None\n#         self.right = None\n\ndef lowestCommonAncestor(root, p, q):\n    # Recursive post-order traversal\n    if not root or root == p or root == q:\n        return root\n    # Recurse on left and right\n    return None\n",
-                "javascript": "function lowestCommonAncestor(root, p, q) {\n    if (!root || root === p || root === q) return root;\n    // Recurse on left and right\n    return null;\n}\n",
-                "typescript": "function lowestCommonAncestor(root: any, p: any, q: any): any {\n    if (!root || root === p || root === q) return root;\n    // Recurse on left and right\n    return null;\n}\n",
-                "java": "class Solution {\n    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {\n        if (root == null || root == p || root == q) return root;\n        // Recurse on left and right\n        return null;\n    }\n}\n",
-                "cpp": "class Solution {\npublic:\n    TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {\n        if (!root || root == p || root == q) return root;\n        // Recurse on left and right\n        return nullptr;\n    }\n};\n",
-                "golang": "package main\n\nfunc lowestCommonAncestor(root, p, q *TreeNode) *TreeNode {\n    if root == nil || root == p || root == q {\n        return root\n    }\n    return nil\n}\n",
-            },
-        ),
-    ]
+    # Curated authentic DSA problems covering all 17 canonical topics across LeetCode and HackerRank
+    from app.services.dsa_catalog import get_all_curated_dsa_problems
+    recommended_problems: List[DsaRecommendedProblem] = get_all_curated_dsa_problems()
 
     # Attempt AI refinement if available
     try:
@@ -996,7 +863,9 @@ def evaluate_dsa_code_submission(
             import heapq
 
             exec_globals = {
+                "__name__": "__main__",
                 "__builtins__": {
+                    "__build_class__": __build_class__,
                     "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool,
                     "bytearray": bytearray, "bytes": bytes, "chr": chr, "complex": complex,
                     "dict": dict, "divmod": divmod, "enumerate": enumerate, "filter": filter,
@@ -1008,6 +877,8 @@ def evaluate_dsa_code_submission(
                     "round": round, "set": set, "slice": slice, "sorted": sorted,
                     "str": str, "sum": sum, "tuple": tuple, "type": type, "zip": zip,
                     "True": True, "False": False, "None": None,
+                    "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
+                    "IndexError": IndexError, "KeyError": KeyError, "ZeroDivisionError": ZeroDivisionError,
                 },
                 "collections": collections,
                 "defaultdict": collections.defaultdict,
@@ -1139,7 +1010,7 @@ def evaluate_dsa_code_submission(
                             expected=str(r.get("expected", "")),
                             actual=str(r.get("actual", "")),
                             passed=bool(r.get("passed", False)),
-                            error=r.get("error") if r.get("error") else None,
+                            error=r.get("error") if r.get("error") else (None if bool(r.get("passed", False)) else f"Expected {r.get('expected', '')}, got {r.get('actual', '')}"),
                         )
                     )
 

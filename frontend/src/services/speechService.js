@@ -89,6 +89,25 @@ export function getLanguageConfig(langCode = "en") {
 }
 
 /**
+ * Returns a deliberate, natural speech rate for the requested language.
+ * Syllable-timed Indic languages (Tamil, Hindi, Telugu, Kannada, Malayalam) speak
+ * unnaturally fast and clipped at browser default 1.0; 0.85x provides clear mentor pacing.
+ */
+export function getDefaultSpeechRate(langCode = "en") {
+  const code = (langCode || "en").toLowerCase().slice(0, 2);
+  if (code === "ta" || code === "ml" || code === "te" || code === "kn") {
+    return 0.85;
+  }
+  if (code === "hi") {
+    return 0.9;
+  }
+  if (["es", "fr", "de"].includes(code)) {
+    return 0.9;
+  }
+  return 1.0;
+}
+
+/**
  * Checks whether a voice is a natural human-like voice rather than a novelty/legacy sound effect.
  */
 export function isNaturalVoice(voice) {
@@ -130,7 +149,6 @@ export function isVoiceAvailableForLang(voices = [], langCode = "en") {
   if (target === "en") {
     return voices.some((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
   }
-  // te, kn, ml: check by lang prefix only (voices rare but use what the browser provides)
   return voices.some((v) => v.lang && v.lang.toLowerCase().startsWith(target));
 }
 
@@ -301,7 +319,9 @@ export function speakTextInLanguage(text, langCode = "en", options = {}) {
     const utterance = new SpeechSynthesisUtterance(String(text));
     utterance.lang = cfg.bcp47;
     utterance.voice = match.voice;
-    utterance.rate = rate;
+    const baseLangRate = getDefaultSpeechRate(cfg.code);
+    const userRate = typeof rate === "number" ? rate : 1.0;
+    utterance.rate = Math.min(1.5, Math.max(0.5, baseLangRate * userRate));
     utterance.pitch = pitch;
     synth.speak(utterance);
     return true;
@@ -317,6 +337,7 @@ export function speakTextInLanguage(text, langCode = "en", options = {}) {
   }
   return speak();
 }
+
 
 /**
  * Sanitizes technical interview question text for natural speech synthesis.

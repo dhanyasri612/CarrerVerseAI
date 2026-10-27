@@ -1,0 +1,85 @@
+units:
+  - name: opening
+    trigger: page
+    trigger_detail: "GET /"
+    source_anchors:
+      - path: frontend/src/pages/LandingPage.jsx
+        line: 134
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url]
+  - name: profile
+    trigger: page
+    trigger_detail: "GET /profile"
+    source_anchors:
+      - path: frontend/src/pages/ProfilePage.jsx
+        line: 68
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]
+  - name: career-discovery
+    trigger: page
+    trigger_detail: "GET /career-discovery"
+    source_anchors:
+      - path: frontend/src/pages/CareerDiscoveryPage.jsx
+        line: 9
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [profile]
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]
+  - name: skill-gap
+    trigger: page
+    trigger_detail: "GET /skill-gap"
+    source_anchors:
+      - path: frontend/src/pages/SkillGapPage.jsx
+        line: 36
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [career-discovery]
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]
+  - name: learning-roadmap
+    trigger: page
+    trigger_detail: "GET /career-roadmap"
+    source_anchors:
+      - path: frontend/src/pages/LearningRoadmapPage.jsx
+        line: 8
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [skill-gap]
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]
+  - name: interview
+    trigger: page
+    trigger_detail: "GET /ai/interview"
+    source_anchors:
+      - path: frontend/src/pages/InterviewPage.jsx
+        line: 23
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [profile]
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]
+  - name: career-intelligence
+    trigger: page
+    trigger_detail: "GET /ai/intelligence"
+    source_anchors:
+      - path: frontend/src/pages/CareerIntelligencePage.jsx
+        line: 78
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [profile, career-discovery, skill-gap]
+    shared_refs:
+      - module: frontend-runtime
+        used_fields: [api_base_url, auth_token]

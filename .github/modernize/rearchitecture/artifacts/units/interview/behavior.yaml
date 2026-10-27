@@ -1,0 +1,14 @@
+unit: interview
+side_effects:
+  - source_loc: "frontend/src/pages/InterviewPage.jsx:23"
+    effect: "starts, resumes, submits, and completes interview sessions"
+    must_preserve: true
+branches:
+  - source_loc: "frontend/src/pages/InterviewPage.jsx:23"
+    condition: "active session exists in local storage"
+    behavior: "resume the backend interview session instead of creating a new one"
+    must_preserve: true
+error_paths: []
+concurrency:
+  model: async
+  tx_boundary: null

@@ -8,6 +8,8 @@ All response schemas are reused from existing Phase 5/6 schemas.
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.interview_session import SUPPORTED_LANGUAGES
+
 
 class CareerRecommendationRequest(BaseModel):
     """
@@ -120,6 +122,18 @@ class CareerInterviewRequest(BaseModel):
             raise ValueError("query must not be blank if provided")
         return v
 
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip().lower()
+        if "-" in cleaned:
+            cleaned = cleaned.split("-")[0]
+        if cleaned not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"language must be one of: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        return cleaned
+
 
 class CareerIntelligenceRequest(BaseModel):
     """
@@ -165,3 +179,15 @@ class CareerIntelligenceRequest(BaseModel):
         if not v.strip():
             raise ValueError("query must not be blank or whitespace only")
         return v
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip().lower()
+        if "-" in cleaned:
+            cleaned = cleaned.split("-")[0]
+        if cleaned not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"language must be one of: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        return cleaned

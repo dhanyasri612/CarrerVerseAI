@@ -14,6 +14,15 @@ from app.models.certification import Certification
 from app.models.job import Job
 from app.models.interview_session import InterviewSession
 from app.models.teaching_progress import TeachingProgress
+from app.models.course_document import CourseDocument
+from app.models.proctoring_event import ProctoringEvent
+from app.models.career_roadmap import (
+    CareerRoadmap,
+    RoadmapVersion,
+    RoadmapMilestone,
+    RoadmapTrendSignal,
+    RoadmapChangeLog,
+)
 
 __all__ = [
     "Role",
@@ -32,4 +41,11 @@ __all__ = [
     "Job",
     "InterviewSession",
     "TeachingProgress",
+    "CourseDocument",
+    "ProctoringEvent",
+    "CareerRoadmap",
+    "RoadmapVersion",
+    "RoadmapMilestone",
+    "RoadmapTrendSignal",
+    "RoadmapChangeLog",
 ]

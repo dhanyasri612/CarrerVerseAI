@@ -61,6 +61,11 @@ class InterviewQuestion(BaseModel):
         default_factory=list,
         description="Data evidence sources (e.g. project, skill, graph, resume, github, skill_gap)",
     )
+    source_citations: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Fresh technical documentation citations used to ground this question",
+    )
+    technical_source_status: str = "not_refreshed"
 
 
 class InterviewResponse(BaseModel):

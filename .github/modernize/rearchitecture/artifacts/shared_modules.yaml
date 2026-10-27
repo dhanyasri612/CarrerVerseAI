@@ -1,0 +1,29 @@
+modules:
+  - name: frontend-runtime
+    kind: config
+    source_loc: "frontend/src/services/api.js:3"
+    used_by_units: [opening, profile, career-discovery, skill-gap, learning-roadmap, interview, career-intelligence]
+    fields:
+      - name: api_base_url
+        type: "string"
+      - name: auth_token
+        type: "string|null"
+    god_class: false
+    split_candidate: false
+    migration_strategy: wrap
+    notes: "Central axios client and bearer-token propagation."
+  - name: editorial-primitives
+    kind: utility
+    source_loc: "frontend/src/design-system/index.js:1"
+    used_by_units: [profile, career-discovery, skill-gap, learning-roadmap, interview, career-intelligence]
+    fields:
+      - name: CVButton
+        type: "React component"
+      - name: CVDrawer
+        type: "React component"
+      - name: CVInput
+        type: "React component"
+    god_class: false
+    split_candidate: false
+    migration_strategy: copy
+    notes: "Shared visual primitives keep chapter pages consistent."

@@ -57,15 +57,17 @@ function formatMarkdownReport(input) {
 }
 
 function MarkdownReport({ content, className = "" }) {
-  if (!content) return null;
-  const cleaned = formatMarkdownReport(content);
+  const cleaned = content ? formatMarkdownReport(content) : "";
   const html = useMemo(() => {
+    if (!cleaned) return "";
     try {
       return marked.parse(cleaned, { gfm: true, breaks: true });
     } catch {
       return cleaned;
     }
   }, [cleaned]);
+
+  if (!content) return null;
 
   return (
     <div

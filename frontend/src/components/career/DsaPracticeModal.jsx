@@ -104,7 +104,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
     >
       <div
         style={{
-          background: "#ffffff",
+          background: "var(--cv-surface)",
           width: "100%",
           maxWidth: "1120px",
           height: "92vh",
@@ -114,7 +114,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          border: "1px solid #334155",
+          border: "1px solid var(--cv-border)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -122,12 +122,12 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
         <div
           style={{
             padding: "1.25rem 2rem",
-            background: "#0f172a",
-            color: "#ffffff",
+            background: "var(--cv-surface-raised)",
+            color: "var(--cv-text)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #1e293b",
+            borderBottom: "1px solid var(--cv-border)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -136,11 +136,11 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                 width: 44,
                 height: 44,
                 borderRadius: "12px",
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                background: "linear-gradient(135deg, var(--cv-warning) 0%, var(--cv-accent-hover) 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#0f172a",
+                color: "var(--cv-text-inverse)",
                 boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)",
               }}
             >
@@ -153,7 +153,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     fontSize: "0.75rem",
                     fontWeight: 700,
                     letterSpacing: "0.08em",
-                    color: "#fbbf24",
+                    color: "var(--cv-warning)",
                     textTransform: "uppercase",
                   }}
                 >
@@ -164,7 +164,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     style={{
                       fontSize: "0.7rem",
                       background: "rgba(34, 197, 94, 0.2)",
-                      color: "#4ade80",
+                      color: "var(--cv-success)",
                       padding: "2px 8px",
                       borderRadius: "6px",
                       fontWeight: 600,
@@ -174,14 +174,14 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                   </span>
                 )}
               </div>
-              <h2 style={{ margin: "2px 0 0 0", fontSize: "1.35rem", fontWeight: 700, color: "#f8fafc" }}>
+              <h2 style={{ margin: "2px 0 0 0", fontSize: "1.35rem", fontWeight: 700, color: "var(--cv-text)" }}>
                 DSA Mastery, Topic Separation & Performance Roadmap
               </h2>
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ display: "flex", background: "#1e293b", borderRadius: "10px", padding: "4px", gap: "4px" }}>
+            <div style={{ display: "flex", background: "var(--cv-surface-raised)", borderRadius: "10px", padding: "4px", gap: "4px" }}>
               <button
                 type="button"
                 onClick={() => setActiveTab("topics")}
@@ -189,8 +189,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                   padding: "7px 14px",
                   borderRadius: "7px",
                   border: "none",
-                  background: activeTab === "topics" ? "#fbbf24" : "transparent",
-                  color: activeTab === "topics" ? "#0f172a" : "#94a3b8",
+                  background: activeTab === "topics" ? "var(--cv-warning)" : "transparent",
+                  color: activeTab === "topics" ? "var(--cv-text-inverse)" : "var(--cv-text-muted)",
                   fontWeight: 600,
                   fontSize: "0.82rem",
                   cursor: "pointer",
@@ -208,8 +208,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                   padding: "7px 14px",
                   borderRadius: "7px",
                   border: "none",
-                  background: activeTab === "roadmap" ? "#fbbf24" : "transparent",
-                  color: activeTab === "roadmap" ? "#0f172a" : "#94a3b8",
+                  background: activeTab === "roadmap" ? "var(--cv-warning)" : "transparent",
+                  color: activeTab === "roadmap" ? "var(--cv-text-inverse)" : "var(--cv-text-muted)",
                   fontWeight: 600,
                   fontSize: "0.82rem",
                   cursor: "pointer",
@@ -227,8 +227,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                   padding: "7px 14px",
                   borderRadius: "7px",
                   border: "none",
-                  background: activeTab === "problems" ? "#fbbf24" : "transparent",
-                  color: activeTab === "problems" ? "#0f172a" : "#94a3b8",
+                  background: activeTab === "problems" ? "var(--cv-warning)" : "transparent",
+                  color: activeTab === "problems" ? "var(--cv-text-inverse)" : "var(--cv-text-muted)",
                   fontWeight: 600,
                   fontSize: "0.82rem",
                   cursor: "pointer",
@@ -249,8 +249,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                 height: 34,
                 borderRadius: "8px",
                 border: "none",
-                background: "#334155",
-                color: "#e2e8f0",
+                background: "var(--cv-surface)",
+                color: "var(--cv-text)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -265,13 +265,13 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
         {/* Diagnostic Assessment Banner */}
         <div
           style={{
-            background: "#1e293b",
+            background: "var(--cv-surface-raised)",
             padding: "0.85rem 2rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #334155",
-            color: "#e2e8f0",
+            borderBottom: "1px solid var(--cv-border)",
+            color: "var(--cv-text)",
             fontSize: "0.84rem",
             flexWrap: "wrap",
             gap: "1rem",
@@ -289,39 +289,39 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                 gap: "6px",
               }}
             >
-              <Award size={15} color="#fbbf24" />
-              <span style={{ color: "#fbbf24", fontWeight: 700 }}>
+              <Award size={15} color="var(--cv-warning)" />
+              <span style={{ color: "var(--cv-warning)", fontWeight: 700 }}>
                 Readiness: {data?.overall_readiness_score || 65}%
               </span>
             </div>
 
             <span>
               <strong>Total Solved:</strong>{" "}
-              <span style={{ color: "#fbbf24", fontWeight: 700 }}>{lcStats.total_solved || 0}</span>
+              <span style={{ color: "var(--cv-warning)", fontWeight: 700 }}>{lcStats.total_solved || 0}</span>
             </span>
             <span>
-              <strong>Easy:</strong> <span style={{ color: "#4ade80" }}>{lcStats.easy_solved || 0}</span>
+              <strong>Easy:</strong> <span style={{ color: "var(--cv-success)" }}>{lcStats.easy_solved || 0}</span>
             </span>
             <span>
-              <strong>Medium:</strong> <span style={{ color: "#facc15" }}>{lcStats.medium_solved || 0}</span>
+              <strong>Medium:</strong> <span style={{ color: "var(--cv-warning)" }}>{lcStats.medium_solved || 0}</span>
             </span>
             <span>
-              <strong>Hard:</strong> <span style={{ color: "#f87171" }}>{lcStats.hard_solved || 0}</span>
+              <strong>Hard:</strong> <span style={{ color: "var(--cv-danger)" }}>{lcStats.hard_solved || 0}</span>
             </span>
             <span>
               <strong>Daily Solved in App:</strong>{" "}
-              <span style={{ color: "#38bdf8", fontWeight: 700 }}>{solvedProblems.length}</span>
+              <span style={{ color: "var(--cv-info)", fontWeight: 700 }}>{solvedProblems.length}</span>
             </span>
           </div>
 
           <div
             style={{
-              color: "#94a3b8",
+              color: "var(--cv-text-muted)",
               fontSize: "0.8rem",
-              background: "#0f172a",
+              background: "var(--cv-surface)",
               padding: "4px 12px",
               borderRadius: "6px",
-              border: "1px solid #334155",
+              border: "1px solid var(--cv-border)",
               maxWidth: "480px",
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -333,18 +333,18 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
         </div>
 
         {/* Content Area */}
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", background: "#f8fafc" }}>
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", background: "var(--cv-bg-subtle)" }}>
           {loading ? (
-            <div style={{ margin: "auto", textAlign: "center", color: "#64748b" }}>
+            <div style={{ margin: "auto", textAlign: "center", color: "var(--cv-text-muted)" }}>
               <Sparkles
                 size={32}
-                color="#f59e0b"
+                color="var(--cv-warning)"
                 style={{ animation: "spin 2s linear infinite", marginBottom: "10px" }}
               />
-              <div style={{ fontWeight: 600, fontSize: "1rem", color: "#0f172a" }}>
+              <div style={{ fontWeight: 600, fontSize: "1rem", color: "var(--cv-text)" }}>
                 Analyzing Daily Practice & Evaluating Algorithmic Mastery...
               </div>
-              <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "4px" }}>
+              <div style={{ fontSize: "0.85rem", color: "var(--cv-text-muted)", marginTop: "4px" }}>
                 Loading verified resources, topic breakdown, and adaptive milestones
               </div>
             </div>
@@ -356,28 +356,28 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                 {/* Introduction Banner */}
                 <div
                   style={{
-                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    background: "linear-gradient(135deg, var(--cv-surface) 0%, var(--cv-surface-raised) 100%)",
                     padding: "1.25rem 1.5rem",
                     borderRadius: "14px",
-                    color: "#ffffff",
+                    color: "var(--cv-text)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    border: "1px solid #334155",
+                    border: "1px solid var(--cv-border)",
                   }}
                 >
                   <div>
-                    <h3 style={{ margin: "0 0 6px 0", fontSize: "1.1rem", color: "#f8fafc", fontWeight: 700 }}>
+                    <h3 style={{ margin: "0 0 6px 0", fontSize: "1.1rem", color: "var(--cv-text)", fontWeight: 700 }}>
                       Algorithmic Practice Diagnostic • {targetRole}
                     </h3>
-                    <p style={{ margin: 0, fontSize: "0.86rem", color: "#94a3b8", lineHeight: 1.5 }}>
+                    <p style={{ margin: 0, fontSize: "0.86rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}>
                       We categorize your algorithmic skills into <strong>Already Practiced Topics</strong> (with a verified
                       check if you are &ldquo;Good Enough&rdquo; for technical phone screens) and <strong>Priority Topics Needing Practice</strong>.
                     </p>
                   </div>
                   <div style={{ textAlign: "right", minWidth: "160px" }}>
-                    <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>CURRENT BENCHMARK</div>
-                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fbbf24" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--cv-text-muted)" }}>CURRENT BENCHMARK</div>
+                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--cv-warning)" }}>
                       {practicedTopics.filter((t) => t.is_good_enough).length} / {practicedTopics.length + toPracticeTopics.length} Good Enough
                     </div>
                   </div>
@@ -391,8 +391,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         width: 24,
                         height: 24,
                         borderRadius: "50%",
-                        background: "#dcfce7",
-                        color: "#16a34a",
+                        background: "var(--cv-success-soft)",
+                        color: "var(--cv-success)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -402,10 +402,10 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     >
                       ✓
                     </div>
-                    <h3 style={{ margin: 0, fontSize: "1.05rem", color: "#0f172a", fontWeight: 700 }}>
+                    <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--cv-surface-raised)", fontWeight: 700 }}>
                       Already Practiced Topics ({practicedTopics.length})
                     </h3>
-                    <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                    <span style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>
                       • Evaluated for technical interview readiness
                     </span>
                   </div>
@@ -414,11 +414,11 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     <div
                       style={{
                         padding: "1.5rem",
-                        background: "#ffffff",
+                        background: "var(--cv-surface)",
                         borderRadius: "12px",
-                        border: "1px dashed #cbd5e1",
+                        border: "1px dashed var(--cv-border)",
                         textAlign: "center",
-                        color: "#64748b",
+                        color: "var(--cv-text-muted)",
                         fontSize: "0.88rem",
                       }}
                     >
@@ -430,9 +430,9 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         <div
                           key={i}
                           style={{
-                            background: "#ffffff",
+                            background: "var(--cv-surface)",
                             borderRadius: "14px",
-                            border: topic.is_good_enough ? "1.5px solid #86efac" : "1px solid #e2e8f0",
+                            border: topic.is_good_enough ? "1.5px solid var(--cv-success-soft)" : "1px solid var(--cv-border)",
                             padding: "1.25rem 1.4rem",
                             boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                             display: "flex",
@@ -443,10 +443,10 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                           {/* Card Top */}
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                             <div>
-                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>
+                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--cv-surface-raised)" }}>
                                 {topic.topic}
                               </div>
-                              <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                              <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>
                                 {topic.solved_count} / {topic.target_count} target problems solved
                               </div>
                             </div>
@@ -461,9 +461,9 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                 fontWeight: 700,
                                 padding: "4px 10px",
                                 borderRadius: "20px",
-                                background: topic.is_good_enough ? "#dcfce7" : "#fef3c7",
-                                color: topic.is_good_enough ? "#15803d" : "#b45309",
-                                border: topic.is_good_enough ? "1px solid #bbf7d0" : "1px solid #fde68a",
+                                background: topic.is_good_enough ? "var(--cv-success-soft)" : "var(--cv-warning)",
+                                color: topic.is_good_enough ? "var(--cv-success)" : "var(--cv-warning)",
+                                border: topic.is_good_enough ? "1px solid var(--cv-success-soft)" : "1px solid var(--cv-warning)",
                               }}
                             >
                               {topic.is_good_enough ? (
@@ -480,18 +480,18 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
 
                           {/* Progress Bar */}
                           <div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", color: "#64748b", marginBottom: "4px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", color: "var(--cv-text-muted)", marginBottom: "4px" }}>
                               <span>Topic Mastery</span>
-                              <span style={{ fontWeight: 700, color: topic.is_good_enough ? "#16a34a" : "#d97706" }}>
+                              <span style={{ fontWeight: 700, color: topic.is_good_enough ? "var(--cv-success)" : "var(--cv-warning)" }}>
                                 {topic.score_percent}%
                               </span>
                             </div>
-                            <div style={{ height: "6px", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
+                            <div style={{ height: "6px", background: "var(--cv-bg-subtle)", borderRadius: "3px", overflow: "hidden" }}>
                               <div
                                 style={{
                                   height: "100%",
                                   width: `${topic.score_percent}%`,
-                                  background: topic.is_good_enough ? "#22c55e" : "#f59e0b",
+                                  background: topic.is_good_enough ? "var(--cv-success)" : "var(--cv-warning)",
                                   borderRadius: "3px",
                                 }}
                               />
@@ -501,13 +501,13 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                           {/* Assessment Verdict */}
                           <div
                             style={{
-                              background: "#f8fafc",
+                              background: "var(--cv-surface)",
                               padding: "8px 12px",
                               borderRadius: "8px",
                               fontSize: "0.82rem",
-                              color: "#334155",
+                              color: "var(--cv-text-muted)",
                               lineHeight: 1.45,
-                              borderLeft: topic.is_good_enough ? "3px solid #22c55e" : "3px solid #f59e0b",
+                              borderLeft: topic.is_good_enough ? "3px solid var(--cv-success)" : "3px solid var(--cv-warning)",
                             }}
                           >
                             <strong>Verdict:</strong> {topic.assessment_verdict}
@@ -516,7 +516,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                           {/* Curated Resources */}
                           {topic.resources && topic.resources.length > 0 && (
                             <div style={{ marginTop: "4px" }}>
-                              <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--cv-text-muted)", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
                                 <BookOpen size={12} /> Curated Resources & Guides
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -531,9 +531,9 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                       alignItems: "center",
                                       justifyContent: "space-between",
                                       fontSize: "0.78rem",
-                                      color: "#2563eb",
+                                      color: "var(--cv-info)",
                                       textDecoration: "none",
-                                      background: "#f1f5f9",
+                                      background: "var(--cv-bg-subtle)",
                                       padding: "5px 10px",
                                       borderRadius: "6px",
                                     }}
@@ -541,7 +541,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                     <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                       {res.title}
                                     </span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", fontSize: "0.72rem", color: "#64748b", flexShrink: 0 }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", fontSize: "0.72rem", color: "var(--cv-text-muted)", flexShrink: 0 }}>
                                       {res.resource_type} <ExternalLink size={11} />
                                     </span>
                                   </a>
@@ -563,8 +563,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         width: 24,
                         height: 24,
                         borderRadius: "50%",
-                        background: "#fee2e2",
-                        color: "#ef4444",
+                        background: "var(--cv-danger-soft)",
+                        color: "var(--cv-danger)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -574,10 +574,10 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     >
                       !
                     </div>
-                    <h3 style={{ margin: 0, fontSize: "1.05rem", color: "#0f172a", fontWeight: 700 }}>
+                    <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--cv-surface-raised)", fontWeight: 700 }}>
                       Topics Needing Practice ({toPracticeTopics.length})
                     </h3>
-                    <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                    <span style={{ fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>
                       • High frequency in {targetRole} interviews
                     </span>
                   </div>
@@ -587,9 +587,9 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                       <div
                         key={i}
                         style={{
-                          background: "#ffffff",
+                          background: "var(--cv-surface)",
                           borderRadius: "14px",
-                          border: "1px solid #fed7aa",
+                          border: "1px solid var(--cv-border)",
                           padding: "1.25rem 1.4rem",
                           boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
                           display: "flex",
@@ -599,10 +599,10 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                       >
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                           <div>
-                            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>
+                            <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--cv-surface-raised)" }}>
                               {topic.topic}
                             </div>
-                            <div style={{ fontSize: "0.78rem", color: "#b45309", fontWeight: 500 }}>
+                            <div style={{ fontSize: "0.78rem", color: "var(--cv-warning)", fontWeight: 500 }}>
                               Status: {topic.mastery_level} • Target: {topic.target_count} problems
                             </div>
                           </div>
@@ -616,8 +616,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                               fontWeight: 700,
                               padding: "3px 9px",
                               borderRadius: "14px",
-                              background: "#fee2e2",
-                              color: "#dc2626",
+                              background: "var(--cv-danger-soft)",
+                              color: "var(--cv-danger)",
                             }}
                           >
                             <AlertTriangle size={12} /> Priority Need
@@ -627,13 +627,13 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         {/* Recommendation */}
                         <div
                           style={{
-                            background: "#fffbeb",
+                            background: "var(--cv-warning)",
                             padding: "8px 12px",
                             borderRadius: "8px",
                             fontSize: "0.82rem",
-                            color: "#92400e",
+                            color: "var(--cv-warning)",
                             lineHeight: 1.45,
-                            borderLeft: "3px solid #f59e0b",
+                            borderLeft: "3px solid var(--cv-warning)",
                           }}
                         >
                           <strong>Action Plan:</strong> {topic.recommended_action}
@@ -642,7 +642,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         {/* Verified Resources for This Priority Topic */}
                         {topic.resources && topic.resources.length > 0 && (
                           <div>
-                            <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--cv-text-muted)", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
                               <BookOpen size={12} /> Master This Pattern:
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -657,19 +657,19 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                     alignItems: "center",
                                     justifyContent: "space-between",
                                     fontSize: "0.78rem",
-                                    color: "#2563eb",
+                                    color: "var(--cv-info)",
                                     textDecoration: "none",
-                                    background: "#f8fafc",
-                                    border: "1px solid #e2e8f0",
+                                    background: "var(--cv-surface)",
+                                    border: "1px solid var(--cv-border)",
                                     padding: "6px 10px",
                                     borderRadius: "6px",
                                   }}
                                 >
                                   <div>
-                                    <div style={{ fontWeight: 600, color: "#1e293b" }}>{res.title}</div>
-                                    <div style={{ fontSize: "0.72rem", color: "#64748b" }}>{res.summary}</div>
+                                    <div style={{ fontWeight: 600, color: "var(--cv-surface-raised)" }}>{res.title}</div>
+                                    <div style={{ fontSize: "0.72rem", color: "var(--cv-text-muted)" }}>{res.summary}</div>
                                   </div>
-                                  <ExternalLink size={13} color="#2563eb" style={{ flexShrink: 0, marginLeft: "8px" }} />
+                                  <ExternalLink size={13} color="var(--cv-info)" style={{ flexShrink: 0, marginLeft: "8px" }} />
                                 </a>
                               ))}
                             </div>
@@ -685,16 +685,16 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
             /* TAB 2: PERFORMANCE-ADAPTIVE ROADMAP */
             <div style={{ flex: 1, overflowY: "auto", padding: "2rem" }}>
               <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                <div style={{ background: "#ffffff", padding: "1.25rem 1.5rem", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "var(--cv-surface)", padding: "1.25rem 1.5rem", borderRadius: "14px", border: "1px solid var(--cv-border)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                    <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>
+                    <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--cv-surface-raised)" }}>
                       Adaptive DSA Roadmap • {targetRole}
                     </h3>
-                    <span style={{ fontSize: "0.8rem", background: "#fef3c7", color: "#92400e", padding: "3px 10px", borderRadius: "14px", fontWeight: 700 }}>
+                    <span style={{ fontSize: "0.8rem", background: "var(--cv-warning-soft)", color: "var(--cv-warning)", padding: "3px 10px", borderRadius: "14px", fontWeight: 700 }}>
                       Adjusted to Practice Score ({data?.overall_readiness_score}%)
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: "0.88rem", color: "#64748b", lineHeight: 1.55 }}>
+                  <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--cv-text-muted)", lineHeight: 1.55 }}>
                     {data?.standing_summary}
                   </p>
                 </div>
@@ -707,9 +707,9 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     <div
                       key={stage.stage}
                       style={{
-                        background: "#ffffff",
+                        background: "var(--cv-surface)",
                         borderRadius: "14px",
-                        border: isCompleted ? "1.5px solid #86efac" : isInProgress ? "1.5px solid #fde047" : "1px solid #e2e8f0",
+                        border: isCompleted ? "1.5px solid var(--cv-success-soft)" : isInProgress ? "1.5px solid var(--cv-warning)" : "1px solid var(--cv-border)",
                         padding: "1.4rem 1.6rem",
                         display: "flex",
                         gap: "1.25rem",
@@ -722,15 +722,15 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                           width: 48,
                           height: 48,
                           borderRadius: "12px",
-                          background: isCompleted ? "#dcfce7" : isInProgress ? "#fef3c7" : "#f1f5f9",
-                          color: isCompleted ? "#15803d" : isInProgress ? "#b45309" : "#64748b",
+                          background: isCompleted ? "var(--cv-success-soft)" : isInProgress ? "var(--cv-warning)" : "var(--cv-bg-subtle)",
+                          color: isCompleted ? "var(--cv-success)" : isInProgress ? "var(--cv-warning)" : "var(--cv-text-muted)",
                           fontWeight: 800,
                           fontSize: "1.15rem",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
-                          border: isCompleted ? "1px solid #bbf7d0" : isInProgress ? "1px solid #fde68a" : "1px solid #cbd5e1",
+                          border: isCompleted ? "1px solid var(--cv-success-soft)" : isInProgress ? "1px solid var(--cv-warning)" : "1px solid var(--cv-border)",
                         }}
                       >
                         {isCompleted ? "✓" : stage.stage}
@@ -739,7 +739,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <h4 style={{ margin: 0, fontSize: "1.05rem", color: "#0f172a", fontWeight: 700 }}>
+                            <h4 style={{ margin: 0, fontSize: "1.05rem", color: "var(--cv-surface-raised)", fontWeight: 700 }}>
                               {stage.title}
                             </h4>
                             <span
@@ -748,24 +748,24 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                 fontWeight: 700,
                                 padding: "2px 8px",
                                 borderRadius: "10px",
-                                background: isCompleted ? "#dcfce7" : isInProgress ? "#fef3c7" : "#f1f5f9",
-                                color: isCompleted ? "#15803d" : isInProgress ? "#b45309" : "#64748b",
+                                background: isCompleted ? "var(--cv-success-soft)" : isInProgress ? "var(--cv-warning)" : "var(--cv-bg-subtle)",
+                                color: isCompleted ? "var(--cv-success)" : isInProgress ? "var(--cv-warning)" : "var(--cv-text-muted)",
                                 textTransform: "uppercase",
                               }}
                             >
                               {isCompleted ? "Completed" : isInProgress ? "In Progress" : "Upcoming"}
                             </span>
                           </div>
-                          <span style={{ fontSize: "0.78rem", background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
+                          <span style={{ fontSize: "0.78rem", background: "var(--cv-bg-subtle)", color: "var(--cv-text-muted)", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
                             {stage.duration}
                           </span>
                         </div>
 
-                        <div style={{ fontSize: "0.85rem", color: "#475569", marginBottom: "6px", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--cv-text-muted)", marginBottom: "6px", fontWeight: 600 }}>
                           <strong>Pattern Focus:</strong> {stage.pattern}
                         </div>
 
-                        <p style={{ margin: "0 0 10px 0", fontSize: "0.86rem", color: "#64748b", lineHeight: 1.5 }}>
+                        <p style={{ margin: "0 0 10px 0", fontSize: "0.86rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}>
                           {stage.learning_goal}
                         </p>
 
@@ -773,13 +773,13 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                         {stage.stage_assessment && (
                           <div
                             style={{
-                              background: isCompleted ? "rgba(34, 197, 94, 0.08)" : "#f8fafc",
+                              background: isCompleted ? "rgba(34, 197, 94, 0.08)" : "var(--cv-surface)",
                               padding: "6px 12px",
                               borderRadius: "6px",
                               fontSize: "0.8rem",
-                              color: isCompleted ? "#15803d" : "#334155",
+                              color: isCompleted ? "var(--cv-success)" : "var(--cv-text-muted)",
                               marginBottom: "10px",
-                              borderLeft: isCompleted ? "3px solid #22c55e" : "3px solid #94a3b8",
+                              borderLeft: isCompleted ? "3px solid var(--cv-success)" : "3px solid var(--cv-text-muted)",
                             }}
                           >
                             <strong>Performance Check:</strong> {stage.stage_assessment}
@@ -793,18 +793,18 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                 key={ti}
                                 style={{
                                   fontSize: "0.75rem",
-                                  background: "#f1f5f9",
-                                  color: "#334155",
+                                  background: "var(--cv-bg-subtle)",
+                                  color: "var(--cv-text-muted)",
                                   padding: "2px 8px",
                                   borderRadius: "4px",
-                                  border: "1px solid #e2e8f0",
+                                  border: "1px solid var(--cv-border)",
                                 }}
                               >
                                 {t}
                               </span>
                             ))}
                           </div>
-                          <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                          <span style={{ fontSize: "0.8rem", color: "var(--cv-text-muted)" }}>
                             Target: <strong>{stage.target_problems_count} problems</strong> • Mastery: <strong>{stage.mastery_score}%</strong>
                           </span>
                         </div>
@@ -821,14 +821,14 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
               <div
                 style={{
                   width: "350px",
-                  borderRight: "1px solid #e2e8f0",
-                  background: "#ffffff",
+                  borderRight: "1px solid var(--cv-border)",
+                  background: "var(--cv-surface)",
                   overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
                 }}
               >
-                <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.8rem", fontWeight: 700, color: "#64748b" }}>
+                <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--cv-bg-subtle)", fontSize: "0.8rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>
                   AI-CURATED PROBLEMS ({data?.recommended_problems?.length || 0})
                 </div>
                 {data?.recommended_problems?.map((prob) => {
@@ -840,10 +840,10 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                       onClick={() => setSelectedProblem(prob)}
                       style={{
                         padding: "1rem 1.25rem",
-                        borderBottom: "1px solid #f1f5f9",
+                        borderBottom: "1px solid var(--cv-bg-subtle)",
                         cursor: "pointer",
-                        background: isSel ? "#f8fafc" : "#ffffff",
-                        borderLeft: isSel ? "4px solid #f59e0b" : "4px solid transparent",
+                        background: isSel ? "var(--cv-surface)" : "var(--cv-bg-subtle)",
+                        borderLeft: isSel ? "4px solid var(--cv-warning)" : "4px solid transparent",
                         transition: "all 0.15s ease",
                       }}
                     >
@@ -854,22 +854,22 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                             fontWeight: 700,
                             padding: "2px 6px",
                             borderRadius: "4px",
-                            background: prob.difficulty === "Easy" ? "#dcfce7" : prob.difficulty === "Hard" ? "#fee2e2" : "#fef3c7",
-                            color: prob.difficulty === "Easy" ? "#15803d" : prob.difficulty === "Hard" ? "#b91c1c" : "#b45309",
+                            background: prob.difficulty === "Easy" ? "var(--cv-success-soft)" : prob.difficulty === "Hard" ? "var(--cv-danger-soft)" : "var(--cv-warning-soft)",
+                            color: prob.difficulty === "Easy" ? "var(--cv-success)" : prob.difficulty === "Hard" ? "var(--cv-danger)" : "var(--cv-warning)",
                           }}
                         >
                           {prob.difficulty}
                         </span>
                         {isDone && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", color: "#16a34a", fontSize: "0.75rem", fontWeight: 700 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", color: "var(--cv-success)", fontSize: "0.75rem", fontWeight: 700 }}>
                             <CheckCircle2 size={13} /> Solved
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#0f172a", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--cv-surface-raised)", marginBottom: "4px" }}>
                         {prob.title}
                       </div>
-                      <div style={{ fontSize: "0.76rem", color: "#64748b" }}>
+                      <div style={{ fontSize: "0.76rem", color: "var(--cv-text-muted)" }}>
                         {prob.topic} • {prob.similar_to?.slice(0, 24)}...
                       </div>
                     </div>
@@ -879,7 +879,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
 
               {/* Problem Details Workspace */}
               {selectedProblem && (
-                <div style={{ flex: 1, overflowY: "auto", padding: "1.75rem 2rem", background: "#f8fafc" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "1.75rem 2rem", background: "var(--cv-surface)" }}>
                   <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div>
@@ -890,21 +890,21 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                               fontWeight: 700,
                               padding: "2px 8px",
                               borderRadius: "4px",
-                              background: selectedProblem.difficulty === "Easy" ? "#dcfce7" : selectedProblem.difficulty === "Hard" ? "#fee2e2" : "#fef3c7",
-                              color: selectedProblem.difficulty === "Easy" ? "#15803d" : selectedProblem.difficulty === "Hard" ? "#b91c1c" : "#b45309",
+                              background: selectedProblem.difficulty === "Easy" ? "var(--cv-success-soft)" : selectedProblem.difficulty === "Hard" ? "var(--cv-danger-soft)" : "var(--cv-warning-soft)",
+                              color: selectedProblem.difficulty === "Easy" ? "var(--cv-success)" : selectedProblem.difficulty === "Hard" ? "var(--cv-danger)" : "var(--cv-warning)",
                             }}
                           >
                             {selectedProblem.difficulty}
                           </span>
-                          <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>
+                          <span style={{ fontSize: "0.8rem", color: "var(--cv-text-muted)", fontWeight: 600 }}>
                             {selectedProblem.topic}
                           </span>
                         </div>
-                        <h2 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "#0f172a" }}>
+                        <h2 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "var(--cv-surface-raised)" }}>
                           {selectedProblem.title}
                         </h2>
                         {selectedProblem.similar_to && (
-                          <div style={{ fontSize: "0.82rem", color: "#b45309", marginTop: "4px", fontStyle: "italic" }}>
+                          <div style={{ fontSize: "0.82rem", color: "var(--cv-warning)", marginTop: "4px", fontStyle: "italic" }}>
                             Similar pattern to: {selectedProblem.similar_to}
                           </div>
                         )}
@@ -920,8 +920,8 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                           padding: "8px 16px",
                           borderRadius: "8px",
                           border: "none",
-                          background: solvedProblems.includes(selectedProblem.id) ? "#16a34a" : "#0f172a",
-                          color: "#ffffff",
+                          background: solvedProblems.includes(selectedProblem.id) ? "var(--cv-success)" : "var(--cv-surface-raised)",
+                          color: "var(--cv-text)",
                           fontSize: "0.85rem",
                           fontWeight: 600,
                           cursor: "pointer",
@@ -934,18 +934,18 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     </div>
 
                     {/* Problem Statement */}
-                    <div style={{ background: "#ffffff", padding: "1.25rem 1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                      <h4 style={{ margin: "0 0 8px 0", fontSize: "0.9rem", color: "#0f172a" }}>Problem Statement</h4>
-                      <p style={{ margin: 0, fontSize: "0.92rem", color: "#334155", lineHeight: 1.6 }}>
+                    <div style={{ background: "var(--cv-surface)", padding: "1.25rem 1.5rem", borderRadius: "12px", border: "1px solid var(--cv-border)" }}>
+                      <h4 style={{ margin: "0 0 8px 0", fontSize: "0.9rem", color: "var(--cv-surface-raised)" }}>Problem Statement</h4>
+                      <p style={{ margin: 0, fontSize: "0.92rem", color: "var(--cv-text-muted)", lineHeight: 1.6 }}>
                         {selectedProblem.description}
                       </p>
                     </div>
 
                     {/* Attached Resources */}
                     {selectedProblem.resources && selectedProblem.resources.length > 0 && (
-                      <div style={{ background: "#ffffff", padding: "1rem 1.25rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                          <BookOpen size={14} color="#f59e0b" /> PATTERN RESOURCES & CHEAT SHEETS
+                      <div style={{ background: "var(--cv-surface)", padding: "1rem 1.25rem", borderRadius: "12px", border: "1px solid var(--cv-border)" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--cv-text-muted)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <BookOpen size={14} color="var(--cv-warning)" /> PATTERN RESOURCES & CHEAT SHEETS
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {selectedProblem.resources.map((res, ri) => (
@@ -960,15 +960,15 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                 justifyContent: "space-between",
                                 padding: "6px 12px",
                                 borderRadius: "6px",
-                                background: "#f8fafc",
-                                border: "1px solid #f1f5f9",
+                                background: "var(--cv-surface)",
+                                border: "1px solid var(--cv-bg-subtle)",
                                 textDecoration: "none",
                                 fontSize: "0.82rem",
-                                color: "#2563eb",
+                                color: "var(--cv-info)",
                               }}
                             >
                               <span style={{ fontWeight: 600 }}>{res.title}</span>
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.74rem", color: "#64748b" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.74rem", color: "var(--cv-text-muted)" }}>
                                 {res.resource_type} <ExternalLink size={12} />
                               </span>
                             </a>
@@ -979,17 +979,17 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
 
                     {/* Examples */}
                     {selectedProblem.examples?.map((ex, i) => (
-                      <div key={i} style={{ background: "#ffffff", padding: "1rem 1.25rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", marginBottom: "4px" }}>
+                      <div key={i} style={{ background: "var(--cv-surface)", padding: "1rem 1.25rem", borderRadius: "10px", border: "1px solid var(--cv-border)" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--cv-text-muted)", marginBottom: "4px" }}>
                           EXAMPLE {i + 1}
                         </div>
-                        <div style={{ fontFamily: "monospace", fontSize: "0.84rem", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", marginBottom: "4px" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: "0.84rem", background: "var(--cv-surface)", padding: "8px 12px", borderRadius: "6px", marginBottom: "4px" }}>
                           <strong>Input:</strong> {ex.input}
                           <br />
                           <strong>Output:</strong> {ex.output}
                         </div>
                         {ex.explanation && (
-                          <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
+                          <div style={{ fontSize: "0.82rem", color: "var(--cv-text-muted)" }}>
                             <strong>Explanation:</strong> {ex.explanation}
                           </div>
                         )}
@@ -998,12 +998,12 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
 
                     {/* Hints (Collapsible) */}
                     <div>
-                      <h4 style={{ margin: "0 0 8px 0", fontSize: "0.9rem", color: "#0f172a", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <HelpCircle size={15} color="#2563eb" /> Problem Hints
+                      <h4 style={{ margin: "0 0 8px 0", fontSize: "0.9rem", color: "var(--cv-surface-raised)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <HelpCircle size={15} color="var(--cv-info)" /> Problem Hints
                       </h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         {selectedProblem.hints?.map((hint, i) => (
-                          <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", background: "#ffffff" }}>
+                          <div key={i} style={{ border: "1px solid var(--cv-border)", borderRadius: "8px", overflow: "hidden", background: "var(--surface, var(--cv-surface))" }}>
                             <button
                               type="button"
                               onClick={() => toggleHint(i)}
@@ -1011,13 +1011,13 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                                 width: "100%",
                                 padding: "8px 12px",
                                 border: "none",
-                                background: "#ffffff",
+                                background: "var(--cv-surface)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
                                 fontSize: "0.84rem",
                                 fontWeight: 600,
-                                color: "#475569",
+                                color: "var(--cv-text-muted)",
                                 cursor: "pointer",
                               }}
                             >
@@ -1025,7 +1025,7 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                               {revealedHints[i] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </button>
                             {revealedHints[i] && (
-                              <div style={{ padding: "8px 12px", background: "#f8fafc", fontSize: "0.84rem", color: "#334155", borderTop: "1px solid #f1f5f9" }}>
+                              <div style={{ padding: "8px 12px", background: "var(--cv-surface)", fontSize: "0.84rem", color: "var(--cv-text-muted)", borderTop: "1px solid var(--cv-bg-subtle)" }}>
                                 {hint}
                               </div>
                             )}
@@ -1035,14 +1035,14 @@ export default function DsaPracticeModal({ onClose, targetRole = "Software Devel
                     </div>
 
                     {/* Algorithmic Approach & Complexity */}
-                    <div style={{ background: "#fef3c7", padding: "1rem 1.25rem", borderRadius: "10px", border: "1px solid #fde68a" }}>
-                      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#92400e", marginBottom: "4px" }}>
+                    <div style={{ background: "var(--cv-warning-soft)", padding: "1rem 1.25rem", borderRadius: "10px", border: "1px solid var(--cv-warning)" }}>
+                      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--cv-warning)", marginBottom: "4px" }}>
                         OPTIMAL ALGORITHMIC APPROACH
                       </div>
-                      <p style={{ margin: "0 0 6px 0", fontSize: "0.88rem", color: "#78350f" }}>
+                      <p style={{ margin: "0 0 6px 0", fontSize: "0.88rem", color: "var(--cv-warning)" }}>
                         {selectedProblem.approach}
                       </p>
-                      <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem", color: "#92400e", fontWeight: 600 }}>
+                      <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem", color: "var(--cv-warning)", fontWeight: 600 }}>
                         <span>Time Complexity: {selectedProblem.time_complexity || "O(N)"}</span>
                         <span>Space Complexity: {selectedProblem.space_complexity || "O(1)"}</span>
                       </div>

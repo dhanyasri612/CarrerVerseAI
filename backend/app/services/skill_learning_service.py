@@ -26,6 +26,139 @@ def _slugify(text: str) -> str:
 # ── CURATED DOMAIN STAGE ONTOLOGIES ──────────────────────────────────────────
 # Curated multi-stage curricula for major skills (with dynamic generation for all others)
 CURATED_SKILL_CURRICULA: Dict[str, List[Dict[str, Any]]] = {
+    "javascript": [
+        {
+            "stage_number": 1,
+            "stage_name": "Fundamentals",
+            "description": "Core JavaScript primitives, lexical environment, first-class functions, execution contexts, and closures.",
+            "lessons": [
+                {
+                    "title": "Values and Types",
+                    "topic": "JavaScript Primitives, Objects & Type Coercion",
+                    "summary": "Master primitive types (number, string, boolean, null, undefined, symbol, bigint) vs reference objects.",
+                    "challenge": "Explain the difference between value identity (Object.is) and loose equality coercion (==) in JavaScript.",
+                    "diagnostic": "Why does typeof null return 'object' in JavaScript?",
+                    "objective": "Understand primitive value immutability and object reference semantics.",
+                    "prereqs": ["Basic programming fundamentals"],
+                    "starter_code": "// Primitive vs reference assignment\nconst a = 42;\nlet b = a;\nb = 100;\nconsole.log(a);\n",
+                    "resources": ["MDN Web Docs: JavaScript Data Types and Data Structures"],
+                },
+                {
+                    "title": "Functions",
+                    "topic": "First-Class Functions, Arrow Syntax & Call Stack",
+                    "summary": "Master function declarations, function expressions, arrow syntax, and the JavaScript execution call stack.",
+                    "challenge": "How do arrow functions differ from standard function declarations in their handling of the 'this' keyword?",
+                    "diagnostic": "Can a function expression be called before its definition in the code? Why or why not?",
+                    "objective": "Master first-class function passing, return values, and execution contexts.",
+                    "prereqs": ["Values and Types"],
+                    "starter_code": "function greet(name) {\n  return `Hello, ${name}!`;\n}\nconsole.log(greet('Developer'));\n",
+                    "resources": ["MDN Web Docs: Functions"],
+                },
+                {
+                    "title": "Scope and Closures",
+                    "topic": "Lexical Scope, Closures & Function Factories",
+                    "summary": "Understand lexical scope, closures, and how they help you create powerful, private, and reusable functions.",
+                    "challenge": "Why does an inner function retain access to variables in its outer scope even after the outer function has finished executing?",
+                    "diagnostic": "What will be printed by a closure in a for-loop using 'var' vs 'let'?",
+                    "objective": "Master lexical environment capture, closure memory mechanics, and practical applications in state management.",
+                    "prereqs": ["Functions", "Values and Types"],
+                    "starter_code": "function createCounter() {\n  let count = 0;\n  return function increment() {\n    count++;\n    return count;\n  };\n}\nconst counter = createCounter();\nconsole.log(counter());\nconsole.log(counter());\nconsole.log(counter());\n",
+                    "resources": ["MDN Web Docs: Closures", "JavaScript.info: Variable Scope & Closure"],
+                },
+                {
+                    "title": "JavaScript Closures: A Practical Guide",
+                    "topic": "Lexical Environment Capture, Execution Traces & State Management",
+                    "summary": "Understand lexical scope, closures, and how they help you create powerful, private, and reusable functions.",
+                    "challenge": "Why does an inner function retain access to outer variables, and how does this serve as the mental foundation for React Hooks?",
+                    "diagnostic": "What happens to the outer variable environment when all references to a closure are dereferenced?",
+                    "objective": "Master closures, lexical scoping, private state encapsulation, and execution tracing.",
+                    "prereqs": ["Functions", "Values and Types"],
+                    "starter_code": "function createCounter() {\n  let count = 0;\n  return function increment() {\n    count++;\n    return count;\n  };\n}\nconst counter = createCounter();\nconsole.log(counter()); // 1\nconsole.log(counter()); // 2\nconsole.log(counter()); // 3\n",
+                    "resources": ["MDN Web Docs: Closures", "JavaScript.info: Variable Scope & Closure"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Asynchronous JS",
+            "description": "The JavaScript event loop, microtask queue, Promises, and async/await syntax.",
+            "lessons": [
+                {
+                    "title": "Promises",
+                    "topic": "Promise States, Then/Catch Chaining & Error Propagation",
+                    "summary": "Master Promise lifecycle (pending, fulfilled, rejected) and composable asynchronous pipelines.",
+                    "challenge": "Explain how Promise chaining prevents callback hell and how unhandled promise rejections are surfaced.",
+                    "diagnostic": "Does a Promise constructor execute synchronously or asynchronously?",
+                    "objective": "Construct, chain, and handle errors in asynchronous Promises.",
+                    "prereqs": ["Scope and Closures"],
+                    "starter_code": "const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));\nwait(100).then(() => console.log('Done'));\n",
+                    "resources": ["MDN Web Docs: Using Promises"],
+                },
+                {
+                    "title": "Async / Await",
+                    "topic": "Syntactic Sugar over Promises & Try/Catch Error Handling",
+                    "summary": "Write clean, sequential-looking asynchronous code with async/await and structured error handling.",
+                    "challenge": "How does async/await interact with Promise.all for concurrent asynchronous requests?",
+                    "diagnostic": "What happens if an await expression rejects inside a function without a try/catch block?",
+                    "objective": "Refactor Promise chains into robust async/await functions with try/catch/finally blocks.",
+                    "prereqs": ["Promises"],
+                    "starter_code": "async function fetchData() {\n  try {\n    const res = await Promise.resolve({ user: 'Dhanya' });\n    return res.user;\n  } catch (err) {\n    console.error(err);\n  }\n}\n",
+                    "resources": ["MDN Web Docs: async function"],
+                },
+                {
+                    "title": "Event Loop",
+                    "topic": "Call Stack, Macrotask Queue & Microtask Queue",
+                    "summary": "Understand how the single-threaded JavaScript runtime executes tasks, microtasks (Promises), and rendering frames.",
+                    "challenge": "Predict the exact log order of console.log, setTimeout(..., 0), and Promise.resolve().then(...).",
+                    "diagnostic": "Why does a long-running while-loop freeze the browser UI thread?",
+                    "objective": "Master runtime scheduling, task queuing, and event-driven non-blocking I/O.",
+                    "prereqs": ["Async / Await"],
+                    "starter_code": "console.log('1');\nsetTimeout(() => console.log('2'), 0);\nPromise.resolve().then(() => console.log('3'));\nconsole.log('4');\n",
+                    "resources": ["MDN Web Docs: Concurrency Model and the Event Loop"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Advanced Concepts",
+            "description": "Prototypes, prototype chain, ES modules, debouncing, and memory management.",
+            "lessons": [
+                {
+                    "title": "Prototypes",
+                    "topic": "Prototype Chain, Object.create & Class Syntax Internals",
+                    "summary": "Understand JavaScript's prototypal inheritance model and how ES6 classes map to prototype objects.",
+                    "challenge": "What is the difference between an object's prototype (__proto__) and a constructor's prototype property?",
+                    "diagnostic": "How does property lookup traverse the prototype chain when a property is missing on the instance?",
+                    "objective": "Master prototypal inheritance, delegation, and modern ES6 class internals.",
+                    "prereqs": ["Functions", "Scope and Closures"],
+                    "starter_code": "function Animal(name) { this.name = name; }\nAnimal.prototype.speak = function() { return `${this.name} makes a sound.`; };\n",
+                    "resources": ["MDN Web Docs: Inheritance and the prototype chain"],
+                },
+                {
+                    "title": "Modules (ESM)",
+                    "topic": "ES Modules, Import/Export & Static Analysis",
+                    "summary": "Master modern JavaScript modularity, named vs default exports, and tree-shaking principles.",
+                    "challenge": "Why are ES module imports statically hoisted at compile time compared to CommonJS dynamic require()?",
+                    "diagnostic": "What is a circular dependency in ES modules and how does the runtime resolve exported bindings?",
+                    "objective": "Structure clean, decoupled JavaScript codebases with ES modules.",
+                    "prereqs": ["Prototypes"],
+                    "starter_code": "export const add = (a, b) => a + b;\nexport default function calc() { return 0; }\n",
+                    "resources": ["MDN Web Docs: JavaScript modules"],
+                },
+                {
+                    "title": "Debouncing & Throttling",
+                    "topic": "Higher-Order Functions, Rate Limiting & Practical Closures",
+                    "summary": "Apply closures to build debounced search inputs and throttled scroll handlers.",
+                    "challenge": "Implement a debounce function from scratch using setTimeout and closures.",
+                    "diagnostic": "When should you choose throttling over debouncing in user interface events?",
+                    "objective": "Build production-grade higher-order utility functions for UI performance.",
+                    "prereqs": ["Event Loop", "Scope and Closures"],
+                    "starter_code": "function debounce(fn, delay) {\n  let timer;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() => fn.apply(this, args), delay);\n  };\n}\n",
+                    "resources": ["MDN Web Docs: setTimeout"],
+                },
+            ],
+        },
+    ],
     "react": [
         {
             "stage_number": 1,
@@ -64,6 +197,17 @@ CURATED_SKILL_CURRICULA: Dict[str, List[Dict[str, Any]]] = {
                     "prereqs": ["JSX and Component Composition"],
                     "starter_code": "import { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;\n}\n",
                     "resources": ["React.dev: State: A Component's Memory"],
+                },
+                {
+                    "title": "React Components, Props, and State",
+                    "topic": "Functional Components, Props Contracts & useState Re-rendering",
+                    "summary": "Master modular functional components, immutable props data flow, and local reactive state via useState.",
+                    "challenge": "Why are props read-only in React? How does useState trigger component re-renders, and why must state mutations be immutable?",
+                    "diagnostic": "What happens if you mutate state directly with 'state.count = 5' instead of 'setCount(5)'?",
+                    "objective": "Build pure React components, pass props contracts, and manage reactive state with useState.",
+                    "prereqs": ["JSX and Component Composition"],
+                    "starter_code": "import React, { useState } from 'react';\n\nexport function CounterBadge({ label }) {\n  const [count, setCount] = useState(0);\n  return <button onClick={() => setCount(c => c + 1)}>{label}: {count}</button>;\n}\n",
+                    "resources": ["React.dev: Components, Props, and State", "React.dev: Passing Props to a Component"],
                 },
             ],
         },
@@ -441,6 +585,40 @@ CURATED_SKILL_CURRICULA: Dict[str, List[Dict[str, Any]]] = {
                     },
                     "resources": ["Python Official Docs: Expressions", "Python Operator Precedence Table"],
                 },
+                {
+                    "title": "Python Dictionaries and Hash-Based Lookup",
+                    "topic": "Hash Tables, O(1) Lookup, Collision Handling & dk_entries",
+                    "summary": "Master Python's compact hash table implementation, hashability, collision resolution, and dictionary operations.",
+                    "challenge": "How does CPython achieve O(1) average lookup in dictionaries? What makes a Python object hashable, and why are lists invalid dictionary keys?",
+                    "diagnostic": "Explain the difference in memory layout between Python 3.6+ compact dicts (sparse indices table + dense entries array) and legacy dicts.",
+                    "objective": "Understand hash functions, open addressing with perturbation, and write high-performance dictionary lookups.",
+                    "prereqs": ["Variables & Data Types"],
+                    "starter_code": (
+                        "# Demonstrating Python dictionary hash-based lookups & key constraints\n"
+                        "user_cache = {'usr_101': {'name': 'Alice', 'role': 'Admin'}}\n"
+                        "# O(1) retrieval\n"
+                        "print('User 101:', user_cache.get('usr_101'))\n"
+                        "# Hash invariant demonstration\n"
+                        "print('Key hash:', hash('usr_101'))\n"
+                    ),
+                    "what_you_will_learn": [
+                        "How hash tables work under the hood in CPython",
+                        "The __hash__ and __eq__ invariants for dictionary keys",
+                        "Open addressing and perturbation collision resolution",
+                        "Compact dictionary architecture introduced in Python 3.6",
+                    ],
+                    "key_takeaways": [
+                        "Dictionaries provide O(1) average-time complexity for lookups, insertions, and deletions",
+                        "Keys must be immutable and hashable (strings, numbers, tuples with immutable elements)",
+                        "Python 3.6+ preserves insertion order using a compact array representation",
+                    ],
+                    "quick_check": {
+                        "question": "What is the average time complexity of looking up a key in a Python dictionary?",
+                        "options": ["O(1)", "O(log n)", "O(n)"],
+                        "answer": "O(1)",
+                    },
+                    "resources": ["Python Official Docs: Mapping Types — dict", "GeeksforGeeks: Internal Working of Python Dictionary"],
+                },
             ],
         },
         {
@@ -702,6 +880,595 @@ CURATED_SKILL_CURRICULA: Dict[str, List[Dict[str, Any]]] = {
             ],
         },
     ],
+    "langchain": [
+        {
+            "stage_number": 1,
+            "stage_name": "Foundations",
+            "description": "What LangChain is, LLM orchestration motivation, core architecture, LCEL runnables, and prompt templates.",
+            "lessons": [
+                {
+                    "title": "What LangChain Is & Architectural Motivation",
+                    "topic": "LLM Orchestration, Composability & LangChain Ecosystem",
+                    "summary": "Understand why LangChain was created, how it abstracts LLMs behind composable primitives, and its core ecosystem.",
+                    "challenge": "Why use LangChain instead of calling raw LLM APIs directly with HTTP requests? What architectural advantages does it provide?",
+                    "diagnostic": "What is the primary motivation for composing LLM prompts, models, and parsers into unified pipelines?",
+                    "objective": "Understand LangChain's architecture, value proposition, and component ecosystem.",
+                    "prereqs": ["Python async/await", "Basic LLM concepts"],
+                    "starter_code": "from langchain_core.prompts import ChatPromptTemplate\nfrom langchain_core.output_parsers import StrOutputParser\n\n# LangChain LCEL composition\nprompt = ChatPromptTemplate.from_template('Explain {topic} in two sentences.')\n",
+                    "resources": ["LangChain Official Documentation: Introduction", "LangChain Expression Language (LCEL) Guide"],
+                },
+                {
+                    "title": "LCEL: The LangChain Expression Language",
+                    "topic": "Runnables, The Pipe Operator `|`, Streaming & Async",
+                    "summary": "Master LCEL pipe composition, the Runnable protocol, unified async execution, and token streaming.",
+                    "challenge": "Explain how the pipe operator '|' works under the hood in LCEL. What interfaces (invoke, stream, batch) must every runnable satisfy?",
+                    "diagnostic": "What happens when you invoke an LCEL chain without providing a required input variable?",
+                    "objective": "Compose complex LLM workflows using LCEL runnables and pipe operators.",
+                    "prereqs": ["What LangChain Is"],
+                    "starter_code": "from langchain_core.prompts import ChatPromptTemplate\nfrom langchain_core.output_parsers import StrOutputParser\n\n# Define runnable pipeline\nchain = prompt | model | StrOutputParser()\n",
+                    "resources": ["LangChain Expression Language (LCEL) Reference"],
+                },
+                {
+                    "title": "Prompts & ChatPromptTemplates",
+                    "topic": "Prompt Engineering, Message Schemas & Dynamic Variables",
+                    "summary": "Design structured prompts with SystemMessage, HumanMessage, partial variables, and few-shot formatting.",
+                    "challenge": "How do ChatPromptTemplates enforce structured role-based message lists compared to simple Python f-strings?",
+                    "diagnostic": "Why should you avoid string interpolation for system instructions when user input can be injected?",
+                    "objective": "Author secure, parameterized prompt templates with role-based formatting.",
+                    "prereqs": ["LCEL Foundations"],
+                    "starter_code": "from langchain_core.prompts import ChatPromptTemplate\n\nprompt = ChatPromptTemplate.from_messages([\n    ('system', 'You are an expert in {domain}.'),\n    ('human', '{question}'),\n])\n",
+                    "resources": ["LangChain Prompts Documentation"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Core LangChain",
+            "description": "Models, structured output parsers, parallel execution, and dynamic routing.",
+            "lessons": [
+                {
+                    "title": "Models & Output Parsers",
+                    "topic": "ChatOpenAI, Structured Output & Pydantic Parsers",
+                    "summary": "Interface with chat models and extract typed JSON responses using Pydantic output parsers.",
+                    "challenge": "How does JsonOutputParser enforce schema guarantees from LLM text responses, and how does .with_structured_output() leverage native function calling?",
+                    "diagnostic": "What error occurs if the LLM output deviates from the requested JSON schema?",
+                    "objective": "Extract strictly validated Pydantic models from LLM completions.",
+                    "prereqs": ["Prompts & ChatPromptTemplates"],
+                    "starter_code": "from pydantic import BaseModel, Field\nfrom langchain_core.output_parsers import PydanticOutputParser\n\nclass EntityExtraction(BaseModel):\n    name: str = Field(description='Person name')\n    role: str = Field(description='Job title')\n",
+                    "resources": ["LangChain Structured Outputs Guide"],
+                },
+                {
+                    "title": "Chains & Parallel Execution",
+                    "topic": "RunnableParallel, RunnablePassthrough & Routing",
+                    "summary": "Execute parallel LLM calls concurrently and route inputs dynamically using RunnableParallel and RunnableBranch.",
+                    "challenge": "How does RunnableParallel execute multiple independent chains concurrently on the event loop? When is RunnablePassthrough necessary?",
+                    "diagnostic": "What is the difference between sequential chaining and parallel branching in latency?",
+                    "objective": "Build high-throughput parallel pipelines using RunnableParallel.",
+                    "prereqs": ["Models & Output Parsers"],
+                    "starter_code": "from langchain_core.runnables import RunnableParallel, RunnablePassthrough\n\nmap_chain = RunnableParallel({\n    'summary': summary_chain,\n    'sentiment': sentiment_chain,\n})\n",
+                    "resources": ["LangChain Runnables: Parallel Execution"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Retrieval & Agents",
+            "description": "Vector stores, RAG pipelines, tools, and autonomous agent loops.",
+            "lessons": [
+                {
+                    "title": "LangChain Document Loaders and Text Splitters",
+                    "topic": "Document Ingestion, Chunking Strategies, Overlap & Metadata",
+                    "summary": "Ingest unstructured data from files and web pages, and partition text into optimal semantically coherent chunks for RAG.",
+                    "challenge": "Why does chunk size and chunk overlap directly determine retrieval recall and precision in RAG? When should you use RecursiveCharacterTextSplitter over simple CharacterTextSplitter?",
+                    "diagnostic": "What happens if chunk size is too small or too large when sending context to an LLM?",
+                    "objective": "Master document loaders and recursive chunking pipelines with metadata preservation.",
+                    "prereqs": ["LCEL Foundations"],
+                    "starter_code": "from langchain_community.document_loaders import TextLoader\nfrom langchain_text_splitters import RecursiveCharacterTextSplitter\n\n# Initialize text splitter with chunk size and overlap\ntext_splitter = RecursiveCharacterTextSplitter(\n    chunk_size=500,\n    chunk_overlap=50,\n    separators=['\\n\\n', '\\n', ' ', '']\n)\n",
+                    "resources": ["LangChain Official Documentation: Document Loaders", "LangChain Documentation: Text Splitters"],
+                },
+                {
+                    "title": "Retrievers & VectorStores (RAG)",
+                    "topic": "ChromaDB, Embeddings, Similarity Search & Context Augmentation",
+                    "summary": "Augment LLM prompts with semantic search results from vector stores for accurate question answering.",
+                    "challenge": "How does embedding cosine similarity enable semantic retrieval? Walk through the flow of user query -> vector query -> context prompt -> answer.",
+                    "diagnostic": "What causes hallucinations in RAG pipelines even when relevant documents are retrieved?",
+                    "objective": "Build complete Retrieval-Augmented Generation (RAG) pipelines.",
+                    "prereqs": ["Chains & Parallel Execution"],
+                    "starter_code": "from langchain_community.vectorstores import Chroma\nfrom langchain_core.runnables import RunnablePassthrough\n\nrag_chain = (\n    {'context': retriever, 'question': RunnablePassthrough()}\n    | prompt\n    | model\n    | StrOutputParser()\n)\n",
+                    "resources": ["LangChain RAG Architecture Guide"],
+                },
+                {
+                    "title": "Agents & Tool Calling",
+                    "topic": "ReAct Framework, Tool Definitions & AgentExecutor",
+                    "summary": "Empower LLMs with tools to search the web, execute SQL queries, and perform multi-step reasoning.",
+                    "challenge": "How does the ReAct (Reasoning + Acting) loop decide which tool to call and when to terminate? What prevents infinite execution loops?",
+                    "diagnostic": "What is the role of tool docstrings in guiding the LLM's tool-selection decision?",
+                    "objective": "Build autonomous tool-calling agents with strict execution boundaries.",
+                    "prereqs": ["Retrievers & VectorStores"],
+                    "starter_code": "from langchain.tools import tool\nfrom langchain.agents import create_tool_calling_agent\n\n@tool\ndef search_database(query: str) -> str:\n    '''Search internal database for records.'''\n    return 'Results for ' + query\n",
+                    "resources": ["LangChain Agents Documentation"],
+                },
+            ],
+        },
+    ],
+    "langgraph": [
+        {
+            "stage_number": 1,
+            "stage_name": "Foundations",
+            "description": "What LangGraph is, stateful cyclical computation, TypedDict state schemas, nodes, and edges.",
+            "lessons": [
+                {
+                    "title": "What LangGraph Is",
+                    "topic": "Cyclical Graph Architectures vs Linear Chains",
+                    "summary": "Understand why LangGraph was built to overcome DAG limitations by supporting cycles, state persistence, and multi-agent coordination.",
+                    "challenge": "Why are standard linear chains (DAGs) insufficient for complex multi-agent workflows with revision loops and human reviews?",
+                    "diagnostic": "What is the fundamental difference between LangChain LCEL and LangGraph?",
+                    "objective": "Understand graph-based computation, cyclical workflows, and state persistence.",
+                    "prereqs": ["LangChain fundamentals", "Python TypedDict"],
+                    "starter_code": "from typing import TypedDict\nfrom langgraph.graph import StateGraph, END\n\n# Graph state schema\nclass AgentState(TypedDict):\n    messages: list[str]\n",
+                    "resources": ["LangGraph Official Documentation: Introduction", "Why LangGraph?"],
+                },
+                {
+                    "title": "State and Nodes",
+                    "topic": "TypedDict State Schema & Node Transformation Functions",
+                    "summary": "Define graph state schemas with TypedDict and write node functions that consume and update state.",
+                    "challenge": "Why must LangGraph nodes return dictionary state updates rather than mutating state in place? How does state merging work with reducers?",
+                    "diagnostic": "What happens if a node function returns an empty dictionary `{}`?",
+                    "objective": "Design robust state schemas and write functional node transformations.",
+                    "prereqs": ["What LangGraph Is"],
+                    "starter_code": "def process_node(state: AgentState) -> dict:\n    # Return partial state update\n    return {'messages': state['messages'] + ['Step completed']}\n",
+                    "resources": ["LangGraph State Management Guide"],
+                },
+                {
+                    "title": "Edges & Conditional Routing",
+                    "topic": "Normal Edges, Conditional Edges & Routing Functions",
+                    "summary": "Control execution flow between nodes using deterministic edges and dynamic conditional routing.",
+                    "challenge": "How do conditional edges evaluate node outputs to choose between continuing execution or routing to the END node?",
+                    "diagnostic": "How do you prevent infinite loops in cyclical graph routing?",
+                    "objective": "Implement conditional branching and routing logic in StateGraphs.",
+                    "prereqs": ["State and Nodes"],
+                    "starter_code": "def should_continue(state: AgentState) -> str:\n    if len(state['messages']) > 5:\n        return END\n    return 'process_node'\n\nbuilder.add_conditional_edges('start_node', should_continue)\n",
+                    "resources": ["LangGraph Conditional Edges Documentation"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Workflows & Persistence",
+            "description": "Checkpointers, time travel, human-in-the-loop, and multi-agent coordination.",
+            "lessons": [
+                {
+                    "title": "Persistence & Checkpointers",
+                    "topic": "MemorySaver, SqliteSaver & Thread Management",
+                    "summary": "Persist agent conversation states across sessions using checkpointers and thread identifiers.",
+                    "challenge": "How do checkpointers enable 'time-travel' debugging, resuming interrupted workflows, and multi-user chat state isolation?",
+                    "diagnostic": "What is the purpose of `thread_id` in LangGraph config dictionaries?",
+                    "objective": "Persist and restore graph state across application restarts.",
+                    "prereqs": ["Edges & Conditional Routing"],
+                    "starter_code": "from langgraph.checkpoint.memory import MemorySaver\n\ncheckpointer = MemorySaver()\ngraph = builder.compile(checkpointer=checkpointer)\nconfig = {'configurable': {'thread_id': 'session-123'}}\n",
+                    "resources": ["LangGraph Persistence & Checkpointers Guide"],
+                },
+                {
+                    "title": "Human-in-the-Loop & Breakpoints",
+                    "topic": "Interrupts, State Inspection & Resuming Execution",
+                    "summary": "Pause graph execution before sensitive actions to allow human approval, review, and state editing.",
+                    "challenge": "How does `interrupt_before` pause graph execution, and how can an operator inspect and modify state before resuming?",
+                    "diagnostic": "Why is human-in-the-loop essential for production agentic systems executing financial transactions or code deployment?",
+                    "objective": "Build safe agentic systems with human approval checkpoints.",
+                    "prereqs": ["Persistence & Checkpointers"],
+                    "starter_code": "graph = builder.compile(checkpointer=checkpointer, interrupt_before=['publish_node'])\n# Run graph until breakpoint\n",
+                    "resources": ["LangGraph Human-in-the-Loop Guide"],
+                },
+            ],
+        },
+    ],
+    "large language models": [
+        {
+            "stage_number": 1,
+            "stage_name": "Foundations & Architecture",
+            "description": "What LLMs are, how they differ from deterministic programs, next-token prediction, tokenization, and context windows.",
+            "lessons": [
+                {
+                    "title": "What an LLM Is & How It Differs from Traditional Software",
+                    "topic": "Autoregressive Next-Token Prediction vs Deterministic Programs",
+                    "summary": "Explore how probabilistic language models generate text through autoregressive token prediction compared to deterministic Turing-complete programming.",
+                    "challenge": "Why cannot traditional unit testing verify LLM outputs deterministically? How do temperature and top-p control output entropy?",
+                    "diagnostic": "What is the mathematical loss function minimized during LLM pretraining?",
+                    "objective": "Understand next-token prediction, stochastic decoding, and structural differences from compiled software.",
+                    "prereqs": ["Python programming", "Probability basics"],
+                    "starter_code": "import numpy as np\n# Demonstrating next-token probability distribution and sampling\nlogits = np.array([2.0, 1.0, 0.1])\nprobs = np.exp(logits) / np.sum(np.exp(logits))\nprint('Token probabilities:', probs)\n",
+                    "resources": ["Anthropic: Core Architecture of Modern Language Models", "Andrej Karpathy: Intro to Large Language Models"],
+                },
+                {
+                    "title": "Tokens, Tokenization & Context Windows",
+                    "topic": "Byte-Pair Encoding, Token Budgets & Context Window Limits",
+                    "summary": "Master BPE tokenization algorithms, token-to-word compression ratios, and context window mechanics.",
+                    "challenge": "Why does tokenization cause subtle bugs with whitespace, trailing characters, and numeric arithmetic?",
+                    "diagnostic": "What happens when an input sequence exceeds the model's maximum context window length?",
+                    "objective": "Calculate token usage, handle token boundaries, and manage context constraints.",
+                    "prereqs": ["Autoregressive next-token prediction"],
+                    "starter_code": "import tiktoken\nenc = tiktoken.get_encoding('cl100k_base')\ntokens = enc.encode('Hello, world! 1234')\nprint('Tokens:', tokens, 'Decoded:', [enc.decode([t]) for t in tokens])\n",
+                    "resources": ["OpenAI: Understanding Tokenization in GPT Models"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Representation & Mathematics",
+            "description": "Dense vector embeddings, cosine similarity, vector spaces, and self-attention mechanisms.",
+            "lessons": [
+                {
+                    "title": "Embeddings & Semantic Similarity",
+                    "topic": "Dense Vector Representations, Cosine Similarity & Vector Spaces",
+                    "summary": "Transform natural language into high-dimensional geometric embeddings and measure semantic similarity.",
+                    "challenge": "Why is cosine similarity preferred over Euclidean distance for high-dimensional normalized text embeddings?",
+                    "diagnostic": "What is the embedding dimension of common commercial models (e.g. text-embedding-3-small vs ada-002)?",
+                    "objective": "Generate dense vector embeddings and evaluate semantic distance across concepts.",
+                    "prereqs": ["Tokenization"],
+                    "starter_code": "import numpy as np\ndef cosine_sim(a: np.ndarray, b: np.ndarray) -> float:\n    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))\n",
+                    "resources": ["Hugging Face: Understanding Dense Text Embeddings"],
+                },
+                {
+                    "title": "Transformer Architecture & Self-Attention",
+                    "topic": "Scaled Dot-Product Attention, QKV Projections & Multi-Head Attention",
+                    "summary": "Deconstruct the core transformer block: Query, Key, and Value matrices, scaled dot-product attention, and causal masking.",
+                    "challenge": "Walk through the mathematical formulation: Attention(Q, K, V) = softmax(QK^T / sqrt(d_k))V. Why is scaling by sqrt(d_k) essential?",
+                    "diagnostic": "What is the computational time and memory complexity of standard self-attention relative to sequence length N?",
+                    "objective": "Explain self-attention, causal masking in decoders, and quadratic complexity trade-offs.",
+                    "prereqs": ["Embeddings & Semantic Similarity"],
+                    "starter_code": "import numpy as np\ndef scaled_dot_product_attention(Q, K, V, mask=None):\n    d_k = Q.shape[-1]\n    scores = np.matmul(Q, K.T) / np.sqrt(d_k)\n    if mask is not None:\n        scores += (mask * -1e9)\n    weights = np.exp(scores) / np.sum(np.exp(scores), axis=-1, keepdims=True)\n    return np.matmul(weights, V)\n",
+                    "resources": ["Vaswani et al.: Attention Is All You Need", "Jay Alammar: The Illustrated Transformer"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Training & Fine-Tuning",
+            "description": "Pretraining, supervised instruction fine-tuning, RLHF, DPO, and LoRA parameter-efficient adaptation.",
+            "lessons": [
+                {
+                    "title": "Training, Fine-Tuning & Quantization",
+                    "topic": "Pretraining, SFT, RLHF, DPO & Parameter-Efficient LoRA",
+                    "summary": "Understand the three-stage lifecycle of LLMs: unsupervised pretraining, supervised instruction tuning, and alignment with LoRA adaptation.",
+                    "challenge": "How does LoRA decompose weight update matrices into low-rank representations (W = W_0 + BA), and why does it save GPU VRAM?",
+                    "diagnostic": "What is the difference between SFT and RLHF/DPO?",
+                    "objective": "Select appropriate adaptation strategies between prompting, RAG, and LoRA fine-tuning.",
+                    "prereqs": ["Transformer Architecture"],
+                    "starter_code": "# Parameter-efficient LoRA rank decomposition concept\n# d x d matrix updated via (d x r) * (r x d) where r << d\nimport torch\nimport torch.nn as nn\n",
+                    "resources": ["LoRA: Low-Rank Adaptation of Large Language Models"],
+                },
+            ],
+        },
+        {
+            "stage_number": 4,
+            "stage_name": "RAG, Evaluation & Safety",
+            "description": "Retrieval-Augmented Generation, hallucination mitigation, faithfulness evaluation, and production safety.",
+            "lessons": [
+                {
+                    "title": "Retrieval-Augmented Generation (RAG) Architecture",
+                    "topic": "Bi-Encoder Retrieval, Chunking, Grounding & Context Injection",
+                    "summary": "Ground LLM responses in external technical knowledge using vector databases, document chunking, and similarity search.",
+                    "challenge": "How does RAG solve parametric knowledge staleness and reduce hallucinations without retraining weights?",
+                    "diagnostic": "Why does semantic chunk size and overlap drastically impact retrieval accuracy in production RAG systems?",
+                    "objective": "Build context-grounded retrieval pipelines that eliminate hallucinations.",
+                    "prereqs": ["Embeddings & Semantic Similarity"],
+                    "starter_code": "def generate_rag_prompt(query: str, retrieved_docs: list[str]) -> str:\n    context = '\\n---\\n'.join(retrieved_docs)\n    return f'Context:\\n{context}\\n\\nQuestion: {query}\\nAnswer based strictly on Context:'\n",
+                    "resources": ["Lewis et al.: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"],
+                },
+                {
+                    "title": "Hallucinations, Evaluation & Production Safety",
+                    "topic": "Faithfulness, Answer Relevance, Guardrails & LLM-as-a-Judge",
+                    "summary": "Evaluate model outputs quantitatively using RAG Triad metrics (faithfulness, answer relevance) and enforce safety guardrails.",
+                    "challenge": "How do you systematically benchmark and detect hallucinations in LLM production systems before shipping?",
+                    "diagnostic": "What are the limitations of using an LLM to evaluate another LLM's outputs?",
+                    "objective": "Instrument automated evaluation suites and guardrails against harmful or fabricated completions.",
+                    "prereqs": ["Retrieval-Augmented Generation (RAG) Architecture"],
+                    "starter_code": "# Faithfulness and context adherence evaluation metric\n",
+                    "resources": ["Ragas: Evaluation Framework for RAG Systems"],
+                },
+            ],
+        },
+    ],
+    "prompt engineering": [
+        {
+            "stage_number": 1,
+            "stage_name": "Task Specification & Context",
+            "description": "Instruction clarity, role hierarchies, system vs user messages, and context management.",
+            "lessons": [
+                {
+                    "title": "Instruction Clarity & Task Specification",
+                    "topic": "Directives, Constraints, Expected Output Formats & Ambiguity Reduction",
+                    "summary": "Engineer crisp, unambiguous prompts with clear task boundaries, input delimiters, and explicit success criteria.",
+                    "challenge": "Why do vague instructions produce low-quality, unfocused model responses? How do structural delimiters prevent prompt leakage?",
+                    "diagnostic": "Rewrite a vague instruction ('summarize this text') into an enterprise-grade prompt specification.",
+                    "objective": "Eliminate prompt ambiguity using role framing, explicit constraints, and delimiter formatting.",
+                    "prereqs": ["Basic LLM concepts"],
+                    "starter_code": "prompt = '''<task>\\nExtract architectural constraints from the specification.\\n</task>\\n<format>\\nReturn a valid JSON array of strings.\\n</format>\\n<content>\\n{document}\\n</content>'''\n",
+                    "resources": ["Anthropic Interactive Prompt Engineering Tutorial", "OpenAI Prompt Engineering Guide"],
+                },
+                {
+                    "title": "System Instructions vs User Messages & Context Budgeting",
+                    "topic": "Role Hierarchies, Ephemeral Prompts & Needle-in-a-Haystack Recall",
+                    "summary": "Leverage system prompts for persistent behavioral guardrails and manage context memory budgeting across multi-turn interactions.",
+                    "challenge": "How does the attention mechanism degrade when long contexts suffer from the 'lost in the middle' effect?",
+                    "diagnostic": "What is the priority difference between a system instruction and a user message in model execution?",
+                    "objective": "Structure multi-turn conversational roles and prevent context overflow degradation.",
+                    "prereqs": ["Instruction Clarity & Task Specification"],
+                    "starter_code": "messages = [\n    {'role': 'system', 'content': 'You are a senior compiler engineer. Be terse and technical.'},\n    {'role': 'user', 'content': 'Explain register allocation.'}\n]\n",
+                    "resources": ["Liu et al.: Lost in the Middle: How Language Models Use Long Contexts"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Advanced Steering & Scaffolding",
+            "description": "Few-shot prompting, structured JSON schema constraints, and Chain-of-Thought reasoning.",
+            "lessons": [
+                {
+                    "title": "Few-Shot Prompting & In-Context Learning",
+                    "topic": "Exemplars, Format Calibration & Distribution Shifting",
+                    "summary": "Steer complex model outputs by providing input-output exemplars without updating model weights.",
+                    "challenge": "How does exemplar ordering and class balance bias few-shot predictions? How many shots are typically optimal?",
+                    "diagnostic": "What is the difference between zero-shot, one-shot, and few-shot prompting?",
+                    "objective": "Design balanced exemplar sets that consistently enforce difficult output constraints.",
+                    "prereqs": ["System Instructions vs User Messages & Context Budgeting"],
+                    "starter_code": "few_shot_prompt = '''Classify the sentiment:\\nInput: 'Latency dropped 40%' -> Positive\\nInput: 'Service crashed under load' -> Negative\\nInput: 'Deployed build 1.4' -> Neutral\\nInput: '{query}' ->'''\n",
+                    "resources": ["Brown et al.: Language Models are Few-Shot Learners"],
+                },
+                {
+                    "title": "Structured Output Constraints & JSON Schema Enforcement",
+                    "topic": "Pydantic Schemas, Grammars & Deterministic Parsing",
+                    "summary": "Force language models to return strictly typed, schema-validated JSON payloads compatible with downstream API microservices.",
+                    "challenge": "Why is natural language JSON prompting fragile compared to constrained grammar decoding?",
+                    "diagnostic": "How do you handle schema validation failures programmatically with retry loops?",
+                    "objective": "Guarantee 100% syntactically valid structured outputs using schema contracts.",
+                    "prereqs": ["Few-Shot Prompting & In-Context Learning"],
+                    "starter_code": "from pydantic import BaseModel, Field\n\nclass EntityAnalysis(BaseModel):\n    name: str\n    confidence: float = Field(..., ge=0.0, le=1.0)\n    tags: list[str]\n",
+                    "resources": ["OpenAI Structured Outputs & Function Calling Reference"],
+                },
+                {
+                    "title": "Reasoning Scaffolding: Chain-of-Thought & ReAct Pattern",
+                    "topic": "Step-by-step Rationales, ReAct (Reason + Act) & Self-Consistency",
+                    "summary": "Scaffold complex multi-step logical reasoning using Chain-of-Thought prompts and tool-augmented ReAct loops.",
+                    "challenge": "Why does eliciting an intermediate reasoning path ('Think step-by-step') drastically increase accuracy on multi-step arithmetic and logic?",
+                    "diagnostic": "What is the ReAct loop cycle (Thought -> Action -> Observation -> Final Answer)?",
+                    "objective": "Implement Chain-of-Thought and ReAct scaffolding to solve complex analytical workflows.",
+                    "prereqs": ["Structured Output Constraints & JSON Schema Enforcement"],
+                    "starter_code": "prompt = '''Answer the query by thinking step-by-step.\\nThought: Break down the dependencies.\\nAction: Compute resource requirements.\\nObservation: 4 CPUs required.\\nFinal Answer:'''\n",
+                    "resources": ["Wei et al.: Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Security & Empirical Evaluation",
+            "description": "Adversarial prompt injection, jailbreak defense, empirical test suites, and regression benchmarking.",
+            "lessons": [
+                {
+                    "title": "Prompt Injection & Security Boundaries",
+                    "topic": "Direct/Indirect Injection, Jailbreaks, Delimiter Tampering & Exfiltration",
+                    "summary": "Identify and defend against adversarial prompt injection, untrusted data execution, and system prompt leakage.",
+                    "challenge": "How does indirect prompt injection occur when an LLM summarizes a compromised web page or incoming email?",
+                    "diagnostic": "What defense-in-depth strategies prevent untrusted content from overriding system instructions?",
+                    "objective": "Harden prompts against adversarial attacks, jailbreaks, and sensitive data leakage.",
+                    "prereqs": ["Reasoning Scaffolding: Chain-of-Thought & ReAct Pattern"],
+                    "starter_code": "# Delimiter isolation and trust boundary validation\ndef secure_prompt(user_untrusted_input: str) -> str:\n    sanitized = user_untrusted_input.replace('</data>', '')\n    return f'<system>Analyze sentiment</system><data>{sanitized}</data>'\n",
+                    "resources": ["OWASP Top 10 for Large Language Model Applications"],
+                },
+                {
+                    "title": "Empirical Prompt Evaluation & Regression Benchmarking",
+                    "topic": "Golden Evaluation Sets, LLM-as-a-Judge, Latency & Cost Optimization",
+                    "summary": "Treat prompt engineering as iterative software engineering by building test datasets, quantitative assertions, and version control.",
+                    "challenge": "Why is prompt evaluation prone to subjective drift? How do you write deterministic evaluation rubrics for generative outputs?",
+                    "diagnostic": "How do you measure token cost and latency trade-offs when optimizing production prompts?",
+                    "objective": "Build automated prompt regression test suites with quantitative accuracy metrics.",
+                    "prereqs": ["Prompt Injection & Security Boundaries"],
+                    "starter_code": "# Automated prompt evaluation scoring harness\ndef score_completion(expected_keywords: list[str], output: str) -> float:\n    matches = sum(1 for kw in expected_keywords if kw.lower() in output.lower())\n    return matches / max(1, len(expected_keywords))\n",
+                    "resources": ["Hamel Husain: A Guide to Evaluating LLM Applications"],
+                },
+            ],
+        },
+    ],
+    "figma": [
+        {
+            "stage_number": 1,
+            "stage_name": "Design Fundamentals & Frame Architecture",
+            "description": "Frames vs groups, visual hierarchy, constraints, responsive grids, and design tokens.",
+            "lessons": [
+                {
+                    "title": "Frames, Constraints & Responsive Grids",
+                    "topic": "Frame Hierarchy, Constraint Pinning & Layout Grids",
+                    "summary": "Master frames as independent layout containers, constraint pinning for responsive resizing, and column grids.",
+                    "challenge": "Why should frames always be preferred over groups in modern Figma design systems?",
+                    "diagnostic": "How do Left & Right constraints behave differently from Center constraints during frame resizing?",
+                    "objective": "Design robust, resizable frame structures with semantic constraints.",
+                    "prereqs": ["None"],
+                    "starter_code": "// Figma Frame Specification\nFrame 'AppContainer' (width: 1440, height: 900, layout: Vertical)\n",
+                    "resources": ["Figma Help Center: Frames in Figma", "Figma Design Guidelines"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Components, Variants & Design Systems",
+            "description": "Figma Auto Layout, responsive component variants, component properties, and design system architecture.",
+            "lessons": [
+                {
+                    "title": "Figma Auto Layout and Responsive Components",
+                    "topic": "Flexbox-Style Layout, Hug vs Fill, Gap & Padding Constraints",
+                    "summary": "Build truly responsive UI components that adapt dynamically to content and viewport changes using Auto Layout.",
+                    "challenge": "How do 'Hug contents' and 'Fill container' sizing modes interact across nested Auto Layout frames? How do you prevent text clipping?",
+                    "diagnostic": "When should you use absolute positioning inside an Auto Layout container?",
+                    "objective": "Master Auto Layout directions, gap, padding, and resizing behaviors for production component systems.",
+                    "prereqs": ["Frames, Constraints & Responsive Grids"],
+                    "starter_code": "// Figma Auto Layout Specification\nFrame 'ButtonPrimary' {\n  AutoLayout: Horizontal;\n  Padding: [12, 24, 12, 24]; // Top, Right, Bottom, Left\n  Gap: 8px;\n  Resizing: [Hug, Hug];\n  BorderRadius: 8px;\n  Background: #6366f1;\n}\n",
+                    "resources": ["Figma Help Center: Guide to Auto Layout", "W3C Web Content Accessibility Guidelines (WCAG) 2.2"],
+                },
+                {
+                    "title": "Component Variants & Interactive Design Systems",
+                    "topic": "Variant Properties, Boolean Toggles & Component Sets",
+                    "summary": "Organize UI components into cohesive variant sets with stateful properties (hover, active, disabled) and boolean toggles.",
+                    "challenge": "How do component properties reduce variant explosion in enterprise design systems?",
+                    "diagnostic": "What is the difference between an instance swap property and a variant property in Figma?",
+                    "objective": "Construct scalable design system component sets with clean variant properties.",
+                    "prereqs": ["Figma Auto Layout and Responsive Components"],
+                    "starter_code": "// Figma Component Set 'Button'\nVariants: { Size: ['sm', 'md', 'lg'], State: ['default', 'hover', 'disabled'] }\n",
+                    "resources": ["Figma Help Center: Create and Use Variants"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Interactive Prototyping & Accessibility",
+            "description": "Smart animate, interactive components, micro-interactions, WCAG 2.2 contrast compliance, and developer handoff.",
+            "lessons": [
+                {
+                    "title": "Prototyping, Smart Animate & Micro-Interactions",
+                    "topic": "Transition Curves, Smart Animate Matching & Component Overlays",
+                    "summary": "Create high-fidelity interactive prototypes with spring animations and modal overlays.",
+                    "challenge": "How does Smart Animate match layers between frames, and why is layer naming critical?",
+                    "diagnostic": "What causes Smart Animate to cross-fade instead of smoothly morphing two layers?",
+                    "objective": "Build seamless interactive prototypes demonstrating real application UX.",
+                    "prereqs": ["Component Variants & Interactive Design Systems"],
+                    "starter_code": "// Prototype Transition Spec\nOn 'Click' -> Navigate To 'DashboardView' (Smart Animate: Ease-out 300ms)\n",
+                    "resources": ["Figma Help Center: Smart Animate Guide"],
+                },
+                {
+                    "title": "Accessibility (WCAG 2.2) & Developer Handoff",
+                    "topic": "Contrast Ratios, Focus States, Token Handoff & Inspect Mode",
+                    "summary": "Ensure 4.5:1 contrast compliance, clear touch targets (min 44x44px), and seamless design token export for developers.",
+                    "challenge": "How do you verify WCAG AA color contrast directly in Figma, and what design tokens bridge Figma to CSS?",
+                    "diagnostic": "What is the minimum WCAG AA contrast ratio required for normal body text vs large heading text?",
+                    "objective": "Deliver accessible, production-ready design specifications with token annotations.",
+                    "prereqs": ["Prototyping, Smart Animate & Micro-Interactions"],
+                    "starter_code": "// Design Token & WCAG Handoff Spec\nToken 'color-text-primary': #1e293b (Contrast against #ffffff: 12.6:1 - WCAG AAA Pass)\nToken 'target-min-size': 44px\n",
+                    "resources": ["W3C Web Content Accessibility Guidelines (WCAG) 2.2", "Figma Help Center: Developer Mode and Handoff"],
+                },
+            ],
+        },
+    ],
+    "opencv": [
+        {
+            "stage_number": 1,
+            "stage_name": "Core Image Processing",
+            "description": "Image representation as NumPy arrays, color space transformations (BGR, RGB, HSV), and spatial resizing.",
+            "lessons": [
+                {
+                    "title": "Image Representation & Pixel Grids",
+                    "topic": "Image Representation & NumPy Arrays",
+                    "summary": "Understand digital images as multi-dimensional NumPy ndarrays (height, width, channels) in BGR order with uint8 precision.",
+                    "challenge": "Explain why accessing a pixel via image[y, x] in OpenCV requires indexing (row, column) instead of Cartesian (x, y).",
+                    "diagnostic": "How is a color 640x480 pixel image shaped in memory in OpenCV Python?",
+                    "objective": "Master image data types, matrix shapes, pixel indexing, and coordinate conventions in OpenCV.",
+                    "prereqs": ["Python NumPy fundamentals"],
+                    "starter_code": "import cv2\nimport numpy as np\n\n# Create a synthetic 3-channel image (Height, Width, Channels)\nimg = np.zeros((300, 400, 3), dtype=np.uint8)\n# Set blue channel intensity\nimg[:, :, 0] = 255\nprint('Image shape:', img.shape)\nprint('Data type:', img.dtype)\n",
+                    "resources": ["OpenCV Documentation: Getting Started with Images"],
+                },
+                {
+                    "title": "Image Loading & Color Spaces (BGR to RGB/HSV)",
+                    "topic": "cv2.imread & cv2.cvtColor Color Conversions",
+                    "summary": "Master reading images with cv2.imread and converting between BGR, RGB, and HSV color representations with cv2.cvtColor.",
+                    "challenge": "Why does displaying an OpenCV image directly in Matplotlib show inverted colors (blue faces), and how does cv2.cvtColor resolve this?",
+                    "diagnostic": "When would you prefer the HSV color space over RGB/BGR for computer vision tasks?",
+                    "objective": "Perform correct color space conversions and avoid channel inversion bugs.",
+                    "prereqs": ["Image Representation & Pixel Grids"],
+                    "starter_code": "import cv2\nimport numpy as np\n\n# Simulating image load\nimg_bgr = np.zeros((100, 100, 3), dtype=np.uint8)\nimg_bgr[:, :] = [255, 0, 0]  # Pure Blue in BGR\n\n# Convert to RGB\nimg_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)\nprint('BGR value:', img_bgr[0, 0])\nprint('RGB value:', img_rgb[0, 0])\n",
+                    "resources": ["OpenCV Documentation: Changing Colorspaces"],
+                },
+                {
+                    "title": "Geometric Transformations & Resizing",
+                    "topic": "Affine Transformations, Resizing & Interpolation",
+                    "summary": "Scale, translate, and rotate images with cv2.resize, cv2.warpAffine, and proper interpolation flags (INTER_LINEAR, INTER_NEAREST).",
+                    "challenge": "Which interpolation method should you choose when downsampling vs upsampling high-resolution images?",
+                    "diagnostic": "What is the difference between cv2.INTER_AREA and cv2.INTER_CUBIC?",
+                    "objective": "Apply spatial transformations without introducing aliasing artifacts.",
+                    "prereqs": ["Image Loading & Color Spaces"],
+                    "starter_code": "import cv2\nimport numpy as np\n\nimg = np.ones((200, 200, 3), dtype=np.uint8) * 128\nresized = cv2.resize(img, (100, 100), interpolation=cv2.INTER_AREA)\nprint('Resized shape:', resized.shape)\n",
+                    "resources": ["OpenCV Documentation: Geometric Transformations"],
+                },
+            ],
+        },
+        {
+            "stage_number": 2,
+            "stage_name": "Feature Extraction & Filtering",
+            "description": "Spatial filtering, convolution kernels, Gaussian blur, Canny edge detection, and morphological contours.",
+            "lessons": [
+                {
+                    "title": "Image Filtering & Gaussian Blur",
+                    "topic": "Convolution Kernels, Gaussian Blur & Smoothing",
+                    "summary": "Apply 2D convolution kernels to smooth images, eliminate high-frequency noise, and preserve structural edges.",
+                    "challenge": "How does kernel size and standard deviation (sigma) in Gaussian blurring affect noise reduction vs edge blur?",
+                    "diagnostic": "Why is image smoothing almost always performed before edge detection?",
+                    "objective": "Construct and apply 2D convolution filters for noise suppression.",
+                    "prereqs": ["Geometric Transformations"],
+                    "starter_code": "import cv2\nimport numpy as np\n\nimg = np.random.randint(0, 256, (100, 100), dtype=np.uint8)\nblurred = cv2.GaussianBlur(img, (5, 5), 1.5)\nprint('Blurred shape:', blurred.shape)\n",
+                    "resources": ["OpenCV Documentation: Smoothing Images"],
+                },
+                {
+                    "title": "Edge Detection & Canny Algorithms",
+                    "topic": "Gradient Computations, Non-Maximum Suppression & Canny",
+                    "summary": "Trace object boundaries using Sobel gradients, non-maximum suppression, and hysteresis thresholding with cv2.Canny.",
+                    "challenge": "Explain the role of the dual threshold (minVal and maxVal) in cv2.Canny hysteresis thresholding.",
+                    "diagnostic": "What happens if both minVal and maxVal are set too low in cv2.Canny?",
+                    "objective": "Detect clean, continuous edges from raster images.",
+                    "prereqs": ["Image Filtering & Gaussian Blur"],
+                    "starter_code": "import cv2\nimport numpy as np\n\nimg = np.zeros((100, 100), dtype=np.uint8)\nimg[20:80, 20:80] = 255\nedges = cv2.Canny(img, threshold1=50, threshold2=150)\nprint('Edges non-zero pixels:', np.count_nonzero(edges))\n",
+                    "resources": ["OpenCV Documentation: Canny Edge Detection"],
+                },
+                {
+                    "title": "Contours & Shape Analysis",
+                    "topic": "cv2.findContours, Bounding Boxes & Hierarchy",
+                    "summary": "Extract continuous boundary curves, compute bounding rectangles, calculate area, and evaluate contour hierarchies.",
+                    "challenge": "How does cv2.RETR_TREE differ from cv2.RETR_EXTERNAL when finding contours of nested objects?",
+                    "diagnostic": "Why must the input image to cv2.findContours be a binary image (e.g. thresholded or Canny edge)?",
+                    "objective": "Extract and measure geometric shapes from binary images.",
+                    "prereqs": ["Edge Detection & Canny Algorithms"],
+                    "starter_code": "import cv2\nimport numpy as np\n\nimg = np.zeros((100, 100), dtype=np.uint8)\nimg[25:75, 25:75] = 255\ncontours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)\nprint('Contours found:', len(contours))\n",
+                    "resources": ["OpenCV Documentation: Contours : Getting Started"],
+                },
+            ],
+        },
+        {
+            "stage_number": 3,
+            "stage_name": "Advanced Vision & Real-Time Processing",
+            "description": "Object detection pipelines, Haar cascade classifiers, video stream capture, and vectorized performance optimization.",
+            "lessons": [
+                {
+                    "title": "Object Detection & Cascade Classifiers",
+                    "topic": "Haar Cascades & Object Detection Pipelines",
+                    "summary": "Deploy pre-trained Haar feature-based cascade classifiers with cv2.CascadeClassifier to detect faces and objects in real time.",
+                    "challenge": "How do scaleFactor and minNeighbors in detectMultiScale control false positives versus detection sensitivity?",
+                    "diagnostic": "Why is object detection computationally heavier than spatial filtering?",
+                    "objective": "Build automated object and face detection pipelines.",
+                    "prereqs": ["Contours & Shape Analysis"],
+                    "starter_code": "import cv2\nimport numpy as np\n\n# Placeholder demonstrating detectMultiScale call structure\nprint('Haar Cascade object detection initialization complete')\n",
+                    "resources": ["OpenCV Documentation: Face Detection using Haar Cascades"],
+                },
+                {
+                    "title": "Video Stream Processing & Frame Buffers",
+                    "topic": "cv2.VideoCapture & Real-Time Frame Buffering",
+                    "summary": "Process live camera feeds and video files frame-by-frame with cv2.VideoCapture, managing frame rates and buffer releases.",
+                    "challenge": "How do you handle dropped frames or variable camera framerates in real-time computer vision applications?",
+                    "diagnostic": "Why must cap.release() and cv2.destroyAllWindows() be called upon termination?",
+                    "objective": "Build robust, memory-leak-free video processing loops.",
+                    "prereqs": ["Object Detection & Cascade Classifiers"],
+                    "starter_code": "import cv2\n\n# Video capture lifecycle pattern\nprint('cv2.VideoCapture frame loop pattern ready')\n",
+                    "resources": ["OpenCV Documentation: Getting Started with Videos"],
+                },
+                {
+                    "title": "Performance Optimization with Vectorized Operations",
+                    "topic": "Vectorized NumPy Operations vs Pixel Loops",
+                    "summary": "Optimize image processing bottlenecks by replacing slow Python nested loops with SIMD-vectorized NumPy slice operations.",
+                    "challenge": "Measure the performance difference between a Python double for-loop iterating over pixels vs a vectorized np.where operation.",
+                    "diagnostic": "How does vectorization leverage CPU cache lines and SIMD registers for image arrays?",
+                    "objective": "Write high-throughput computer vision code operating at 60+ FPS.",
+                    "prereqs": ["Video Stream Processing"],
+                    "starter_code": "import numpy as np\n\nimg = np.random.randint(0, 256, (480, 640), dtype=np.uint8)\n# Vectorized thresholding (100x faster than loops)\nthresholded = (img > 128).astype(np.uint8) * 255\nprint('Thresholded unique values:', np.unique(thresholded))\n",
+                    "resources": ["OpenCV Documentation: Computational Efficiency"],
+                },
+            ],
+        },
+    ],
 }
 
 
@@ -923,14 +1690,20 @@ def build_skill_learning_path(
     db: Session,
     skill_name: str,
     current_user: User,
+    learner_level: Optional[str] = None,
+    target_role: Optional[str] = None,
+    force_refresh: bool = False,
 ) -> SkillLearningPathResponse:
     """
     Constructs a complete, 7-stage structured curriculum for ANY technical skill:
+    - Accounts for user proficiency and target role
     - Queries verified candidate progress from PostgreSQL TeachingProgress
     - Connects candidate GitHub repositories where this skill is demonstrated
     - Queries prerequisites and related skills
     - Supports diagnostic assessments to jump forward
     """
+    effective_role = target_role or getattr(current_user, "target_role", None) or "Software Engineer"
+    effective_level = learner_level or "Intermediate"
     key = skill_name.strip().lower()
     norm_name = skill_name.strip()
 
@@ -949,6 +1722,22 @@ def build_skill_learning_path(
         "sql": "sql",
         "mysql": "sql",
         "postgresql": "sql",
+        "large language models": "large language models",
+        "llm": "large language models",
+        "llms": "large language models",
+        "large-language-models": "large language models",
+        "prompt engineering": "prompt engineering",
+        "prompt-engineering": "prompt engineering",
+        "prompting": "prompt engineering",
+        "figma": "figma",
+        "figma / ui/ux": "figma",
+        "figma/ui/ux": "figma",
+        "ui/ux": "figma",
+        "ui ux": "figma",
+        "opencv": "opencv",
+        "cv2": "opencv",
+        "computer vision": "opencv",
+        "computer-vision": "opencv",
     }
     normalized_key = _SKILL_ALIASES.get(key, key)
 
@@ -1053,6 +1842,9 @@ def build_skill_learning_path(
                     f"Demonstrated in your repository '{connected_projects[0].get('title')}'."
                     if connected_projects else None
                 ),
+                what_you_will_learn=l_raw.get("what_you_will_learn", []),
+                key_takeaways=l_raw.get("key_takeaways", []),
+                quick_check=l_raw.get("quick_check"),
             )
             built_lessons.append(lesson)
 
@@ -1066,8 +1858,13 @@ def build_skill_learning_path(
             )
         )
 
-    if not recommended_start and built_stages and built_stages[0].lessons:
-        recommended_start = built_stages[0].lessons[0].id
+    if not recommended_start and built_stages:
+        if effective_level.lower() == "advanced" and len(built_stages) >= 3 and built_stages[2].lessons:
+            recommended_start = built_stages[2].lessons[0].id
+        elif effective_level.lower() == "intermediate" and len(built_stages) >= 2 and built_stages[1].lessons:
+            recommended_start = built_stages[1].lessons[0].id
+        elif built_stages[0].lessons:
+            recommended_start = built_stages[0].lessons[0].id
 
     # Find related skills
     related = [
@@ -1076,7 +1873,7 @@ def build_skill_learning_path(
     ][:4]
 
     summary_text = (
-        f"Complete 7-stage learning journey for {norm_name}. "
+        f"Personalized 7-stage learning journey for {norm_name} tailored for {effective_role} role. "
         f"Master {norm_name} from foundations and core invariants up to advanced performance, "
         f"production implementation, and technical interview defense."
     )
@@ -1097,6 +1894,11 @@ def build_skill_learning_path(
         recommended_start_lesson_id=recommended_start,
         connected_projects=connected_projects,
         related_skills=related,
+        last_verified_date="2026-03",
+        knowledge_source="Authoritative Documentation & Verified Curriculum",
+        target_role=effective_role,
+        learner_level=effective_level,
+        is_live_verified=False,
     )
 
 

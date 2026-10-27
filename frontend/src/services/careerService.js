@@ -554,3 +554,52 @@ export const searchCourseMaterials = async (query, topK = 4) => {
     )
   ).data;
 };
+
+/** GET /career-roadmap/personalized or POST /career-roadmap/generate */
+export const getPersonalizedRoadmap = async (role = null, forceRefresh = false) => {
+  if (forceRefresh) {
+    const res = await api.post(
+      "/career-roadmap/generate",
+      { target_role: role || "AI Engineer", force_refresh: true },
+      aiRequestConfig
+    );
+    return res.data;
+  }
+  const params = role ? { role } : {};
+  const res = await api.get("/career-roadmap/personalized", {
+    ...aiRequestConfig,
+    params,
+  });
+  return res.data;
+};
+
+/** POST /career-roadmap/recommendations/:changeId/accept */
+export const acceptRoadmapRecommendation = async (changeId) => {
+  const res = await api.post(
+    `/career-roadmap/recommendations/${changeId}/accept`,
+    {},
+    aiRequestConfig
+  );
+  return res.data;
+};
+
+/** POST /career-roadmap/recommendations/:changeId/dismiss */
+export const dismissRoadmapRecommendation = async (changeId) => {
+  const res = await api.post(
+    `/career-roadmap/recommendations/${changeId}/dismiss`,
+    {},
+    aiRequestConfig
+  );
+  return res.data;
+};
+
+/** POST /career-roadmap/milestones/:milestoneId/toggle */
+export const toggleMilestoneProgress = async (milestoneId) => {
+  const res = await api.post(
+    `/career-roadmap/milestones/${milestoneId}/toggle`,
+    {},
+    aiRequestConfig
+  );
+  return res.data;
+};
+

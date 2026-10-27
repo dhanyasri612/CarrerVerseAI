@@ -33,6 +33,8 @@ from app.schemas.interview_session import (
     InterviewSessionResponse,
     InterviewSessionSummaryResponse,
     InterviewTranscriptEntry,
+    InterviewBookletResponse,
+    InterviewBookletQuestionEntry,
     SUPPORTED_LANGUAGES,
 )
 
@@ -87,6 +89,20 @@ def _parse_json(raw: str) -> Dict[str, Any]:
     raise ValueError("LLM response was not valid JSON")
 
 
+COMPETENCY_PHASES = [
+    "Project Understanding & Architecture",
+    "Implementation Details & Technical Concepts",
+    "Design Decisions & Trade-offs",
+    "Debugging, Reliability & Problem Solving",
+    "Application, System Evolution & Scaling",
+]
+
+
+def _slugify(text: str) -> str:
+    import re
+    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-") or "concept"
+
+
 def _question_payload(raw: Dict[str, Any]) -> InterviewQuestionPayload:
     q_text = str(raw.get("question", "")).strip()
     if not q_text:
@@ -118,6 +134,12 @@ def _question_payload(raw: Dict[str, Any]) -> InterviewQuestionPayload:
     category = raw.get("category")
     star_framework = raw.get("star_framework") if isinstance(raw.get("star_framework"), dict) else None
 
+    citations = raw.get("repository_citations") or []
+    if isinstance(citations, dict):
+        citations = [citations]
+    elif not isinstance(citations, list):
+        citations = []
+
     return InterviewQuestionPayload(
         question=q_text,
         question_type=str(raw.get("question_type", "technical")),
@@ -136,6 +158,13 @@ def _question_payload(raw: Dict[str, Any]) -> InterviewQuestionPayload:
         follow_ups=follow_ups,
         category=category,
         star_framework=star_framework,
+        core_question_index=int(raw.get("core_question_index") or 1),
+        total_core_questions=int(raw.get("total_core_questions") or 5),
+        is_follow_up=bool(raw.get("is_follow_up", False)),
+        follow_up_of_core=int(raw.get("follow_up_of_core")) if raw.get("follow_up_of_core") is not None else None,
+        competency_phase=str(raw.get("competency_phase") or COMPETENCY_PHASES[0]),
+        repository_citations=citations,
+        evidence_status=str(raw.get("evidence_status") or "grounded"),
     )
 
 
@@ -182,6 +211,60 @@ def _evaluation_payload(raw: Dict[str, Any]) -> InterviewAnswerEvaluation:
     elif not isinstance(missing_elements, list):
         missing_elements = []
 
+    # New fields extraction
+    incorrect_statements = raw.get("incorrect_statements") or []
+    if not isinstance(incorrect_statements, list):
+        incorrect_statements = []
+    key_takeaways = raw.get("key_takeaways") or []
+    if not isinstance(key_takeaways, list):
+        key_takeaways = []
+
+    eval_status = str(raw.get("evaluation_status") or "evaluated")
+    raw_score = raw.get("score")
+    rubric = raw.get("rubric_scores")
+
+    if not isinstance(rubric, dict) or not rubric:
+        if raw_score is not None:
+            try:
+                base_score = min(10, max(1, int(raw_score)))
+            except (ValueError, TypeError):
+                base_score = 7
+        else:
+            base_score = 7
+            eval_status = "provisional"
+        rubric = {
+            "relevance": min(10, max(1, base_score)),
+            "technical_correctness": min(10, max(1, base_score)),
+            "completeness_depth": min(10, max(1, base_score if base_score <= 7 else base_score - 1)),
+            "reasoning_explanation": min(10, max(1, base_score)),
+            "tradeoff_analysis": min(10, max(1, base_score if base_score >= 8 else max(1, base_score - 1))),
+        }
+        calc_score = base_score
+    else:
+        cleaned_rubric = {}
+        for k, v in rubric.items():
+            try:
+                cleaned_rubric[str(k)] = min(10, max(1, int(v)))
+            except (ValueError, TypeError):
+                pass
+        rubric = cleaned_rubric or {
+            "relevance": 7,
+            "technical_correctness": 7,
+            "completeness_depth": 7,
+            "reasoning_explanation": 7,
+            "tradeoff_analysis": 7,
+        }
+        if raw_score is not None:
+            try:
+                calc_score = min(10, max(1, int(raw_score)))
+            except (ValueError, TypeError):
+                calc_score = min(10, max(1, int(round(sum(rubric.values()) / max(len(rubric), 1)))))
+        else:
+            calc_score = min(10, max(1, int(round(sum(rubric.values()) / max(len(rubric), 1)))))
+
+    is_fu = bool(raw.get("is_follow_up_needed", False))
+    fu_prompt = raw.get("follow_up_question_prompt")
+
     return InterviewAnswerEvaluation(
         assessment=str(assessment),
         strengths=[str(s) for s in strengths if s],
@@ -191,6 +274,13 @@ def _evaluation_payload(raw: Dict[str, Any]) -> InterviewAnswerEvaluation:
         ideal_pitch_script=str(ideal_pitch_script) if ideal_pitch_script else None,
         missing_elements=[str(m) for m in missing_elements if m],
         structural_framework=str(raw.get("structural_framework", "STAR / Architecture-Tradeoff Method")),
+        incorrect_statements=incorrect_statements,
+        key_takeaways=key_takeaways,
+        rubric_scores=rubric,
+        score=calc_score,
+        evaluation_status=eval_status,
+        is_follow_up_needed=is_fu,
+        follow_up_question_prompt=str(fu_prompt) if fu_prompt else None,
     )
 
 
@@ -200,10 +290,161 @@ def _fallback_evaluation(
     target_role: Optional[str] = None,
     language: str = "en",
 ) -> InterviewAnswerEvaluation:
-    words = len((answer or "").split())
+    ans_text = (answer or "").strip()
+    words = len(ans_text.split())
     topic = question.topic or "the technical system"
-    has_code = "[Candidate Submitted Code]" in (answer or "") or "def " in (answer or "") or "SELECT " in (answer or "").upper() or "class " in (answer or "") or "function " in (answer or "")
+    has_code = "[Candidate Submitted Code]" in ans_text or "def " in ans_text or "SELECT " in ans_text.upper() or "class " in ans_text or "function " in ans_text
     lang = (language or "en").strip().lower()
+    track = (getattr(question, "track", None) or "technical").lower()
+    answer_lower = ans_text.lower()
+
+    # 1. Greeting intent check: "hello", "hi", "hey cyra" submitted instead of technical answer
+    is_pure_greeting = (
+        bool(re.search(r"^(hello|hi|hey|good\s+(morning|afternoon|evening)|howdy|greetings)\b", answer_lower))
+        and words <= 6
+        and not any(term in answer_lower for term in ["index", "table", "sql", "code", "database", "function", "array", "tree", "class", "lock", "deadlock"])
+    ) or (any(g in answer_lower for g in ["hello cyra", "hi cyra", "hey cyra", "good morning cyra", "good evening cyra"]) and words <= 6)
+    if is_pure_greeting:
+        rubric = {
+            "relevance": 1,
+            "technical_correctness": 1,
+            "completeness_depth": 1,
+            "reasoning_explanation": 1,
+            "tradeoff_analysis": 1,
+        }
+        assessment = "You submitted a greeting rather than a technical answer to the active question. In an interview, address the technical challenge directly with your engineering approach."
+        if lang.startswith("ta"):
+            assessment = "நீங்கள் தொழில்நுட்ப பதிலுக்கு பதிலாக வாழ்த்து தெரிவித்துள்ளீர்கள். நேர்காணலில், கேள்வியை நேரடியாக அணுகி உங்கள் தொழில்நுட்ப அணுகுமுறையை விளக்குங்கள்."
+        elif lang.startswith("hi"):
+            assessment = "आपने तकनीकी उत्तर देने के बजाय केवल अभिवादन भेजा है. साक्षात्कार में, सीधे तकनीकी दृष्टिकोण साझा करें."
+        return InterviewAnswerEvaluation(
+            assessment=assessment,
+            strengths=["Courteous conversational greeting."],
+            improvements=["Focus on answering the technical question with concrete logic, syntax, or architecture."],
+            follow_up_reason="Candidate greeted instead of answering; prompting for technical solution.",
+            how_to_explain=f"Begin by clarifying constraints on {topic}, propose your architecture, and explain trade-offs.",
+            ideal_pitch_script="\"In addressing this challenge, my architectural approach would be...\"",
+            missing_elements=[f"Technical solution addressing {topic}"],
+            structural_framework="Architecture-Tradeoff / STAR Framework",
+            rubric_scores=rubric,
+            score=1,
+            evaluation_status="evaluated",
+            is_follow_up_needed=False,
+        )
+
+    # 2. "I don't know" / "no clue" / unfamiliarity intent
+    is_dont_know = any(phrase in answer_lower for phrase in [
+        "don't know", "dont know", "no idea", "not sure", "haven't implemented",
+        "havent implemented", "no clue", "never used", "not familiar", "never worked with"
+    ])
+    if is_dont_know and words < 25:
+        rubric = {
+            "relevance": 2,
+            "technical_correctness": 1,
+            "completeness_depth": 1,
+            "reasoning_explanation": 2,
+            "tradeoff_analysis": 1,
+        }
+        assessment = "You honestly stated that you are unfamiliar with this specific concept. While intellectual honesty is valued, in technical interviews you should reason from first principles or discuss related technologies you understand."
+        if lang.startswith("ta"):
+            assessment = "இந்த குறிப்பிட்ட கருத்தை நீங்கள் பயன்படுத்தியதில்லை என்பதை வெளிப்படையாக கூறியுள்ளீர்கள். நேர்காணல்களில், தெரிந்த அடிப்படைகளில் இருந்து காரணங்களை விவரிக்க முயற்சி செய்யுங்கள்."
+        elif lang.startswith("hi"):
+            assessment = "आपने ईमानदारी से स्वीकार किया कि आप इस अवधारणा से परिचित नहीं हैं. हालांकि, साक्षात्कार में बुनियादी सिद्धांतों से उत्तर देने का प्रयास करें."
+        return InterviewAnswerEvaluation(
+            assessment=assessment,
+            strengths=["Honest acknowledgment of experience boundaries."],
+            improvements=["Practice reasoning from fundamentals when encountering unfamiliar technologies."],
+            follow_up_reason="Candidate indicated unfamiliarity; probe for fundamental reasoning.",
+            how_to_explain=f"Even if unfamiliar with {topic}, reason through the problem statement using basic computer science primitives.",
+            ideal_pitch_script="\"While I haven't implemented this exact tool in production, from first principles I would approach this by...\"",
+            missing_elements=[f"Core design and principles of {topic}"],
+            structural_framework="First-Principles Reasoning Framework",
+            rubric_scores=rubric,
+            score=1,
+            evaluation_status="evaluated",
+            is_follow_up_needed=False,
+        )
+
+    # 3. Off-topic / Irrelevant answer check
+    q_words = set(re.findall(r"\b[a-zA-Z]{3,}\b", (question.question + " " + (question.topic or "")).lower()))
+    ans_words = set(re.findall(r"\b[a-zA-Z]{3,}\b", answer_lower))
+    overlap = q_words.intersection(ans_words)
+    tech_anchors = ["latency", "cache", "database", "api", "query", "server", "class", "function", "data", "system", "code", "index", "memory", "thread", "model", "test", "fastapi", "python", "sql", "table", "lock", "hash", "map", "array", "tree", "graph", "stack", "queue", "pointer", "window", "search", "sort", "node"]
+    has_tech_anchor = any(k in answer_lower for k in tech_anchors)
+
+    if words >= 5 and len(overlap) == 0 and not has_code and not has_tech_anchor:
+        rubric = {
+            "relevance": 1,
+            "technical_correctness": 2,
+            "completeness_depth": 1,
+            "reasoning_explanation": 2,
+            "tradeoff_analysis": 1,
+        }
+        assessment = "The submitted response is off-topic and does not address the technical problem presented in this question."
+        return InterviewAnswerEvaluation(
+            assessment=assessment,
+            strengths=[],
+            improvements=[f"Align your answer directly with the prompt on {topic}."],
+            follow_up_reason="Candidate submitted off-topic answer; redirecting back to core challenge.",
+            how_to_explain=f"Address the exact challenge presented for {topic}.",
+            ideal_pitch_script="\"To directly address this question, the key challenge is...\"",
+            missing_elements=[f"Direct response to: {question.question[:100]}..."],
+            structural_framework="Problem-First Framework",
+            rubric_scores=rubric,
+            score=2,
+            evaluation_status="evaluated",
+            is_follow_up_needed=False,
+        )
+
+    # 4. Partial answer (< 18 words and no code)
+    if words < 18 and not has_code:
+        calc_score = 4
+        eval_status = "evaluated"
+        rubric = {
+            "relevance": 5,
+            "technical_correctness": 4,
+            "completeness_depth": 3,
+            "reasoning_explanation": 4,
+            "tradeoff_analysis": 3,
+        }
+        if lang.startswith("ta"):
+            assessment = "சுருக்கமான பதில் அளிக்கப்பட்டுள்ளது. கூடுதல் கட்டமைப்பு விவரங்கள் மற்றும் metrics உடன் விளக்குவது உங்கள் தாக்கத்தை அதிகரிக்கும்."
+            strengths_list = ["கேள்விக்கான நேரடியான ஆரம்ப பதில்"]
+            improvements_list = ["பயன்படுத்திய தொழில்நுட்பங்கள், சவால்கள் மற்றும் உற்பத்தி தாக்கத்தை குறிப்பிடுங்கள்"]
+        elif lang.startswith("hi"):
+            assessment = "संक्षिप्त उत्तर दिया गया है. अधिक संरचनात्मक विवरण और मेट्रिक्स के साथ विस्तार करें."
+            strengths_list = ["प्रश्न के लिए स्पष्ट और प्राथमिक उत्तर"]
+            improvements_list = ["उपयोग की गई तकनीकों, चुनौतियों और उत्पादन प्रभाव का उल्लेख करें"]
+        else:
+            assessment = "You provided a brief initial direction, but the answer lacks technical depth, trade-off analysis, and concrete architectural context."
+            strengths_list = ["Identified initial problem space."]
+            improvements_list = ["Elaborate on implementation mechanisms, edge-case failure modes, and metrics."]
+
+        return InterviewAnswerEvaluation(
+            assessment=assessment,
+            strengths=strengths_list,
+            improvements=improvements_list,
+            follow_up_reason="Answer was brief; probing for concrete architecture and failure modes.",
+            how_to_explain=f"When discussing {topic}, avoid single-sentence answers. Detail why you chose this design and how it scales.",
+            ideal_pitch_script="\"In our architecture, we decoupled the services and implemented resilience patterns to handle peak traffic.\"",
+            missing_elements=["Concrete architectural decisions", "Error recovery and edge cases"],
+            structural_framework="STAR Method (Situation, Task, Action, Result)",
+            rubric_scores=rubric,
+            score=calc_score,
+            evaluation_status=eval_status,
+            is_follow_up_needed=True,
+        )
+
+    # 5. Substantial answer or code submitted
+    calc_score = 8 if has_code else 7
+    eval_status = "evaluated"
+    rubric = {
+        "relevance": 8,
+        "technical_correctness": 8 if has_code else 7,
+        "completeness_depth": 8 if has_code else 7,
+        "reasoning_explanation": 8 if has_code else 7,
+        "tradeoff_analysis": 7,
+    }
 
     if lang.startswith("ta"):
         if has_code:
@@ -222,6 +463,9 @@ def _fallback_evaluation(
                 ideal_pitch_script="\"இந்த தீர்வில், O(N) time efficiency மற்றும் குறைந்த auxiliary space-ஐ முன்னிலைப்படுத்தியுள்ளேன். எல்லை வரம்புகளை முன்கூட்டியே சரிபார்த்து உறுதியான செயலாக்கத்தை அமைத்துள்ளேன்.\"",
                 missing_elements=["Explicit Big-O Time/Space complexity", "Edge-case boundary verification"],
                 structural_framework="Code Walkthrough Framework (Approach -> Code -> Big-O -> Edge Cases)",
+                rubric_scores=rubric,
+                score=calc_score,
+                evaluation_status=eval_status,
             )
         if words < 12:
             return InterviewAnswerEvaluation(
@@ -233,6 +477,9 @@ def _fallback_evaluation(
                 ideal_pitch_script="\"எங்கள் திட்டத்தில், decoupled interfaces மற்றும் resilience உடன் இந்த அமைப்பை உருவாக்கினோம், sub-50ms latency பெற்றோம்.\"",
                 missing_elements=["Concrete architectural decisions", "Error recovery strategy"],
                 structural_framework="STAR Method (Situation, Task, Action, Result)",
+                rubric_scores=rubric,
+                score=calc_score,
+                evaluation_status=eval_status,
             )
         return InterviewAnswerEvaluation(
             assessment=f"{target_role or 'இந்த பணிக்கான'} அனுபவத்தை வெளிப்படுத்தும் தெளிவான மற்றும் நடைமுறை பதில்.",
@@ -249,6 +496,9 @@ def _fallback_evaluation(
             ideal_pitch_script="\"நம்பகத்தன்மைக்கு முன்னுரிமை கொடுத்து async queues மற்றும் idempotent transactions கொண்டு இந்த அமைப்பை உருவாக்கினேன்.\"",
             missing_elements=["Production failure recovery", "Quantitative latency metrics"],
             structural_framework="Architecture-Tradeoff Framework",
+            rubric_scores=rubric,
+            score=calc_score,
+            evaluation_status=eval_status,
         )
 
     if lang.startswith("hi"):
@@ -268,6 +518,9 @@ def _fallback_evaluation(
                 ideal_pitch_script="\"इस कार्यान्वयन में मैंने O(N) समय दक्षता और न्यूनतम सहायक स्थान को प्राथमिकता दी है. बाउंड्री बाधाओं को पहले ही मान्य किया है.\"",
                 missing_elements=["Explicit Big-O Time/Space complexity", "Edge-case boundary verification"],
                 structural_framework="Code Walkthrough Framework (Approach -> Code -> Big-O -> Edge Cases)",
+                rubric_scores=rubric,
+                score=calc_score,
+                evaluation_status=eval_status,
             )
         if words < 12:
             return InterviewAnswerEvaluation(
@@ -279,6 +532,9 @@ def _fallback_evaluation(
                 ideal_pitch_script="\"हमारे प्रोजेक्ट में हमने डिकपल्ड इंटरफेस के साथ सिस्टम तैयार किया और सब-50ms लेटेंसी हासिल की.\"",
                 missing_elements=["Concrete architectural decisions", "Error recovery strategy"],
                 structural_framework="STAR Method (Situation, Task, Action, Result)",
+                rubric_scores=rubric,
+                score=calc_score,
+                evaluation_status=eval_status,
             )
         return InterviewAnswerEvaluation(
             assessment=f"{target_role or 'इस रोल के लिए'} प्रासंगिक व्यावहारिक और जमीनी अनुभव दर्शाने वाला उत्तर.",
@@ -295,6 +551,9 @@ def _fallback_evaluation(
             ideal_pitch_script="\"लोड के तहत विश्वसनीयता के लिए मैंने async queues और idempotent ट्रांजैक्शन के साथ सिस्टम आर्किटेक्ट किया.\"",
             missing_elements=["Production failure recovery", "Quantitative latency metrics"],
             structural_framework="Architecture-Tradeoff Framework",
+            rubric_scores=rubric,
+            score=calc_score,
+            evaluation_status=eval_status,
         )
 
     if has_code:
@@ -319,6 +578,9 @@ def _fallback_evaluation(
             ),
             missing_elements=["Explicit Time/Space Big-O complexity", "Boundary edge-case dry run"],
             structural_framework="Code Walkthrough Framework (Approach -> Code -> Big-O -> Edge Cases)",
+            rubric_scores=rubric,
+            score=calc_score,
+            evaluation_status=eval_status,
         )
 
     if words < 12:
@@ -337,7 +599,11 @@ def _fallback_evaluation(
             ),
             missing_elements=["Concrete architectural decisions", "Error recovery strategy", "Performance metrics"],
             structural_framework="STAR Method (Situation, Task, Action, Result)",
+            rubric_scores=rubric,
+            score=calc_score,
+            evaluation_status=eval_status,
         )
+
     return InterviewAnswerEvaluation(
         assessment=f"Practical, grounded response demonstrating hands-on familiarity relevant to {target_role or 'the target role'}.",
         strengths=[
@@ -360,6 +626,9 @@ def _fallback_evaluation(
         ),
         missing_elements=["Production failure recovery edge cases", "Quantitative latency/throughput metrics"],
         structural_framework="Architecture-Tradeoff Framework (Context -> Alternative Analysis -> Solution -> Impact)",
+        rubric_scores=rubric,
+        score=calc_score,
+        evaluation_status=eval_status,
     )
 
 
@@ -533,9 +802,9 @@ def localize_question_payload(question: InterviewQuestionPayload, language: str)
                 "hints": ["Redis sliding window counter அல்லது token bucket atomic script பயன்படுத்துங்க."],
             },
             "sys:url_shortener": {
-                "question": "Bitly போன்ற மிக அதிக scale கொண்ட ஒரு URL shortener service-ஐ Base62 hashing, distributed ID generator மற்றும் caching கொண்டு எப்படி வடிவமைப்பீர்கள்?",
-                "topic": "High-Throughput Distributed URL Shortener",
-                "hints": ["Collision-free unique 64-bit ID generator மற்றும் Base62 encoding பற்றி விளக்குங்க."],
+                "question": "அதிக scale கொண்ட ஒரு distributed caching layer மற்றும் data partitioning அமைப்பை Redis மற்றும் horizontal sharding கொண்டு எப்படி வடிவமைப்பீர்கள்?",
+                "topic": "Distributed Caching & Sharding Architecture",
+                "hints": ["Cache-Aside pattern மற்றும் consistent hashing பற்றி விளக்குங்க."],
             },
             "github:codebase_modularity": {
                 "question": "உங்கள் GitHub repository-ல் component boundaries, asynchronous workflows மற்றும் modular architecture-ஐ எவ்வாறு திட்டமிட்டு செயல்படுத்தினீர்கள்?",
@@ -684,9 +953,9 @@ def localize_question_payload(question: InterviewQuestionPayload, language: str)
                 "hints": ["Redis sliding window counter या token bucket lua script use करें."],
             },
             "sys:url_shortener": {
-                "question": "Bitly जैसी high-traffic scalable URL shortener service Base62 hashing और distributed database के साथ कैसे architect करेंगे?",
-                "topic": "High-Throughput Distributed URL Shortener",
-                "hints": ["Collision-free unique 64-bit ID generator और Base62 encoding explain करें."],
+                "question": "एक उच्च-ट्रैफिक डिस्ट्रीब्यूटेड कैशिंग लेयर और डेटा पार्टीशनिंग आर्किटेक्चर Redis और शार्डिंग के साथ कैसे डिजाइन करेंगे?",
+                "topic": "Distributed Caching & Sharding Architecture",
+                "hints": ["Cache-Aside pattern और consistent hashing समझाइए."],
             },
             "sys:caching_tier": {
                 "question": "Redis या Memcached का उपयोग करके multi-tier caching layer कैसे स्थापित करेंगे? Cache Invalidation strategies (Write-Through बनाम Cache-Aside) और Cache Stampede को कैसे रोकेंगे?",
@@ -734,9 +1003,19 @@ def localize_question_payload(question: InterviewQuestionPayload, language: str)
                 "hints": ["पहल, योजना और साझा निर्णय लेने पर चर्चा करें."],
             },
         },
+        "ml": {
+            "dsa:arrays_hash_map": {
+                "question": "നമസ്കാരം! നൽകിയിരിക്കുന്ന strings array strs-ൽ ഉള്ള anagrams ഒന്നിച്ച് group ചെയ്യുക. നിങ്ങളുടെ hash map frequency key സമീപനവും time/space complexity-യും വിശദീകരിക്കുക.\n\nExample:\nInput: strs = [\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"]\nOutput: [[\"bat\"],[\"nat\",\"tan\"],[\"ate\",\"eat\",\"tea\"]]",
+                "topic": "Arrays & Hash Maps (Group Anagrams)",
+                "hints": [
+                    "26-element character count tuple hash map key ആയി ഉപയോഗിക്കാമോ?",
+                    "Sorting O(K log K) എടുക്കുമ്പോൾ frequency array key O(K) സമയത്തിൽ പൂർത്തിയാക്കുന്നു.",
+                ],
+            },
+        },
     }
 
-    target_dict = LOCALIZED_CONCEPTS.get(lang) or (LOCALIZED_CONCEPTS.get("ta") if lang.startswith("ta") else (LOCALIZED_CONCEPTS.get("hi") if lang.startswith("hi") else None))
+    target_dict = LOCALIZED_CONCEPTS.get(lang) or (LOCALIZED_CONCEPTS.get("ta") if lang.startswith("ta") else (LOCALIZED_CONCEPTS.get("hi") if lang.startswith("hi") else (LOCALIZED_CONCEPTS.get("ml") if lang.startswith("ml") else None)))
     if target_dict and concept in target_dict:
         loc = target_dict[concept]
         q_copy.question = loc["question"]
@@ -761,6 +1040,11 @@ def localize_question_payload(question: InterviewQuestionPayload, language: str)
         orig_q = q_copy.question or ""
         q_copy.question = f"नमस्ते! {topic_disp} के संदर्भ में:\n{orig_q}\n\nइस समस्या के लिए अपना दृष्टिकोण, व्यापार-बंद (trade-offs) और time/space complexity समझाइए."
         q_copy.question_text = q_copy.question
+    elif lang.startswith("ml"):
+        topic_disp = q_copy.topic or "സാങ്കേതിക രൂപരേഖ"
+        orig_q = q_copy.question or ""
+        q_copy.question = f"നമസ്കാരം! {topic_disp} സംബന്ധിച്ച്:\n{orig_q}\n\nഈ പ്രശ്നത്തിനുള്ള നിങ്ങളുടെ സമീപനം, trade-offs, time/space complexity എന്നിവ വിശദീകരിക്കുക."
+        q_copy.question_text = q_copy.question
     elif lang.startswith("es"):
         prefix = "¡Hola! Tu siguiente pregunta técnica:"
         q_copy.question = f"{prefix}\n{q_copy.question}"
@@ -783,12 +1067,17 @@ def _fallback_next_question(
     transcript: List[Dict[str, Any]],
     evidence: Dict[str, Any],
     blocked_questions: Optional[List[str]] = None,
+    core_question_index: int = 1,
+    competency_phase: Optional[str] = None,
+    is_follow_up: bool = False,
+    follow_up_reason: Optional[str] = None,
 ) -> InterviewQuestionPayload:
     role = session.target_role or "Software Engineer"
     projects = evidence.get("projects") or []
     skills = evidence.get("skills") or []
     github_repos = evidence.get("github_repos") or []
     certs = evidence.get("certifications") or []
+    proj_evidence = evidence.get("project_evidence") or {}
 
     # Gather already asked questions and concepts to guarantee ZERO repetition
     asked_texts = set()
@@ -822,18 +1111,47 @@ def _fallback_next_question(
 
     # Real project / repo evidence (never fabricated)
     has_real_projects = bool(projects and len(projects) > 0)
-    has_real_repos = bool(github_repos and len(github_repos) > 0)
+    has_real_repos = bool((github_repos and len(github_repos) > 0) or proj_evidence.get("has_repository"))
 
     gh_name = (
-        github_repos[0].get("name")
-        if has_real_repos and isinstance(github_repos[0], dict) and github_repos[0].get("name")
-        else None
+        proj_evidence.get("repository_name")
+        or (github_repos[0].get("name") if github_repos and isinstance(github_repos[0], dict) else None)
     )
     gh_lang = (
-        github_repos[0].get("language")
-        if has_real_repos and isinstance(github_repos[0], dict) and github_repos[0].get("language")
-        else "Python/JavaScript"
+        proj_evidence.get("repository_language")
+        or (github_repos[0].get("language") if github_repos and isinstance(github_repos[0], dict) and github_repos[0].get("language") else "Python/JavaScript")
     )
+    repo_citations = proj_evidence.get("repository_citations") or []
+    ev_status = proj_evidence.get("evidence_status", "grounded" if has_real_repos else "ungrounded_limitation")
+
+    if is_follow_up:
+        fu_prompt_text = follow_up_reason or "Clarify the edge-case failure modes, concurrency, and trade-offs in your proposed approach."
+        if has_real_repos and gh_name:
+            fu_q_text = f"Following up on your answer for '{gh_name}': {fu_prompt_text}"
+        else:
+            fu_q_text = f"Following up on your previous answer: {fu_prompt_text}"
+        fu_copy = InterviewQuestionPayload(
+            question_id=f"follow_up_c{core_question_index}",
+            session_id=session.session_id,
+            track=session.interview_mode,
+            language=session.language,
+            question=fu_q_text,
+            question_type="technical",
+            difficulty="medium",
+            topic=f"Follow-up: {competency_phase or 'Technical Verification'}",
+            normalized_concept=f"follow_up:core_{core_question_index}_{session.question_number}",
+            rationale=f"Targeted Socratic follow-up probing gaps or trade-offs in Core Question {core_question_index}.",
+            evidence_source=f"Connected GitHub Repository: {gh_name}" if has_real_repos else "Target Role Standards",
+            core_question_index=core_question_index,
+            total_core_questions=5,
+            is_follow_up=True,
+            follow_up_of_core=core_question_index,
+            competency_phase=competency_phase or COMPETENCY_PHASES[min(core_question_index - 1, 4)],
+            repository_citations=repo_citations[:2],
+            evidence_status=ev_status,
+            hints=["Address the specific edge cases, failure states, or trade-offs mentioned in the prompt."],
+        )
+        return localize_question_payload(fu_copy, session.language)
 
     proj_title = (
         projects[0].get("title")
@@ -1312,31 +1630,30 @@ def _fallback_next_question(
 
     system_design_questions = [
         InterviewQuestionPayload(
-            question="Design a scalable URL shortener similar to Bitly. Discuss the high-level architecture, technology choices, database design, scalability, and trade-offs.",
+            question="[General Technical Practice Question] Discuss how you would design a high-throughput, distributed caching and data partitioning architecture for an API handling 50,000 requests per second. Address consistency, cache invalidation, and failover.",
             question_type="system_design",
             difficulty="hard",
-            topic="System Design",
-            rationale="Classic architectural evaluation of hashing algorithms, distributed database sharding, and latency optimization.",
+            topic="Distributed Caching & Sharding Architecture",
+            rationale="Architectural evaluation of data partitioning, cache invalidation protocols, and latency optimization.",
             evidence_source="Target Role Standards",
             source_detail="Software Architect & System Design Standards",
             constraints=[
-                "Write throughput: 100M new URLs per month (~40 writes/sec)",
-                "Read throughput: 10:1 read-to-write ratio (~400 reads/sec)",
-                "URL redirection latency: < 100ms globally",
+                "Write throughput: 5,000 writes/sec with strict persistence guarantees",
+                "Read throughput: 50,000 reads/sec with < 20ms p99 latency",
                 "High availability: 99.99% uptime with multi-region failover",
-                "Short key length: 7 alphanumeric characters (Base62)",
+                "Fault tolerance: Zero single points of failure across data tiers",
             ],
             examples=[
                 {
-                    "input": "https://careerverse.ai/architect/deep-dive/scaling-distributed-systems-2026",
-                    "output": "https://bit.ly/aZ8k9X",
-                    "explanation": "Client requests /aZ8k9X -> Redis cluster cache lookup (<15ms) -> DB fallback -> 301/302 Redirect with asynchronous click analytics.",
+                    "input": "API read request with partition key 'tenant_1042'",
+                    "output": "Consistent hash ring lookup -> Regional Redis replica cache hit (<5ms)",
+                    "explanation": "Request routed via consistent hashing with virtual nodes to balance distribution across read replicas.",
                 }
             ],
             hints=[
-                "Unique ID generation (e.g., Base62 encoding with counter or Snowflake ID)",
-                "Database schema: Key -> Original URL, user_id, created_at, expiration_date",
-                "Handling high read traffic: Distributed Redis/Memcached cluster and CDN edge caching",
+                "Consistent hashing with virtual nodes to avoid hot spots",
+                "Cache-Aside with probabilistic early expiration (XFetch) to prevent cache stampedes",
+                "Multi-region asynchronous replication with conflict resolution",
             ],
         ),
         InterviewQuestionPayload(
@@ -1488,9 +1805,15 @@ def _fallback_next_question(
                 repository_context={
                     "tech_stack": gh_lang,
                     "repository_name": gh_name,
-                    "description": github_repos[0].get("description") or "Candidate Project Repository",
+                    "description": (
+                        (github_repos[0].get("description") if github_repos and isinstance(github_repos[0], dict) else None)
+                        or proj_evidence.get("repository_description")
+                        or "Candidate Project Repository"
+                    ),
                 },
                 related_files=repo_files_summary,
+                competency_phase="Project Understanding & Architecture",
+                core_question_index=1,
                 follow_ups=[
                     "How do you handle unit and integration testing in this repository?",
                     "What would you re-architect if traffic increased by 10x?",
@@ -1498,19 +1821,78 @@ def _fallback_next_question(
                 category="GitHub & Projects",
             ),
             InterviewQuestionPayload(
-                question_id="proj_02_async_state",
+                question_id="proj_02_function_invariants",
+                track="github",
+                topic=f"Implementation & Function Logic ({gh_name})",
+                normalized_concept="github:implementation_logic",
+                question=f"Looking into the implementation of '{gh_name}', choose a core function or module you authored. Explain its internal logic, input validations, and how it interfaces with downstream components.",
+                question_type="github_based",
+                difficulty="medium",
+                rationale=f"Assesses concrete coding and algorithmic implementation in {gh_name}.",
+                evidence_source=f"Connected GitHub Repository: {gh_name}",
+                source_detail=f"Project: {gh_name}",
+                related_files=repo_files_summary,
+                competency_phase="Implementation Details & Technical Concepts",
+                core_question_index=2,
+                follow_ups=[
+                    "What invariants or boundary checks did you establish in that function?",
+                ],
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_03_design_tradeoffs",
+                track="github",
+                topic=f"Design Decisions & Trade-offs ({gh_name})",
+                normalized_concept="github:architectural_tradeoffs",
+                question=f"What was the most significant architectural trade-off you evaluated while building '{gh_name}' (for instance, state management, synchronous vs asynchronous execution, or storage schema), and why was your chosen approach superior to the alternative?",
+                question_type="github_based",
+                difficulty="medium",
+                rationale=f"Evaluates technical decision-making and trade-off evaluation in {gh_name}.",
+                evidence_source=f"Connected GitHub Repository: {gh_name}",
+                source_detail=f"Project: {gh_name}",
+                related_files=repo_files_summary,
+                competency_phase="Design Decisions & Trade-offs",
+                core_question_index=3,
+                follow_ups=[
+                    "What metric or operational signal convinced you this was the right choice?",
+                ],
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_04_error_resilience",
                 track="github",
                 topic=f"Error Recovery & Workflows ({gh_name})",
                 normalized_concept="github:api_architecture",
-                question=f"Looking into your codebase for '{gh_name}', how did you handle error propagation, transient failures, and asynchronous workflows across your services?",
+                question=f"Looking into your codebase for '{gh_name}', how did you handle error propagation, transient network failures, and asynchronous workflows across your services?",
                 question_type="github_based",
                 difficulty="medium",
                 rationale=f"Evaluates practical engineering resilience and code modularity in {gh_name}.",
                 evidence_source=f"Connected GitHub Repository: {gh_name}",
                 source_detail=f"Project: {gh_name}",
                 related_files=repo_files_summary,
+                competency_phase="Debugging, Reliability & Problem Solving",
+                core_question_index=4,
                 follow_ups=[
                     "How do you ensure state consistency during partial network failures?",
+                ],
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_05_evolution_scaling",
+                track="github",
+                topic=f"Evolution & Scaling ({gh_name})",
+                normalized_concept="github:system_scaling",
+                question=f"If '{gh_name}' experienced a 10x surge in concurrent requests or data volume, what bottlenecks would emerge first in your current architecture, and how would you refactor or cache state to scale?",
+                question_type="github_based",
+                difficulty="medium",
+                rationale=f"Tests system scaling and production evolution foresight grounded in {gh_name}.",
+                evidence_source=f"Connected GitHub Repository: {gh_name}",
+                source_detail=f"Project: {gh_name}",
+                related_files=repo_files_summary,
+                competency_phase="Application, System Evolution & Scaling",
+                core_question_index=5,
+                follow_ups=[
+                    "How would database contention or connection pooling be affected under that scale?",
                 ],
                 category="GitHub & Projects",
             ),
@@ -1529,6 +1911,8 @@ def _fallback_next_question(
                 rationale="Assesses practical code design when candidate has no synchronized GitHub repositories.",
                 evidence_source="General Repository Standards (GitHub Not Connected)",
                 source_detail="Software Architecture Standards",
+                competency_phase="Project Understanding & Architecture",
+                core_question_index=1,
                 follow_ups=[
                     "How did you structure unit and integration tests for that project?",
                 ],
@@ -1537,7 +1921,37 @@ def _fallback_next_question(
             InterviewQuestionPayload(
                 question_id="proj_general_02",
                 track="github",
-                topic="Production CI/CD & Code Review",
+                topic="Core Function Implementation & Logic Invariants",
+                normalized_concept="github:implementation_logic",
+                question="In a production codebase you developed, walk me through a critical function or algorithmic workflow: what inputs did it validate, and what invariants did you enforce?",
+                question_type="github_based",
+                difficulty="medium",
+                rationale="Evaluates concrete function authoring and validation discipline.",
+                evidence_source="General Repository Standards (GitHub Not Connected)",
+                source_detail="Software Implementation Standards",
+                competency_phase="Implementation Details & Technical Concepts",
+                core_question_index=2,
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_general_03",
+                track="github",
+                topic="Architectural Decisions & Trade-Offs",
+                normalized_concept="github:architectural_tradeoffs",
+                question="Discuss a difficult technical trade-off you evaluated in a software project (for example, latency vs consistency, or library dependencies vs custom implementation). What was the outcome?",
+                question_type="github_based",
+                difficulty="medium",
+                rationale="Evaluates software decision making and trade-off analysis.",
+                evidence_source="General Repository Standards (GitHub Not Connected)",
+                source_detail="Engineering Design Standards",
+                competency_phase="Design Decisions & Trade-offs",
+                core_question_index=3,
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_general_04",
+                track="github",
+                topic="Production CI/CD & Error Recovery",
                 normalized_concept="github:api_architecture",
                 question="In production codebases, how do you manage dependency versioning, automated linting, container builds, and pull request reviews to ensure zero regressions?",
                 question_type="github_based",
@@ -1545,6 +1959,23 @@ def _fallback_next_question(
                 rationale="Evaluates software development lifecycle and code quality discipline.",
                 evidence_source="General Repository Standards (GitHub Not Connected)",
                 source_detail="Production Engineering Standards",
+                competency_phase="Debugging, Reliability & Problem Solving",
+                core_question_index=4,
+                category="GitHub & Projects",
+            ),
+            InterviewQuestionPayload(
+                question_id="proj_general_05",
+                track="github",
+                topic="System Evolution & Scaling",
+                normalized_concept="github:system_scaling",
+                question="When scaling a web service to handle 10x traffic, what strategies do you employ for database connection pooling, query caching, and asynchronous workers?",
+                question_type="github_based",
+                difficulty="medium",
+                rationale="Assesses scalability and architectural maturity.",
+                evidence_source="General Repository Standards (GitHub Not Connected)",
+                source_detail="High Scalability Standards",
+                competency_phase="Application, System Evolution & Scaling",
+                core_question_index=5,
                 category="GitHub & Projects",
             ),
         ])
@@ -1589,9 +2020,11 @@ def _fallback_next_question(
             *behavioral_questions,
             *system_design_questions,
         ]
-    # 2. Strictly prioritize GitHub / Project mode above generic architecture keywords
+    # 2. Strictly prioritize GitHub / Project mode: NEVER fall through to DSA
     elif mode_str in ["github", "project"] or any(k in focus_str for k in ["github", "project", "codebase", "repo"]):
-        topic_pool = [*project_questions, *behavioral_questions]
+        topic_pool = [*project_questions]
+    elif mode_str in ["hackerrank"] or any(k in focus_str for k in ["hackerrank"]):
+        topic_pool = [*db_questions, *dsa_questions, *backend_questions]
     elif mode_str in ["behavioral"] or any(k in focus_str for k in ["behavioral", "leadership", "star", "conflict"]):
         topic_pool = [*behavioral_questions, *project_questions]
     elif mode_str in ["dsa", "coding"] or any(k in focus_str for k in ["dsa", "algo", "algorithm", "leetcode", "data structure", "problem solving"]):
@@ -1645,12 +2078,20 @@ def _fallback_next_question(
         return localize_question_payload(cand_copy, session.language)
 
     # General multi-domain pool fallback with concept and similarity filtering
-    if any(k in role_lower for k in ["architect", "system design"]):
+    if mode_str in ["github", "project"] or any(k in focus_str for k in ["github", "project", "codebase", "repo"]):
+        general_pool = [*project_questions, *system_design_questions, *backend_questions]
+    elif any(k in role_lower for k in ["architect", "system design"]):
         general_pool = [*system_design_questions, *backend_questions, *project_questions]
     elif any(k in role_lower for k in ["frontend", "ui"]):
         general_pool = [*frontend_questions, *project_questions, *behavioral_questions]
     elif any(k in role_lower for k in ["backend"]):
         general_pool = [*backend_questions, *db_questions, *system_design_questions]
+    elif mode_str in ["hackerrank"]:
+        general_pool = [*db_questions, *dsa_questions, *backend_questions]
+    elif mode_str in ["dsa", "coding"]:
+        general_pool = [*dsa_questions]
+    elif mode_str in ["behavioral"]:
+        general_pool = [*behavioral_questions]
     else:
         general_pool = [
             *dsa_questions,
@@ -1680,6 +2121,14 @@ def _fallback_next_question(
         cand_copy.language = session.language
         cand_copy.normalized_concept = cand_concept
         cand_copy.question_text = cand_copy.question
+        cand_copy.core_question_index = core_question_index
+        cand_copy.total_core_questions = 5
+        cand_copy.is_follow_up = is_follow_up
+        cand_copy.follow_up_of_core = core_question_index if is_follow_up else None
+        cand_copy.competency_phase = competency_phase or COMPETENCY_PHASES[min(core_question_index - 1, 4)]
+        if repo_citations and not cand_copy.repository_citations:
+            cand_copy.repository_citations = repo_citations[:2]
+        cand_copy.evidence_status = ev_status
         return localize_question_payload(cand_copy, session.language)
 
     # If all pool questions were asked, synthesize a distinct topic-grounded question with unique concept
@@ -1697,8 +2146,15 @@ def _fallback_next_question(
         topic=f"Advanced {topic_label} & Production Observability",
         normalized_concept=novel_concept,
         rationale="Evaluates operational monitoring, production debugging, and system observability.",
-        evidence_source="Target Role Standards",
+        evidence_source=f"Connected GitHub Repository: {gh_name}" if has_real_repos else "Target Role Standards",
         source_detail=f"Observability in {topic_label}",
+        core_question_index=core_question_index,
+        total_core_questions=5,
+        is_follow_up=is_follow_up,
+        follow_up_of_core=core_question_index if is_follow_up else None,
+        competency_phase=competency_phase or COMPETENCY_PHASES[min(core_question_index - 1, 4)],
+        repository_citations=repo_citations[:2],
+        evidence_status=ev_status,
     )
     return localize_question_payload(ext_payload, session.language)
 
@@ -1754,11 +2210,83 @@ def _final_report_payload(raw: Dict[str, Any], session: Optional[InterviewSessio
         else:
             normalized[list_field] = []
 
+    # Derive auditable numerical scores and question breakdowns from session transcript
+    scores = []
+    relevance_scores = []
+    competency_scores = {}
+    question_evaluations = []
+
+    if session and session.transcript:
+        for idx, entry in enumerate(session.transcript):
+            if not isinstance(entry, dict):
+                continue
+            eval_obj = entry.get("evaluation") or {}
+            q_obj = entry.get("question") or {}
+            q_text = q_obj.get("question") if isinstance(q_obj, dict) else str(q_obj)
+            topic = (q_obj.get("topic") if isinstance(q_obj, dict) else None) or f"Question {idx + 1}"
+            comp_phase = (q_obj.get("competency_phase") if isinstance(q_obj, dict) else None) or f"Phase {idx + 1}"
+
+            score_val = eval_obj.get("score")
+            if score_val is not None:
+                try:
+                    s_float = float(score_val)
+                    scores.append(s_float)
+                    competency_scores[comp_phase] = s_float
+                except (ValueError, TypeError):
+                    pass
+
+            rubric = eval_obj.get("rubric_scores") or {}
+            rel_val = rubric.get("relevance") or eval_obj.get("relevance") or score_val
+            if rel_val is not None:
+                try:
+                    relevance_scores.append(float(rel_val))
+                except (ValueError, TypeError):
+                    pass
+
+            question_evaluations.append({
+                "question_number": idx + 1,
+                "question": q_text,
+                "topic": topic,
+                "competency_phase": comp_phase,
+                "score": score_val,
+                "rubric_scores": rubric,
+                "strengths": eval_obj.get("strengths") or [],
+                "improvements": eval_obj.get("improvements") or [],
+                "missing_elements": eval_obj.get("missing_elements") or [],
+                "assessment": eval_obj.get("assessment") or "",
+                "candidate_answer": (entry.get("answer") or "")[:250],
+            })
+
+    avg_q_score = round(sum(scores) / len(scores), 1) if scores else float(normalized.get("average_question_score") or 7.5)
+    rel_score = round(sum(relevance_scores) / len(relevance_scores), 1) if relevance_scores else float(normalized.get("relevance_score") or 8.0)
+    overall = round(avg_q_score * 0.7 + rel_score * 0.3, 1) if scores else float(normalized.get("overall_score") or 7.5)
+
+    duration_secs = None
+    if session and session.created_at:
+        end_time = session.completed_at or datetime.utcnow()
+        duration_secs = max(0, int((end_time - session.created_at).total_seconds()))
+
+    if scores:
+        normalized["overall_score"] = overall
+        normalized["average_question_score"] = avg_q_score
+        normalized["relevance_score"] = rel_score
+    else:
+        normalized["overall_score"] = float(normalized.get("overall_score") or overall)
+        normalized["average_question_score"] = float(normalized.get("average_question_score") or avg_q_score)
+        normalized["relevance_score"] = float(normalized.get("relevance_score") or rel_score)
+    normalized["duration_seconds"] = duration_secs if duration_secs is not None else normalized.get("duration_seconds", 300)
+    normalized["competency_scores"] = normalized.get("competency_scores") or competency_scores
+    normalized["question_evaluations"] = question_evaluations or normalized.get("question_evaluations") or []
+    if session:
+        normalized["session_id"] = session.session_id
+    normalized["evaluated_at"] = datetime.utcnow().isoformat()
+
     return normalized
 
 
 def _fallback_final_report(session: InterviewSession, evidence: Dict[str, Any]) -> InterviewFinalReport:
     """Generate a reliable, evidence-grounded final report when the AI provider fails."""
+    normalized = _final_report_payload({}, session=session)
     transcript = session.transcript or []
     questions_asked = []
     candidate_answers = []
@@ -1806,6 +2334,14 @@ def _fallback_final_report(session: InterviewSession, evidence: Dict[str, Any]) 
                 f"{role_str} பணிக்கான மேம்பட்ட production patterns மற்றும் scaling strategies-ஐ மதிப்பாய்வு செய்யவும்",
                 "STAR முறையைப் பயன்படுத்தி அளவிடக்கூடிய முடிவுகளுடன் சூழ்நிலை தொழில்நுட்ப பதில்களை கட்டமைக்கவும்",
             ],
+            overall_score=normalized["overall_score"],
+            average_question_score=normalized["average_question_score"],
+            relevance_score=normalized["relevance_score"],
+            duration_seconds=normalized["duration_seconds"],
+            competency_scores=normalized["competency_scores"],
+            question_evaluations=normalized["question_evaluations"],
+            session_id=session.session_id,
+            evaluated_at=datetime.utcnow(),
         )
 
     if lang.startswith("hi"):
@@ -1831,6 +2367,14 @@ def _fallback_final_report(session: InterviewSession, evidence: Dict[str, Any]) 
                 f"{role_str} के लिए उन्नत प्रोडक्शन पैटर्न और स्केलिंग रणनीतियों की समीक्षा करें",
                 "मापने योग्य परिणामों के साथ STAR पद्धति का उपयोग करके तकनीकी उत्तर तैयार करें",
             ],
+            overall_score=normalized["overall_score"],
+            average_question_score=normalized["average_question_score"],
+            relevance_score=normalized["relevance_score"],
+            duration_seconds=normalized["duration_seconds"],
+            competency_scores=normalized["competency_scores"],
+            question_evaluations=normalized["question_evaluations"],
+            session_id=session.session_id,
+            evaluated_at=datetime.utcnow(),
         )
 
     return InterviewFinalReport(
@@ -1855,6 +2399,14 @@ def _fallback_final_report(session: InterviewSession, evidence: Dict[str, Any]) 
             f"Review advanced production patterns and scaling strategies for {role_str}",
             "Structure situational technical answers using the STAR method with measurable results",
         ],
+        overall_score=normalized["overall_score"],
+        average_question_score=normalized["average_question_score"],
+        relevance_score=normalized["relevance_score"],
+        duration_seconds=normalized["duration_seconds"],
+        competency_scores=normalized["competency_scores"],
+        question_evaluations=normalized["question_evaluations"],
+        session_id=session.session_id,
+        evaluated_at=datetime.utcnow(),
     )
 
 
@@ -1869,6 +2421,20 @@ def _candidate_context(candidate_id: int, query: str):
         query=query,
         top_k=5,
     )
+
+
+def _attach_technical_citations(question: InterviewQuestionPayload, context: Any) -> InterviewQuestionPayload:
+    metadata = getattr(context, "metadata", {}) or {}
+    citations = list(metadata.get("technical_sources") or [])
+    question.source_citations = citations
+    question.technical_source_status = str(metadata.get("technical_source_status") or "unavailable")
+    if citations:
+        question.source_ids = [str(item.get("id")) for item in citations if item.get("id")]
+        if "fresh_official_technical_docs" not in (question.evidence_sources or []):
+            question.evidence_sources = list(question.evidence_sources or []) + [
+                "fresh_official_technical_docs"
+            ]
+    return question
 
 
 def get_candidate_connected_resources(db: Optional[Session] = None, user: Optional[User] = None) -> Dict[str, Any]:
@@ -2107,6 +2673,163 @@ def get_candidate_connected_resources(db: Optional[Session] = None, user: Option
     }
 
 
+def _retrieve_candidate_project_evidence(
+    db: Session,
+    current_user: User,
+    focus_topic: Optional[str] = None,
+    repository_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Retrieves candidate's verified GitHub repository source files, project architecture docs,
+    resume skills, and verified projects.
+    """
+    evidence: Dict[str, Any] = {
+        "has_repository": False,
+        "repository_name": None,
+        "repository_language": None,
+        "repository_description": None,
+        "readme_snippet": None,
+        "source_files": [],
+        "repository_citations": [],
+        "evidence_status": "ungrounded_limitation",
+        "resume_skills": [],
+        "resume_projects": [],
+    }
+
+    # 1. Query GitHub repositories and real files
+    user_id = current_user.id if hasattr(current_user, "id") else current_user
+    try:
+        gh_profile = db.query(GitHubProfile).filter(GitHubProfile.user_id == user_id).first()
+        repo = None
+        if repository_id:
+            repo = db.query(GitHubRepository).filter(GitHubRepository.id == repository_id).first()
+        elif gh_profile:
+            repos = db.query(GitHubRepository).filter(GitHubRepository.github_profile_id == gh_profile.id).all()
+            if repos:
+                selected_repos = [r for r in repos if getattr(r, "selected_for_analysis", False)]
+                if selected_repos:
+                    repo = selected_repos[0]
+                else:
+                    repos_with_files = []
+                    for r in repos:
+                        if db.query(GitHubRepositoryFile).filter(GitHubRepositoryFile.github_repository_id == r.id).first():
+                            repos_with_files.append(r)
+                    repo = repos_with_files[0] if repos_with_files else repos[0]
+
+        if repo:
+            evidence["has_repository"] = True
+            evidence["repository_name"] = repo.name
+            evidence["repository_language"] = repo.language or "Python/JavaScript"
+            evidence["repository_description"] = repo.description or ""
+
+            doc = (
+                db.query(GitHubRepositoryDocument)
+                .filter(
+                    GitHubRepositoryDocument.github_repository_id == repo.id,
+                    GitHubRepositoryDocument.document_type.in_(["README", "ARCHITECTURE", "DOCS"]),
+                )
+                .first()
+            )
+            if doc and doc.content:
+                evidence["readme_snippet"] = doc.content[:1500]
+
+            files = (
+                db.query(GitHubRepositoryFile)
+                .filter(GitHubRepositoryFile.github_repository_id == repo.id)
+                .all()
+            )
+
+            source_files_list = []
+            citations = []
+            if files:
+                evidence["evidence_status"] = "grounded"
+                for f in files:
+                    ext = f.file_path.split(".")[-1].lower() if "." in f.file_path else ""
+                    if ext in ["py", "js", "jsx", "ts", "tsx", "sql", "json", "go", "java", "md", "html", "css"]:
+                        snippet = (f.content or "")[:400]
+                        source_files_list.append({
+                            "file_path": f.file_path,
+                            "file_name": f.file_name,
+                            "snippet": snippet,
+                        })
+                        rationale = f"Core module in {repo.name}"
+                        fp_lower = f.file_path.lower()
+                        if "auth" in fp_lower or "security" in fp_lower:
+                            rationale = "Authentication & JWT security logic"
+                        elif "service" in fp_lower:
+                            rationale = "Business logic and service orchestration"
+                        elif "router" in fp_lower or "api" in fp_lower:
+                            rationale = "API endpoints and request routing"
+                        elif "model" in fp_lower or "schema" in fp_lower:
+                            rationale = "Domain schemas and data contracts"
+                        elif "database" in fp_lower or "session" in fp_lower:
+                            rationale = "Database connection and transaction management"
+                        elif "test" in fp_lower:
+                            rationale = "Automated test suites and verification"
+
+                        citations.append({
+                            "file_path": f.file_path,
+                            "line_range": "L1-L45",
+                            "rationale": rationale,
+                        })
+                evidence["source_files"] = source_files_list[:15]
+                evidence["repository_citations"] = citations[:8]
+    except Exception as exc:
+        logger.debug("Failed extracting candidate repo evidence: %s", exc)
+
+    # 2. Query ParsedResume for skills and projects
+    try:
+        resume = (
+            db.query(Resume)
+            .filter(Resume.user_id == user_id)
+            .order_by(Resume.created_at.desc())
+            .first()
+        )
+        if resume:
+            parsed = db.query(ParsedResume).filter(ParsedResume.resume_id == resume.id).first()
+            if parsed:
+                evidence["resume_skills"] = parsed.skills or []
+                evidence["resume_projects"] = parsed.projects or []
+                if not evidence["has_repository"] and (parsed.projects or parsed.skills):
+                    evidence["evidence_status"] = "grounded"
+    except Exception as exc:
+        logger.debug("Failed querying parsed resume evidence: %s", exc)
+
+    return evidence
+
+
+def _get_candidate_weak_areas(db: Session, candidate_id: int) -> List[str]:
+    """Extracts concept or skill areas from previous sessions where the candidate had low scores or omissions."""
+    try:
+        past_sessions = (
+            db.query(InterviewSession)
+            .filter(InterviewSession.candidate_id == candidate_id)
+            .order_by(InterviewSession.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        weak_areas = []
+        for s in past_sessions:
+            if s.transcript and isinstance(s.transcript, list):
+                for t in s.transcript:
+                    if isinstance(t, dict):
+                        eval_data = t.get("evaluation") or {}
+                        score = eval_data.get("score")
+                        missing = eval_data.get("missing_elements") or []
+                        q_data = t.get("question") or {}
+                        topic = q_data.get("topic") or ""
+                        if (score is not None and score < 7) or missing:
+                            if topic and topic.lower() not in [w.lower() for w in weak_areas]:
+                                weak_areas.append(topic)
+                            for m in missing:
+                                if m and len(m) < 40 and m.lower() not in [w.lower() for w in weak_areas]:
+                                    weak_areas.append(m)
+        return weak_areas[:8]
+    except Exception as exc:
+        logger.debug("Failed extracting candidate weak areas: %s", exc)
+        return []
+
+
 def _graph_evidence(
     candidate_id: int,
     db: Optional[Session] = None,
@@ -2137,6 +2860,9 @@ def _graph_evidence(
                 evidence["github_repos"] = conn["github"].get("repositories") or []
             if conn.get("certifications"):
                 evidence["certifications"] = conn["certifications"]
+
+            proj_ev = _retrieve_candidate_project_evidence(db, current_user)
+            evidence["project_evidence"] = proj_ev
         except Exception as exc:
             logger.debug("Failed adding connected resources to evidence: %s", exc)
 
@@ -2150,7 +2876,16 @@ def _base_prompt(
     transcript: List[Dict[str, Any]],
     recently_asked_in_last_30_days: Optional[List[str]] = None,
     excluded_concepts: Optional[List[str]] = None,
+    core_question_index: int = 1,
+    competency_phase: str = "Project Understanding & Architecture",
+    is_follow_up: bool = False,
+    follow_up_reason: Optional[str] = None,
+    total_core_questions: int = 5,
 ) -> str:
+    proj_evidence = evidence.get("project_evidence") or {}
+    has_repo = proj_evidence.get("has_repository", False)
+    ev_status = proj_evidence.get("evidence_status", "grounded" if has_repo else "ungrounded_limitation")
+
     return json.dumps(
         {
             "candidate_id": session.candidate_id,
@@ -2158,6 +2893,15 @@ def _base_prompt(
             "interview_mode": session.interview_mode,
             "focus_topic": getattr(session, "focus_topic", None),
             "language": session.language,
+            "core_question_index": core_question_index,
+            "total_core_questions": total_core_questions,
+            "competency_phase": competency_phase,
+            "is_follow_up": is_follow_up,
+            "follow_up_reason": follow_up_reason,
+            "evidence_status": ev_status,
+            "repository_name": proj_evidence.get("repository_name"),
+            "repository_language": proj_evidence.get("repository_language"),
+            "repository_citations": proj_evidence.get("repository_citations", [])[:5],
             "verified_candidate_context": context_text[:2500],
             "verified_graph_evidence": evidence,
             "previous_transcript": transcript[-3:],
@@ -2199,12 +2943,50 @@ def _provider_json(
 
 
 QUESTION_SYSTEM_PROMPT = """You are Cyra-Bot, AI Mentor and Lead Technical Interview Coach at CareerVerse AI.
-You conduct realistic, conversational technical interviews testing the candidate's technical knowledge.
+You conduct realistic, conversational technical interviews testing the candidate's technical knowledge and engineering experience.
 
-STRICT TARGET ROLE & DOMAIN ALIGNMENT (HIGHEST PRIORITY):
+EVIDENCE-FIRST GROUNDING & QUESTION PROGRESSION (HIGHEST PRIORITY):
+- Check 'competency_phase', 'core_question_index', 'total_core_questions', 'is_follow_up', 'evidence_status', and 'repository_name' in the user payload JSON.
+- STRICT INTERVIEW MODE PROHIBITIONS & EVIDENCE ROUTING:
+  * If 'interview_mode' is 'github' or 'project':
+    - You are STRICTLY FORBIDDEN from asking LeetCode/DSA toy algorithmic puzzles (such as Group Anagrams, Two Pointers, Trapping Rain Water, Binary Trees, Sliding Window, or canonical LeetCode puzzles)!
+    - Every question MUST strictly evaluate the candidate's real repository files, functions, architecture, state management, design decisions, trade-offs, error recovery, and failure resilience.
+    - Ask questions like: "Explain how this function works in your repo", "Why did you choose this architecture over alternatives?", "How does this module interact with downstream services?", "What happens when this operation fails?", "How would you improve the actual implementation?"
+  * If 'interview_mode' is 'hackerrank':
+    - Ground strictly in the candidate's verified HackerRank badges, problem solving certifications, complex SQL queries (multi-table joins, subqueries, group by having, window functions, indexing), and algorithmic problem solving.
+    - Do NOT masquerade as pure LeetCode toy puzzles; emphasize practical SQL queries, data transformations, relational integrity, and HackerRank domain challenges.
+  * If 'interview_mode' is 'dsa' or 'coding':
+    - Cover authenticated LeetCode problems or curriculum across core patterns (arrays, hash maps, two pointers, sliding window, stacks, queues, trees, graphs, binary search, dynamic programming).
+    - Require the candidate to explain their approach, invariant, complexity, edge cases, and alternatives.
+  * If 'interview_mode' is 'resume':
+    - Ground strictly in the candidate's actual extracted resume skills, projects, and work experiences.
+  * If 'interview_mode' is 'system_design':
+    - Evaluate requirements scoping, microservice boundaries, caching, sharding, reliability, and failure handling.
+  * If 'interview_mode' is 'behavioral':
+    - Evaluate STAR framework, leadership, ownership, and engineering incidents.
+- Evidence Grounding Mandate:
+  * When candidate repository evidence is available (evidence_status == 'grounded'):
+    - Every question MUST RIGOROUSLY GROUND IN AND CITE the candidate's real repository, source files (e.g. auth, security, services, models, components), and architecture.
+    - Explicitly reference the repository name, relevant file paths (e.g., 'backend/app/core/security.py', 'backend/app/main.py'), components, and actual architectural responsibilities.
+    - NEVER ask generic toy examples like 'Design Bitly URL shortener' when candidate repository files or projects are present!
+    - Include concrete 'repository_citations' with file paths in your JSON response.
+  * When candidate project evidence is UNAVAILABLE ('evidence_status' == 'ungrounded_limitation'):
+    - Explicitly state the limitation in the question framing: "[General Technical Practice Question - No Connected Codebase Evidence]" and evaluate core principles for the target role.
+- The 5 Competency Phases across core questions:
+  1. Phase 1: Project Understanding & Architecture (module boundaries, entry points, component flow in candidate's project)
+  2. Phase 2: Implementation Details & Technical Concepts (specific file logic, async processing, API schemas)
+  3. Phase 3: Design Decisions & Trade-offs (database choice, sync vs async, architectural trade-offs evaluated)
+  4. Phase 4: Debugging, Reliability & Problem Solving (transient errors, race conditions, edge cases, rollbacks)
+  5. Phase 5: Application, System Evolution & Scaling (10x traffic, distributed caching, sharding, evolution)
+- Adaptive Follow-Up Mandate:
+  * If 'is_follow_up' is true:
+    - Do NOT switch to a new topic or phase!
+    - Formulate a targeted, Socratic follow-up probing the specific gap, omitted detail, or ambiguity noted in 'follow_up_reason'.
+
+STRICT TARGET ROLE & DOMAIN ALIGNMENT:
 - Check 'target_role' in the user payload JSON.
 - Every question asked MUST RIGOROUSLY ALIGN WITH 'target_role':
-  * For 'Software Architect' / 'Solutions Architect': ALWAYS ask high-level architecture, distributed systems, scalability, database partitioning, caching strategies, and reliability trade-offs (e.g. Design a scalable URL shortener like Bitly, distributed rate limiter, event-driven pipelines). NEVER ask elementary LeetCode coding puzzles!
+  * For 'Software Architect' / 'Solutions Architect': Ground questions directly in the candidate's repository architecture and system design (or distributed systems architecture if ungrounded). Probe distributed architecture, modular boundaries, data flows, caching, and reliability trade-offs. NEVER ask generic toy examples like 'Design Bitly URL shortener' when candidate project evidence is available!
   * For 'Frontend Engineer' / 'Frontend Developer' / 'UI Engineer': ALWAYS ask React/UI architecture, rendering performance, state management, CSS layouts, and web vitals.
   * For 'Backend Engineer' / 'Backend Developer': ALWAYS ask API design, database transactions, concurrency, indexing, and asynchronous workers.
   * For 'Data Engineer': ALWAYS ask data pipelines, Spark, Kafka, data warehouse modeling, and stream processing.
@@ -2256,15 +3038,17 @@ STRUCTURED QUESTION SCHEMAS (CONSTRAINTS, EXAMPLES, HINTS):
 - ALWAYS provide 'constraints', 'examples', and 'hints' alongside the question:
   * 'constraints': Array of 2-4 concrete system or problem constraints (e.g., traffic throughput, latency, memory limits, availability).
   * 'examples': Array of 1-2 examples with 'input', 'output', and 'explanation'.
-  * 'hints': Array of 2-3 architectural guidance points (e.g. "Unique ID generation (Base62)", "Database schema", "Handling high traffic").
+  * 'hints': Array of 2-3 architectural guidance points (e.g. "Unique ID generation", "Database schema", "Handling high traffic").
 
 CRITICAL MULTILINGUAL MANDATE (SPEAK IN CANDIDATE'S SELECTED LANGUAGE):
-- Inspect the 'language' property in the user payload JSON ('ta', 'hi', 'te', 'kn', 'es', 'fr', 'de', 'en').
+- Inspect the 'language' property in the user payload JSON ('ta', 'hi', 'te', 'kn', 'ml', 'es', 'fr', 'de', 'en').
 - The entire 'question', 'topic', 'hints', and 'examples' MUST be written in the candidate's chosen language:
   * If 'language' == 'ta' (Tamil / Tanglish):
     The interviewer MUST speak in natural, friendly conversational Tamil (using Tamil script or conversational Tanglish with English technical keywords, e.g. "வணக்கம்! Group Anagrams problem-ல hash map frequency key-ஐ எப்படி efficiently construct பண்ணுவீங்க?"). NEVER write solely in English!
   * If 'language' == 'hi' (Hindi / Hinglish):
     The interviewer MUST speak in natural conversational Hindi (using Devanagari script or conversational Hinglish with English technical keywords, e.g. "नमस्ते! चलिए एक interesting coding problem solve करते हैं. Group Anagrams में hash map का use करके time complexity को कैसे optimize करेंगे?"). NEVER write solely in English!
+  * If 'language' == 'ml' (Malayalam):
+    The interviewer MUST speak in natural, friendly conversational Malayalam (using Malayalam script or conversational Manglish with English technical keywords, e.g. "നമസ്കാരം! Group Anagrams problem-ൽ hash map frequency key ഉപയോഗിച്ച് time complexity എങ്ങനെ optimize ചെയ്യാം?"). NEVER write solely in English!
   * If 'language' == 'te' (Telugu):
     Formulate the question in conversational Telugu with English technical terms.
   * If 'language' == 'kn' (Kannada):
@@ -2293,6 +3077,11 @@ CRITICAL MULTILINGUAL MANDATE (SPEAK IN CANDIDATE'S SELECTED LANGUAGE):
   "question_type": "system_design|technical|project_based|skill_based|role_based|skill_gap|behavioral",
   "difficulty": "easy|medium|hard",
   "topic": "...",
+  "competency_phase": "Project Understanding & Architecture|Implementation Details & Technical Concepts|Design Decisions & Trade-offs|Debugging, Reliability & Problem Solving|Application, System Evolution & Scaling",
+  "repository_citations": [
+    {"file_path": "path/to/file", "line_range": "L1-L40", "rationale": "..."}
+  ],
+  "evidence_status": "grounded|ungrounded_limitation",
   "rationale": "..."
 }
 """
@@ -2321,24 +3110,40 @@ Return ONLY JSON:
 
 EVALUATION_SYSTEM_PROMPT = """You are Cyra-Bot, AI Mentor and Lead Technical Interview Coach and Evaluator at CareerVerse AI.
 Analyze the candidate's answer and any submitted code or terminal execution output as an interactive, highly supportive mentor.
+
+RUBRIC & INTENT-BASED EVALUATION RULES (MANDATORY & STRICT):
+1. GREETING / NON-ANSWER: If the candidate only greeted (e.g., "Hello", "Hi Cyra", "Good morning") instead of providing a technical answer, score MUST be 1. Rubric scores must all be 1. Assessment must state that a greeting was submitted instead of a technical solution.
+2. "I DON'T KNOW" / "NO CLUE": If the candidate stated they do not know or have not used this technology, score MUST be 1. Acknowledge honesty constructively, explain what they should have discussed, and outline how to reason from first principles.
+3. IRRELEVANT / OFF-TOPIC: If the answer does not address the question asked (even if it contains technical buzzwords or discusses an unrelated domain), score MUST be 1 or 2 with relevance=1. State clearly why the response is off-topic.
+4. PARTIAL ANSWER: Award proportionate credit (e.g. 4 to 6) based on what was correct. Explicitly distinguish what was accurate from what was omitted or mistaken.
+5. HIGH-QUALITY ANSWER: Award 8 to 10 with clear evidence-backed strengths and sound trade-off analysis.
+6. NO FABRICATED EVIDENCE OR CODE EXECUTION: Do NOT claim code was compiled, run, or passed tests unless actual runnable code or test results were provided. If only a verbal answer was given, evaluate the conceptual explanation without pretending code was executed.
+7. RUBRIC SCORES: Provide an integer (1-10) for each rubric dimension:
+   - "relevance": Did the answer address the exact question asked?
+   - "technical_correctness": Is the technical reasoning and syntax accurate?
+   - "completeness_depth": Did it address edge cases, scalability, or constraints?
+   - "reasoning_explanation": Was the explanation structured and clear?
+   - "tradeoff_analysis": Were architectural or complexity trade-offs analyzed?
+
 Provide a structured educational breakdown:
-1. WHAT WAS RIGHT: Specific accurate points, correct design intuition, or good code practices they mentioned.
+1. WHAT WAS RIGHT: Specific accurate points, correct design intuition, or good practices mentioned.
 2. MISTAKES & GAPS: Concrete mistakes in their verbal answer or code, syntax/logic bugs, missed edge cases, overlooked time/space complexity, or unaddressed concurrency.
 3. TERMINAL & CODE ANALYSIS:
-   - If code is submitted or run in the terminal (marked by [Candidate Submitted Code] or terminal output), thoroughly analyze:
+   - If code is submitted (marked by [Candidate Submitted Code]), thoroughly analyze:
      * Code correctness, logic flaws, off-by-one errors, edge cases.
-     * Exact Time and Space Complexity of their submitted code (e.g. O(N) time, O(1) space).
+     * Exact Time and Space Complexity of submitted code (e.g. O(N) time, O(1) space).
      * Code quality, variable naming, SQL indexing, and error handling.
-4. HOW TO ANSWER & CODE: Step-by-step mentor formula and framework on how to structure the optimal answer and write the proper code/query in a real technical interview.
+   - If NO code was submitted, state that conceptual reasoning was evaluated without code execution.
+4. HOW TO ANSWER & CODE: Step-by-step mentor formula and framework on how to structure the optimal answer in a real technical interview.
 5. SENIOR MODEL ANSWER: A verbatim, senior-level model answer script and/or code demonstration.
-6. INTERACTIVE TEACHING: If the answer has mistakes or omissions, explain kindly and constructively what went wrong and guide them like a senior tech lead pairing with them.
+6. INTERACTIVE TEACHING: Constructive, encouraging guidance on what went wrong and how to fix it.
 
 CRITICAL MULTILINGUAL EVALUATION MANDATE:
-- Check the 'language' property in the user payload JSON ('ta', 'hi', 'te', 'kn', 'es', 'fr', 'de', 'en').
+- Check the 'language' property in the user payload JSON ('ta', 'hi', 'te', 'kn', 'ml', 'es', 'fr', 'de', 'en').
 - Formulate all evaluation commentary ('assessment', 'strengths', 'improvements', 'how_to_explain', 'ideal_pitch_script') in the candidate's chosen language:
   * In Tamil ('ta' / Tanglish): Formulate evaluation verdict, explanations, and model answer in natural, friendly conversational Tamil / Tanglish. Keep technical terms in standard English.
   * In Hindi ('hi' / Hinglish): Formulate in natural conversational Hindi / Hinglish. Keep technical terms in English.
-  * In Telugu ('te'), Kannada ('kn'), Spanish ('es'), French ('fr'), German ('de'): Formulate in that respective language.
+  * In Malayalam ('ml'): Formulate in natural conversational Malayalam / Manglish with English technical terms.
   * In English ('en'): Formulate in clear professional English.
 - CONCISENESS RULE: Keep bullet points concise (max 3 items per list, 2 sentences each for how_to_explain and ideal_pitch_script) to guarantee complete, valid JSON.
 
@@ -2346,6 +3151,13 @@ Return ONLY JSON:
 {
   "assessment": "High-level constructive mentor verdict and encouraging summary",
   "score": 8,
+  "rubric_scores": {
+    "relevance": 8,
+    "technical_correctness": 8,
+    "completeness_depth": 7,
+    "reasoning_explanation": 8,
+    "tradeoff_analysis": 7
+  },
   "strengths": [
     "Correctly identified...",
     "Accurately described..."
@@ -2366,15 +3178,17 @@ Return ONLY JSON:
 """
 
 FINAL_SYSTEM_PROMPT = """You are Cyra-Bot, AI Mentor and Lead Technical Interview Coach and Evaluator at CareerVerse AI.
-Use only the verified candidate context and completed transcript. Do not assign a numeric score and do not expose chain-of-thought.
-Produce an editorial qualitative report. Return ONLY JSON with:
+Use only the verified candidate context and completed transcript. Do not expose chain-of-thought.
+Produce an auditable and comprehensive performance report. Return ONLY JSON with:
+overall_score (float 1.0 to 10.0), average_question_score (float 1.0 to 10.0), relevance_score (float 1.0 to 10.0),
 questions_asked, candidate_answers, strengths, improvement_areas, skill_areas_demonstrated, unanswered_or_weak_areas, overall_interview_summary, recommended_preparation_areas.
 
 CRITICAL MULTILINGUAL MANDATE FOR FINAL REPORT:
-- Check the 'language' property in the user payload JSON ('ta', 'hi', 'en', etc.).
+- Check the 'language' property in the user payload JSON ('ta', 'hi', 'ml', 'en', etc.).
 - Formulate all narrative report fields ('overall_interview_summary', 'strengths', 'improvement_areas', 'recommended_preparation_areas') in the candidate's chosen language:
   * In Tamil ('ta' / Tanglish): Formulate in natural, conversational Tamil (Tanglish) keeping programming identifiers, tools, and technical terms in standard English.
   * In Hindi ('hi' / Hinglish): Formulate in natural conversational Hindi (Hinglish) with English technical terms.
+  * In Malayalam ('ml'): Formulate in natural conversational Malayalam (Manglish) with English technical terms.
   * In English ('en'): Formulate in professional editorial English.
 """
 
@@ -2399,6 +3213,25 @@ def _get_owned_session(db: Session, current_user: User, session_id: str) -> Inte
 def _to_response(session: InterviewSession) -> InterviewSessionResponse:
     transcript = [InterviewTranscriptEntry.model_validate(item) for item in (session.transcript or [])]
     latest = transcript[-1].evaluation if transcript else None
+    cur_q = InterviewQuestionPayload.model_validate(session.current_question) if session.current_question else None
+
+    core_num = 1
+    total_core = 5
+    is_fu = False
+    sess_mode = "fresh"
+
+    if cur_q:
+        core_num = cur_q.core_question_index or 1
+        total_core = cur_q.total_core_questions or 5
+        is_fu = bool(cur_q.is_follow_up)
+    elif transcript:
+        core_num = 5
+        total_core = 5
+        is_fu = False
+
+    if isinstance(session.current_question, dict):
+        sess_mode = session.current_question.get("session_mode") or "fresh"
+
     return InterviewSessionResponse(
         session_id=session.session_id,
         candidate_id=session.candidate_id,
@@ -2406,13 +3239,19 @@ def _to_response(session: InterviewSession) -> InterviewSessionResponse:
         interview_mode=session.interview_mode,
         focus_topic=getattr(session, "focus_topic", None),
         language=session.language,
-        current_question=InterviewQuestionPayload.model_validate(session.current_question) if session.current_question else None,
+        current_question=cur_q,
         question_number=session.question_number,
+        core_question_number=core_num,
+        total_core_questions=total_core,
+        is_follow_up=is_fu,
+        session_mode=sess_mode,
         transcript=transcript,
         status=session.status,
         created_at=session.created_at,
         completed_at=session.completed_at,
         latest_evaluation=latest,
+        evaluation=latest,
+        feedback=latest,
         final_report=InterviewFinalReport.model_validate(session.final_report) if session.final_report else None,
     )
 
@@ -2477,23 +3316,57 @@ def get_candidate_question_history(db: Session, current_user: User, days_cooldow
                     ready_for_retest = days_ago >= days_cooldown
                     days_remaining = max(0, days_cooldown - days_ago)
 
+                    eval_obj = entry.get("evaluation") or {}
+                    score_val = eval_obj.get("score") if isinstance(eval_obj, dict) else None
+                    if score_val is not None:
+                        try:
+                            score_num = int(score_val)
+                        except (ValueError, TypeError):
+                            score_num = None
+                    else:
+                        score_num = None
+
+                    missing = eval_obj.get("missing_elements") or [] if isinstance(eval_obj, dict) else []
+                    if score_num is not None and score_num >= 8:
+                        mastery_status = "mastered"
+                    elif (score_num is not None and score_num < 7) or (missing and len(missing) > 0):
+                        mastery_status = "needs_revision"
+                    else:
+                        mastery_status = "practiced"
+
                     history_items.append({
                         "question": q_text.strip(),
                         "question_type": q.get("question_type", "technical") if isinstance(q, dict) else "technical",
                         "topic": q.get("topic", "Technical Assessment") if isinstance(q, dict) else "Technical Assessment",
                         "difficulty": q.get("difficulty", "medium") if isinstance(q, dict) else "medium",
                         "target_role": s.target_role,
+                        "interview_mode": s.interview_mode,
+                        "session_id": s.session_id,
                         "asked_at": asked_at_dt.isoformat(),
                         "days_ago": days_ago,
                         "ready_for_retest": ready_for_retest,
                         "days_until_retest": days_remaining,
-                        "evaluation_summary": (entry.get("evaluation") or {}).get("assessment") if isinstance(entry.get("evaluation"), dict) else None,
-                        "score": (entry.get("evaluation") or {}).get("score") if isinstance(entry.get("evaluation"), dict) else None,
-                        "strengths": (entry.get("evaluation") or {}).get("strengths") if isinstance(entry.get("evaluation"), dict) else [],
-                        "improvements": (entry.get("evaluation") or {}).get("improvements") if isinstance(entry.get("evaluation"), dict) else [],
-                        "how_to_explain": (entry.get("evaluation") or {}).get("how_to_explain") if isinstance(entry.get("evaluation"), dict) else None,
-                        "ideal_pitch_script": (entry.get("evaluation") or {}).get("ideal_pitch_script") if isinstance(entry.get("evaluation"), dict) else None,
-                        "answer_snippet": entry.get("answer", "")[:150] if entry.get("answer") else None,
+                        "evaluation_summary": eval_obj.get("assessment") if isinstance(eval_obj, dict) else None,
+                        "score": score_num,
+                        "strengths": eval_obj.get("strengths") if isinstance(eval_obj, dict) else [],
+                        "improvements": eval_obj.get("improvements") if isinstance(eval_obj, dict) else [],
+                        "how_to_explain": eval_obj.get("how_to_explain") if isinstance(eval_obj, dict) else None,
+                        "ideal_pitch_script": eval_obj.get("ideal_pitch_script") if isinstance(eval_obj, dict) else None,
+                        "missing_elements": missing,
+                        "answer_snippet": entry.get("answer", "")[:180] if entry.get("answer") else None,
+                        "candidate_answer": entry.get("answer", "") or "",
+                        "follow_ups": q.get("follow_ups") if isinstance(q, dict) else [],
+                        "constraints": q.get("constraints") if isinstance(q, dict) else [],
+                        "examples": q.get("examples") if isinstance(q, dict) else [],
+                        "incorrect_statements": eval_obj.get("incorrect_statements") if isinstance(eval_obj, dict) else [],
+                        "key_takeaways": eval_obj.get("key_takeaways") if isinstance(eval_obj, dict) else [],
+                        "evidence_source": q.get("evidence_source") if isinstance(q, dict) else None,
+                        "source_detail": q.get("source_detail") if isinstance(q, dict) else None,
+                        "repository_citations": q.get("repository_citations") if isinstance(q, dict) else [],
+                        "rubric_scores": eval_obj.get("rubric_scores") if isinstance(eval_obj, dict) else {},
+                        "competency_phase": q.get("competency_phase") if isinstance(q, dict) else None,
+                        "evaluation_status": eval_obj.get("evaluation_status", "evaluated") if isinstance(eval_obj, dict) else "evaluated",
+                        "mastery_status": mastery_status,
                     })
 
     return history_items
@@ -2505,6 +3378,11 @@ def _generate_question_with_diversity(
     context_text: str,
     evidence: Dict[str, Any],
     recently_asked: List[str],
+    core_question_index: int = 1,
+    competency_phase: str = "Project Understanding & Architecture",
+    is_follow_up: bool = False,
+    follow_up_reason: Optional[str] = None,
+    total_core_questions: int = 5,
 ) -> InterviewQuestionPayload:
     """
     Guarantees diverse, non-repetitive question generation by:
@@ -2554,6 +3432,11 @@ def _generate_question_with_diversity(
                     transcript,
                     recently_asked_in_last_30_days=recently_asked,
                     excluded_concepts=list(asked_concepts),
+                    core_question_index=core_question_index,
+                    competency_phase=competency_phase,
+                    is_follow_up=is_follow_up,
+                    follow_up_reason=follow_up_reason,
+                    total_core_questions=total_core_questions,
                 ),
                 max_completion_tokens=650,
             )
@@ -2565,9 +3448,13 @@ def _generate_question_with_diversity(
             question.track = session.interview_mode
             question.language = session.language
             question.question_text = q_text
+            question.core_question_index = core_question_index
+            question.total_core_questions = total_core_questions
+            question.is_follow_up = is_follow_up
+            question.competency_phase = competency_phase
 
-            # Enforce non-repetition and semantic uniqueness
-            is_repetitive = (
+            # Enforce non-repetition and semantic uniqueness (skip repetition check for targeted follow-up)
+            is_repetitive = not is_follow_up and (
                 q_concept in asked_concepts
                 or q_text.lower() in asked_texts
                 or any(calculate_text_similarity(q_text, past) >= 0.55 for past in asked_texts)
@@ -2586,7 +3473,16 @@ def _generate_question_with_diversity(
             logger.warning("AI provider question generation attempt %d failed: %s", attempt + 1, exc)
 
     logger.info("Using diverse evidence-grounded fallback question for session %s (mode=%s)", session.session_id, session.interview_mode)
-    fallback = _fallback_next_question(session, transcript, evidence, blocked_questions=recently_asked)
+    fallback = _fallback_next_question(
+        session,
+        transcript,
+        evidence,
+        blocked_questions=recently_asked,
+        core_question_index=core_question_index,
+        competency_phase=competency_phase,
+        is_follow_up=is_follow_up,
+        follow_up_reason=follow_up_reason,
+    )
     fallback.session_id = session.session_id
     fallback.track = session.interview_mode
     fallback.language = session.language
@@ -2601,13 +3497,16 @@ def create_interview_session(db: Session, current_user: User, request: Interview
     if role and not get_role_requirements(role):
         raise InterviewSessionStateError(f"Unsupported target role: {role}")
 
+    session_mode = request.session_mode or "fresh"
+    total_core = request.total_core_questions or 5
+
     session = InterviewSession(
         session_id=str(uuid.uuid4()),
         candidate_id=current_user.id,
         target_role=role,
         interview_mode=request.interview_mode,
         focus_topic=request.focus_topic,
-        language=request.language,
+        language=request.language or "en",
         question_number=1,
         transcript=[],
         status="active",
@@ -2615,20 +3514,49 @@ def create_interview_session(db: Session, current_user: User, request: Interview
     topic_clause = f" focusing on {request.focus_topic}" if request.focus_topic else ""
     context_query = f"Start a {request.interview_mode} interview{topic_clause}" + (f" for {role}" if role else "")
     context = _candidate_context(current_user.id, context_query)
+
+    proj_evidence = _retrieve_candidate_project_evidence(
+        db, current_user, focus_topic=request.focus_topic, repository_id=request.repository_id
+    )
+
     try:
         evidence = _graph_evidence(current_user.id, db=db, current_user=current_user)
     except TypeError:
         evidence = _graph_evidence(current_user.id)
+    evidence["project_evidence"] = proj_evidence
+
     recently_asked = get_recently_asked_question_texts(db, current_user.id, days=30)
+    if session_mode == "revision":
+        weak_areas = _get_candidate_weak_areas(db, current_user.id)
+        if weak_areas:
+            recently_asked = [rq for rq in recently_asked if not any(w.lower() in rq.lower() for w in weak_areas)]
+
     question = _generate_question_with_diversity(
         session,
         [],
         context.context_text,
         evidence,
         recently_asked,
+        core_question_index=1,
+        competency_phase=COMPETENCY_PHASES[0],
+        is_follow_up=False,
+        total_core_questions=total_core,
     )
+    question = _attach_technical_citations(question, context)
+    question.core_question_index = 1
+    question.total_core_questions = total_core
+    question.is_follow_up = False
+    question.competency_phase = COMPETENCY_PHASES[0]
+    if proj_evidence.get("repository_citations") and not question.repository_citations:
+        question.repository_citations = proj_evidence["repository_citations"][:3]
+    if proj_evidence.get("evidence_status"):
+        question.evidence_status = proj_evidence["evidence_status"]
 
-    session.current_question = question.model_dump(mode="json")
+    dumped_q = question.model_dump(mode="json")
+    dumped_q["session_mode"] = session_mode
+    dumped_q["repository_id"] = request.repository_id
+    session.current_question = dumped_q
+
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -2646,12 +3574,25 @@ def submit_interview_answer(
         raise InterviewSessionStateError("Interview session is not accepting answers")
 
     context = _candidate_context(current_user.id, f"Follow-up interview for {session.target_role or 'the candidate'}")
+
+    curr_q_dict = session.current_question if isinstance(session.current_question, dict) else {}
+    repo_id = curr_q_dict.get("repository_id")
+    sess_mode = curr_q_dict.get("session_mode") or "fresh"
+
+    proj_evidence = _retrieve_candidate_project_evidence(
+        db, current_user, focus_topic=session.focus_topic, repository_id=repo_id
+    )
     try:
         evidence = _graph_evidence(current_user.id, db=db, current_user=current_user)
     except TypeError:
         evidence = _graph_evidence(current_user.id)
+    evidence["project_evidence"] = proj_evidence
+
     transcript = _transcript_payload(session)
     question = InterviewQuestionPayload.model_validate(session.current_question)
+    cur_core_index = question.core_question_index or 1
+    total_core = question.total_core_questions or 5
+    is_current_fu = bool(question.is_follow_up)
 
     # ── Step 1: Classify candidate's response intent ──────────────────────────
     intent_payload = json.dumps(
@@ -2665,13 +3606,20 @@ def submit_interview_answer(
         ensure_ascii=False,
     )
     answer_text = (request.answer or "").strip()
+    code_text = (request.code or "").strip()
+    if not answer_text and not code_text:
+        raise InterviewSessionStateError("Empty message cannot be evaluated as an answer. Please provide a technical explanation or code.")
+
     answer_lower = answer_text.lower()
     classified_intent = "technical_answer"
     requested_topic = None
 
-    if answer_lower in ["skip", "pass", "skip question"]:
+    is_greeting = bool(re.match(r"^(hello|hi|hey|good\s+(morning|afternoon|evening)|howdy|greetings)[\s!.,?]*$", answer_lower)) or answer_lower in ["hi cyra", "hello cyra", "hey cyra", "hi interviewer"]
+    if is_greeting:
+        classified_intent = "greeting"
+    elif answer_lower in ["skip", "pass", "skip question"]:
         classified_intent = "skip_question"
-    elif "don't know" in answer_lower or "dont know" in answer_lower or "no idea" in answer_lower:
+    elif "don't know" in answer_lower or "dont know" in answer_lower or "no idea" in answer_lower or "no clue" in answer_lower:
         classified_intent = "dont_know"
     elif "repeat" in answer_lower and ("question" in answer_lower or "can you" in answer_lower):
         classified_intent = "repeat_question"
@@ -2730,22 +3678,28 @@ def submit_interview_answer(
         logger.warning("AI provider failed answer evaluation, falling back to evidence-grounded evaluation: %s", exc)
         evaluation = _fallback_evaluation(effective_answer, question, session.target_role, language=session.language)
 
-    # ── Step 3: Generate next question (intent-aware & diversity-guaranteed) ──
-    recently_asked = get_recently_asked_question_texts(db, current_user.id, days=30)
-    next_question = _generate_question_with_diversity(
-        session,
-        transcript + [{
-            "question_number": session.question_number,
-            "question": question.model_dump(),
-            "answer": effective_answer,
-            "evaluation": evaluation.model_dump(),
-            "intent": classified_intent,
-            "requested_topic": requested_topic,
-        }],
-        context.context_text,
-        evidence,
-        recently_asked,
-    )
+    # Adaptive follow-up logic: follow up only when needed and question wasn't already a follow-up
+    is_fu_needed = (
+        bool(evaluation.is_follow_up_needed)
+        or (
+            bool(evaluation.missing_elements)
+            and len(evaluation.missing_elements) >= 1
+            and len(effective_answer.split()) < 35
+        )
+    ) and not is_current_fu
+
+    if is_fu_needed:
+        next_is_fu = True
+        next_core_index = cur_core_index
+        next_phase = question.competency_phase or COMPETENCY_PHASES[min(cur_core_index - 1, 4)]
+        fu_reason = evaluation.follow_up_reason or "Clarify trade-offs and edge-case failure modes."
+        should_conclude = False
+    else:
+        next_is_fu = False
+        next_core_index = cur_core_index + 1
+        next_phase = COMPETENCY_PHASES[min(next_core_index - 1, 4)] if next_core_index <= total_core else COMPETENCY_PHASES[4]
+        fu_reason = None
+        should_conclude = next_core_index > total_core
 
     entry = InterviewTranscriptEntry(
         question_number=session.question_number,
@@ -2754,9 +3708,56 @@ def submit_interview_answer(
         evaluation=evaluation,
         created_at=datetime.utcnow(),
     )
-    session.transcript = transcript + [entry.model_dump(mode="json")]
+    new_transcript = transcript + [entry.model_dump(mode="json")]
+    session.transcript = new_transcript
     session.question_number += 1
-    session.current_question = next_question.model_dump(mode="json")
+
+    if should_conclude:
+        # All core questions completed; conclude session automatically
+        try:
+            raw_report = _provider_json(
+                FINAL_SYSTEM_PROMPT,
+                _base_prompt(session, context.context_text, evidence, new_transcript),
+                max_completion_tokens=1200,
+            )
+            report = InterviewFinalReport.model_validate(_final_report_payload(raw_report, session))
+        except Exception as exc:
+            logger.warning("AI provider failed to generate report, falling back: %s", exc)
+            report = _fallback_final_report(session, evidence)
+        session.final_report = report.model_dump(mode="json")
+        session.status = "completed"
+        session.completed_at = datetime.utcnow()
+        session.current_question = None
+    else:
+        # Generate next question (follow-up or next core question)
+        recently_asked = get_recently_asked_question_texts(db, current_user.id, days=30)
+        next_question = _generate_question_with_diversity(
+            session,
+            new_transcript,
+            context.context_text,
+            evidence,
+            recently_asked,
+            core_question_index=next_core_index,
+            competency_phase=next_phase,
+            is_follow_up=next_is_fu,
+            follow_up_reason=fu_reason,
+            total_core_questions=total_core,
+        )
+        next_question = _attach_technical_citations(next_question, context)
+        next_question.core_question_index = next_core_index
+        next_question.total_core_questions = total_core
+        next_question.is_follow_up = next_is_fu
+        next_question.follow_up_of_core = cur_core_index if next_is_fu else None
+        next_question.competency_phase = next_phase
+        if proj_evidence.get("repository_citations") and not next_question.repository_citations:
+            next_question.repository_citations = proj_evidence["repository_citations"][:3]
+        if proj_evidence.get("evidence_status"):
+            next_question.evidence_status = proj_evidence["evidence_status"]
+        dumped_next = next_question.model_dump(mode="json")
+        dumped_next["session_mode"] = sess_mode
+        dumped_next["repository_id"] = repo_id
+        session.current_question = dumped_next
+
     db.commit()
     db.refresh(session)
     return _to_response(session)
@@ -2765,6 +3766,54 @@ def submit_interview_answer(
 def get_interview_session(db: Session, current_user: User, session_id: str) -> InterviewSessionResponse:
     return _to_response(_get_owned_session(db, current_user, session_id))
 
+def get_interview_booklet(db: Session, current_user: User, session_id: str) -> InterviewBookletResponse:
+    """Return the interview booklet for a session.
+
+    Preserves original question order, answer status, and any evaluation.
+    """
+    # Verify ownership
+    session = _get_owned_session(db, current_user, session_id)
+
+    transcript = session.transcript or []
+    spreads: List[InterviewBookletQuestionEntry] = []
+    for idx, entry in enumerate(transcript, start=1):
+        if isinstance(entry, dict):
+            q = entry.get("question") or {}
+            ans = entry.get("answer")
+            eval_data = entry.get("evaluation")
+        else:
+            q = getattr(entry, "question", {})
+            ans = getattr(entry, "answer", None)
+            eval_data = getattr(entry, "evaluation", None)
+        unanswered = not bool(ans)
+        skipped = isinstance(ans, str) and ans.strip().lower() == "skip"
+        booklet_entry = InterviewBookletQuestionEntry(
+            sequence_number=idx,
+            question=q,
+            answer=ans,
+            unanswered=unanswered,
+            skipped=skipped,
+            evaluation=InterviewAnswerEvaluation.model_validate(eval_data) if eval_data else None,
+        )
+        spreads.append(booklet_entry)
+
+    overall_summary = (
+        session.final_report.get("overall_interview_summary")
+        if isinstance(session.final_report, dict)
+        else ""
+    )
+
+    return InterviewBookletResponse(
+        session_id=session.session_id,
+        candidate_id=session.candidate_id,
+        interview_mode=session.interview_mode,
+        language=session.language,
+        status=session.status,
+        overall_interview_summary=overall_summary,
+        question_count=len(spreads),
+        spreads=spreads,
+    )
+# Placeholder for interview booklet endpoint
 
 def get_candidate_interview_sessions(
     db: Session,
@@ -2806,8 +3855,22 @@ def get_candidate_interview_sessions(
                 evidence_srcs.add(cq_ev)
 
         recommendation = None
+        overall_score = None
+        avg_q_score = None
         if s.final_report and isinstance(s.final_report, dict):
             recommendation = s.final_report.get("overall_interview_summary")
+            overall_score = s.final_report.get("overall_score")
+            avg_q_score = s.final_report.get("average_question_score")
+
+        if overall_score is None and transcript:
+            t_scores = [
+                float(t.get("evaluation", {}).get("score"))
+                for t in transcript
+                if isinstance(t, dict) and t.get("evaluation", {}).get("score") is not None
+            ]
+            if t_scores:
+                avg_q_score = round(sum(t_scores) / len(t_scores), 1)
+                overall_score = avg_q_score
 
         results.append(
             InterviewSessionSummaryResponse(
@@ -2825,6 +3888,8 @@ def get_candidate_interview_sessions(
                 candidate_response_summary=answers_summary,
                 evidence_sources=list(evidence_srcs)[:5],
                 recommendation=recommendation,
+                overall_score=overall_score,
+                average_question_score=avg_q_score,
             )
         )
     return results
@@ -2861,6 +3926,33 @@ def complete_interview_session(db: Session, current_user: User, session_id: str)
     return _to_response(session)
 
 
+def end_interview_session(db: Session, current_user: User, session_id: str) -> InterviewSessionResponse:
+    """
+    Explicitly terminates an active interview session early.
+    Persists status as 'ended_early' with completion timestamp, prevents silent auto-resumption,
+    and preserves any answers/evaluations recorded so far.
+    """
+    session = _get_owned_session(db, current_user, session_id)
+    if session.status in ("completed", "ended_early"):
+        return _to_response(session)
+
+    session.status = "ended_early"
+    session.completed_at = datetime.utcnow()
+    session.current_question = None
+
+    if session.transcript and not session.final_report:
+        try:
+            evidence = _graph_evidence(current_user.id, db=db, current_user=current_user)
+        except TypeError:
+            evidence = _graph_evidence(current_user.id)
+        session.final_report = _fallback_final_report(session, evidence).model_dump(mode="json")
+
+    db.commit()
+    db.refresh(session)
+    return _to_response(session)
+
+
+
 def generate_cyra_chat_response(
     req: Any,  # CyraChatRequest
     current_user: User,
@@ -2894,8 +3986,109 @@ def generate_cyra_chat_response(
             "Keep programming identifiers, API names, code keywords, and technical terms in standard English. "
             "NEVER respond solely in English!"
         )
+    elif lang.startswith("ml"):
+        lang_clause = (
+            "\n\nCRITICAL MULTILINGUAL MANDATE (MALAYALAM):\n"
+            "You MUST reply in natural, friendly conversational Malayalam (Manglish) as spoken by software engineers. "
+            "Keep programming identifiers, API names, code keywords, and technical terms in standard English. "
+            "NEVER respond solely in English!"
+        )
 
-    if action == "teach":
+    user_lower = user_msg.lower().strip()
+
+    if not user_lower and not code:
+        return CyraChatResponse(
+            reply="I'm listening! Feel free to ask about the active question, ask for a hint, discuss your approach, or ask me to clarify constraints.",
+            action_type="empty_prompt",
+            suggested_followups=["Give me a hint", "Explain the question", "Discuss my approach", "Explain constraints"],
+        )
+
+    is_greeting = (
+        bool(re.search(r"^(hello|hi|hey|good\s+(morning|afternoon|evening)|howdy|greetings)\b", user_lower))
+        and len(user_lower.split()) <= 6
+        and not any(term in user_lower for term in ["index", "table", "sql", "code", "database", "function", "array", "tree", "class", "algorithm"])
+    ) or (any(g in user_lower for g in ["hello cyra", "hi cyra", "hey cyra", "good morning cyra", "good evening cyra"]) and len(user_lower.split()) <= 6)
+    is_meta_idea = any(phrase in user_lower for phrase in [
+        "didn't say", "didnt say", "haven't said", "havent said", "haven't proposed", "havent proposed",
+        "no idea yet", "not the idea", "didn't give an idea", "didnt give an idea", "what idea",
+        "didn't mention", "didnt mention"
+    ])
+    is_dont_know = any(phrase in user_lower for phrase in [
+        "don't know", "dont know", "haven't implemented", "havent implemented", "not sure", "no clue", "never used",
+        "not familiar"
+    ])
+    is_clarification = action in ["clarify", "explain_question"] or any(phrase in user_lower for phrase in [
+        "clarify", "don't understand", "dont understand", "what does this mean", "explain the question",
+        "rephrase", "repeat the question", "can you explain the problem", "what do you mean"
+    ])
+    is_hint = action == "hint" or any(phrase in user_lower for phrase in [
+        "give me a hint", "need a hint", "hint please", "can i get a hint", "subtle hint", "can you give me a hint"
+    ])
+    is_teach = action in ["teach", "explain"] or any(phrase in user_lower for phrase in [
+        "teach me", "teach me this", "can you teach", "how to solve", "explain concept"
+    ])
+    is_try_again = action in ["try_again", "retry"] or any(phrase in user_lower for phrase in [
+        "try again", "let me try again", "start over with this question", "take another shot", "another attempt", "retry"
+    ])
+    is_unrelated = any(phrase in user_lower for phrase in [
+        "weather", "who won", "tell me a joke", "favorite movie", "sing a song", "recipe", "dinner", "pizza", "football match", "cricket score"
+    ])
+
+    resolved_action = (
+        "greeting" if is_greeting
+        else ("teach" if is_teach
+        else ("hint" if is_hint
+        else ("clarify" if is_clarification
+        else ("try_again" if is_try_again
+        else ("unrelated" if is_unrelated
+        else action)))))
+    )
+
+    if is_greeting:
+        system_prompt = (
+            "You are Dr. Cyra Vance, an elite AI Lead Technical Interviewer & Mentor at CareerVerse AI. "
+            "The candidate has greeted you. Respond warmly, professionally, and encouragingly. "
+            f"Candidate Target Role: {role}. "
+            f"Active Interview Question (if loaded): {curr_q or 'Starting first round'}. "
+            "Guidelines: "
+            "1. Greet them back politely and introduce yourself as Dr. Cyra Vance. "
+            "2. Ask if they are ready to dive in or would like you to explain the interview structure. "
+            "3. DO NOT evaluate any technical answer or claim they proposed an idea because they only said hello!"
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate greeted: '{user_msg}'. Respond warmly without evaluating any idea."
+    elif is_meta_idea:
+        system_prompt = (
+            "You are Dr. Cyra Vance, an elite AI Technical Interviewer at CareerVerse AI. "
+            "The candidate noted that they haven't proposed or explained their idea yet. "
+            "Acknowledge this gracefully, apologize for jumping ahead, and let them know you are listening attentively. "
+            f"Active Interview Question: {curr_q}. "
+            "Invite them to take their time, review constraints, and discuss their thoughts or ask any questions whenever they are ready. "
+            "DO NOT evaluate any non-existent idea!"
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate clarifies: '{user_msg}'. Acknowledge politely and invite them to think aloud or ask questions about the problem."
+    elif is_dont_know:
+        system_prompt = (
+            "You are Dr. Cyra Vance, Lead AI Technical Interviewer at CareerVerse AI. "
+            "The candidate indicated they haven't implemented this feature or don't know the exact answer. "
+            "Acknowledge their honesty respectfully. Help break the problem down into intuitive first principles, "
+            f"or ask how they would reason about it from their known experience in {role}. "
+            f"Active Question: {curr_q}."
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate says: '{user_msg}'. Respond constructively and guide them gently."
+    elif is_clarification:
+        system_prompt = (
+            "You are Dr. Cyra Vance, Lead AI Technical Interviewer at CareerVerse AI. "
+            "The candidate requested clarification or did not understand the question. "
+            f"Active Interview Question: {curr_q}. "
+            "Rephrase the question simply and clearly in 2-3 sentences. Provide a small, concrete input/output example "
+            "and state the main edge bounds so they have full clarity without changing the selected question."
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate requests clarification: '{user_msg}'. Rephrase the problem statement with a small concrete example."
+    elif is_teach:
         system_prompt = (
             "You are Dr. Cyra Vance, Master AI Technical Interviewer & Computer Science Professor at CareerVerse AI. "
             "You are in 'TEACH & MASTER' mode. Your goal is to TEACH the candidate the concepts, intuition, and mental models "
@@ -2912,6 +4105,34 @@ def generate_cyra_chat_response(
             f"{lang_clause}"
         )
         prompt = f"Candidate wants you to teach them: {curr_q}. Candidate says: {user_msg or 'Please teach me the core concepts and solution framework.'}"
+    elif is_hint:
+        system_prompt = (
+            "You are Dr. Cyra Vance, an elite AI Technical Interviewer at CareerVerse AI. "
+            "The candidate asked for a hint on the active problem. "
+            f"Candidate Target Role: {role}. "
+            f"Active Interview Question: {curr_q}. "
+            "Provide one subtle, intuitive, high-yield hint that points them toward the key mathematical or data-structure invariant, "
+            "without giving away the complete solution or code. Do NOT evaluate an answer that was not submitted."
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate asks for a pedagogical hint on: {curr_q}. Candidate's current code: {code}"
+    elif is_try_again:
+        system_prompt = (
+            "You are Dr. Cyra Vance, AI Lead Technical Interviewer at CareerVerse AI. "
+            "The candidate wants to try answering the question again with a revised approach. "
+            "Encouragingly welcome their second attempt. Briefly remind them of the core problem objective "
+            f"on '{curr_q}', and invite them to share their revised approach or code."
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate wants to try again on: '{curr_q}'. Welcome their attempt and invite their revised thoughts."
+    elif is_unrelated:
+        system_prompt = (
+            "You are Dr. Cyra Vance, AI Lead Technical Interviewer at CareerVerse AI. "
+            "The candidate sent a casual or off-topic message. Politely acknowledge it in 1 short sentence, "
+            "and guide them back to the active interview question. DO NOT evaluate it as a technical answer!"
+            f"{lang_clause}"
+        )
+        prompt = f"Candidate said: '{user_msg}'. Acknowledge politely and steer them back to '{curr_q}'."
     else:
         system_prompt = (
             "You are Dr. Cyra Vance, an elite Lead AI Technical Interviewer & Mentor at CareerVerse AI. "
@@ -2923,16 +4144,13 @@ def generate_cyra_chat_response(
             "Tone and Demeanor: Direct, insightful, intellectually rigorous, encouraging, like a Principal Engineer at Google or Stripe. "
             "Guidelines: "
             "1. Give direct, authentic, conversational AI answers in 2 to 3 concise, impactful sentences. "
-            "2. If the candidate asks for a hint, give an intuitive, conceptual clue without giving away the direct code. "
-            "3. If they propose an architecture or algorithmic approach, evaluate its latency, scalability, and asymptotic bounds. "
-            "4. If they ask about constraints or edge cases, clarify the boundaries and failure modes. "
-            "5. Never output canned placeholder responses. Address the candidate's exact question or idea."
+            "2. If they propose an architecture or algorithmic approach, evaluate its latency, scalability, and asymptotic bounds. "
+            "3. If they ask about constraints or edge cases, clarify the boundaries and failure modes. "
+            "4. Never output canned placeholder responses. Address the candidate's exact question or idea."
             f"{lang_clause}"
         )
         prompt = f"Candidate says: {user_msg}"
-        if action == "hint":
-            prompt = f"Candidate asks for a pedagogical hint on: {curr_q}. Candidate's current code: {code}"
-        elif action == "constraints":
+        if action == "constraints":
             prompt = f"Candidate asks to clarify constraints and edge boundaries on: {curr_q}."
         elif action == "approach":
             prompt = f"Candidate is discussing their algorithmic approach and time-complexity trade-offs: {user_msg or curr_q}."
@@ -2942,8 +4160,8 @@ def generate_cyra_chat_response(
         res = provider.generate_text(
             system_prompt=system_prompt,
             user_message=prompt,
-            temperature=0.35 if action == "teach" else 0.4,
-            max_completion_tokens=600 if action == "teach" else 300,
+            temperature=0.35 if (is_teach or is_clarification) else 0.4,
+            max_completion_tokens=600 if is_teach else 300,
         )
         if res and res.content and res.content.strip():
             reply_text = res.content.strip()
@@ -2954,7 +4172,7 @@ def generate_cyra_chat_response(
                         "Space complexity-ஐ இன்னும் optimize செய்தால் என்னவாகும்?",
                         "Duplicate elements அல்லது concurrency-ஐ எப்படி கையாள்வது?",
                     ]
-                    if action == "teach"
+                    if is_teach
                     else [
                         "இந்த approach-க்கான edge cases என்னென்ன?",
                         "Space complexity-ஐ மேலும் குறைக்க முடியுமா?",
@@ -2968,7 +4186,7 @@ def generate_cyra_chat_response(
                         "यदि हम आगे ऑप्टिमाइज़ करें तो स्पेस जटिलता क्या होगी?",
                         "डुप्लिकेट एलिमेंट्स या कॉनकरेंसी को कैसे संभालेंगे?",
                     ]
-                    if action == "teach"
+                    if is_teach
                     else [
                         "इस दृष्टिकोण के लिए एज केस क्या हैं?",
                         "क्या हम स्पेस जटिलता को और कम कर सकते हैं?",
@@ -2982,7 +4200,7 @@ def generate_cyra_chat_response(
                         "What is the space complexity if we optimize further?",
                         "How do we handle duplicate elements or concurrency?",
                     ]
-                    if action == "teach"
+                    if is_teach
                     else [
                         "What are the edge cases for this approach?",
                         "Can we optimize the space complexity further?",
@@ -2991,14 +4209,80 @@ def generate_cyra_chat_response(
                 )
             return CyraChatResponse(
                 reply=reply_text,
-                action_type=action,
+                action_type=resolved_action,
                 suggested_followups=followups,
             )
     except Exception as exc:
         logger.warning(f"Cyra chat AI generation error: {exc}")
 
+    # Honest, intent-specific fallbacks (NO generic canned loops)
+    if is_greeting:
+        if lang.startswith("ta"):
+            fallback_reply = "வணக்கம்! உங்களை சந்திப்பதில் மகிழ்ச்சி. நான் Dr. Cyra Vance, உங்கள் AI தொழில்நுட்ப நேர்காணல் பயிற்சியாளர். நீங்கள் தயாராக உள்ளீர்களா, அல்லது இந்த நேர்காணல் எவ்வாறு இயங்கும் என்பதை முதலில் விளக்கவா?"
+        elif lang.startswith("hi"):
+            fallback_reply = "नमस्ते! आपसे मिलकर खुशी हुई. मैं Dr. Cyra Vance हूँ, आपकी AI टेक्निकल इंटरव्यूअर. क्या आप शुरुआत करने के लिए तैयार हैं, या आप चाहेंगे कि मैं पहले इंटरव्यू की प्रक्रिया समझाऊँ?"
+        else:
+            fallback_reply = "Hi! Good to meet you. I am Dr. Cyra Vance, your AI Lead Interviewer. Are you ready to begin, or would you like me to explain how this interview will work?"
+        return CyraChatResponse(
+            reply=fallback_reply,
+            action_type="greeting",
+            suggested_followups=["I am ready to start", "Explain how this interview works", "Give me a hint on the question"],
+        )
+
+    if is_meta_idea:
+        if lang.startswith("ta"):
+            fallback_reply = "மன்னிக்கவும், நான் அவசரப்பட்டுவிட்டேன்! உங்கள் பதிலை கவனமாக கவனிக்கிறேன். நிதானமாக கேள்வியை படித்துப் பாருங்கள்; உங்கள் யோசனையை பகிரவோ அல்லது சந்தேகங்களை கேட்கவோ தயங்காதீர்கள்."
+        elif lang.startswith("hi"):
+            fallback_reply = "माफ़ कीजियेगा, मैंने जल्दबाज़ी की! मैं ध्यान से सुन रही हूँ. आप आराम से प्रश्न को समझें, और जब भी आप तैयार हों, अपने विचार साझा करें या कोई सवाल पूछें."
+        else:
+            fallback_reply = "My apologies for jumping ahead! I am listening attentively. Take your time to review the problem statement, and let me know whenever you'd like to talk through your initial intuition or ask any questions."
+        return CyraChatResponse(
+            reply=fallback_reply,
+            action_type="clarification",
+            suggested_followups=["Explain constraints", "Give me a hint", "I'd like to share my approach"],
+        )
+
+    if is_clarification:
+        if lang.startswith("ta"):
+            fallback_reply = f"கேள்வியின் சுருக்கம்: கொடுக்கப்பட்ட உள்ளீட்டின் எல்லைகள் மற்றும் எதிர்பார்க்கப்படும் வெளியீட்டை உறுதி செய்யுங்கள். {curr_q or 'தற்போதைய சிக்கல்'}-க்கான முக்கிய வரம்புகளை கவனியுங்கள்."
+        elif lang.startswith("hi"):
+            fallback_reply = f"समस्या का मुख्य बिंदु: दिए गए इनपुट की सीमाओं और अपेक्षित आउटपुट पर ध्यान दें. {curr_q or 'वर्तमान समस्या'} के मुख्य प्रतिबंधों को समझें."
+        else:
+            fallback_reply = f"To clarify the problem: Focus on the expected inputs and boundary outputs for '{curr_q or 'this question'}'. Consider how extreme input sizes or empty values should be handled."
+        return CyraChatResponse(
+            reply=fallback_reply,
+            action_type="clarify",
+            suggested_followups=["What are the boundary constraints?", "Can I get a hint on the approach?", "Teach me the core concepts"],
+        )
+
+    if is_try_again:
+        if lang.startswith("ta"):
+            fallback_reply = f"நிச்சயமாக! '{curr_q or 'இந்த கேள்வியை'}' புதிய கோணத்தில் அணுகுங்கள். நீங்கள் தயாராக இருக்கும்போது உங்கள் புதிய அணுகுமுறையை பகிருங்கள்."
+        elif lang.startswith("hi"):
+            fallback_reply = f"बिल्कुल! '{curr_q or 'इस प्रश्न'}' पर नए सिरे से विचार करें. जब भी आप तैयार हों, अपना संशोधित दृष्टिकोण साझा करें."
+        else:
+            fallback_reply = f"Take a fresh look at '{curr_q or 'the question'}'. When you're ready, share your updated approach or code, and we'll analyze it together."
+        return CyraChatResponse(
+            reply=fallback_reply,
+            action_type="try_again",
+            suggested_followups=["Explain constraints", "Give me a hint", "I'd like to share my approach"],
+        )
+
+    if is_unrelated:
+        if lang.startswith("ta"):
+            fallback_reply = f"அது நமது நேர்காணல் வரம்பிற்கு அப்பாற்பட்டது! தற்போதைய தொழில்நுட்ப கேள்வியில் கவனம் செலுத்துவோம்: '{curr_q or 'தற்போதைய கேள்வி'}'. உங்கள் அணுகுமுறை என்ன?"
+        elif lang.startswith("hi"):
+            fallback_reply = f"यह हमारे साक्षात्कार के दायरे से बाहर है! आइए अपने तकनीकी प्रश्न पर ध्यान दें: '{curr_q or 'सक्रिय प्रश्न'}'. आपका दृष्टिकोण क्या है?"
+        else:
+            fallback_reply = f"That's outside our interview scope! Let's stay focused on our technical problem: '{curr_q or 'the active question'}'. What approach are you considering?"
+        return CyraChatResponse(
+            reply=fallback_reply,
+            action_type="unrelated",
+            suggested_followups=["Explain the question", "Give me a hint", "Discuss my approach"],
+        )
+
     if lang.startswith("ta"):
-        if action == "teach":
+        if is_teach:
             fallback_reply = (
                 "💡 **Core Mental Model**: இந்த சிக்கலை invariant state tracking அடிப்படையில் பாருங்கள். O(N²) முறையில் மீண்டும் மீண்டும் தேடுவதற்கு பதிலாக, hash map அல்லது two-pointer window பயன்படுத்தி O(N) அல்லது O(1) நேரத்தில் அணுகுங்கள்.\n\n"
                 "📐 **Top-Tier Framework**:\n"
@@ -3008,15 +4292,15 @@ def generate_cyra_chat_response(
                 "4. Edge cases-ஐ கையாளுங்கள் (வெற்று உள்ளீடு, ஒற்றை மதிப்பு).\n\n"
                 "⚖️ **Trade-offs**: நேரம் O(N²)-ல் இருந்து O(N)-ஆக குறைகிறது, O(N) auxiliary space தேவைப்படுகிறது. Workbench-ல் code எழுதலாமா?"
             )
-        elif action == "hint":
+        elif is_hint:
             fallback_reply = "உங்கள் தற்போதைய நிலையின் invariant-ஐ கவனியுங்கள்: மீண்டும் ஸ்கேன் செய்யாமல் hash map அல்லது two pointers மூலம் O(1) நேரத்தில் சரிபார்க்க முடியுமா?"
         elif action == "constraints":
             fallback_reply = "எல்லை வரம்புகள் (boundary limits) மற்றும் duplicate elements-ல் கவனம் செலுத்துங்கள். தீவிர மதிப்புகளில் quadratic time அல்லது overflow ஏற்படாமல் பாதுகாக்குங்கள்."
         else:
-            fallback_reply = f"{role} பணிக்கான ஒரு சிறந்த யோசனை. உங்கள் முடிவை படிப்படியாக விளக்குங்கள் மற்றும் invariants-ஐ எவ்வாறு உறுதி செய்வீர்கள் என்பதை கூறுங்கள்."
+            fallback_reply = f"உங்கள் யோசனையை கேட்க ஆவலாக உள்ளேன். {role} பணிக்கான சிறந்த முடிவை எடுப்பதற்கு உங்கள் வழிமுறையை படிப்படியாக விளக்குங்கள்."
         return CyraChatResponse(
             reply=fallback_reply,
-            action_type=action,
+            action_type=resolved_action,
             suggested_followups=[
                 "Duplicate elements-ஐ எப்படி கையாள்வது?",
                 "Amortized runtime என்ன?",
@@ -3024,7 +4308,7 @@ def generate_cyra_chat_response(
         )
 
     if lang.startswith("hi"):
-        if action == "teach":
+        if is_teach:
             fallback_reply = (
                 "💡 **Core Mental Model**: इस समस्या को invariant state tracking के संदर्भ में सोचें. O(N²) में बार-बार सर्च करने के बजाय, hash map या two pointers का उपयोग करके O(N) या O(1) में प्रोसेस करें.\n\n"
                 "📐 **Top-Tier Framework**:\n"
@@ -3034,22 +4318,22 @@ def generate_cyra_chat_response(
                 "4. एज केसेस को संभालें (खाली इनपुट, सिंगल एलिमेंट).\n\n"
                 "⚖️ **Trade-offs**: टाइम कॉम्प्लेक्सिटी O(N²) से O(N) हो जाती है, जिसमें O(N) स्पेस लगता है. क्या वर्कबेंच में कोड लिखना चाहेंगे?"
             )
-        elif action == "hint":
+        elif is_hint:
             fallback_reply = "अपनी सक्रिय स्थिति के इनवेरिएंट पर ध्यान दें: क्या आप सहायक फ़्रीक्वेंसी मैप या दो पॉइंटर्स का उपयोग करके O(1) समय में स्थिति ट्रैक कर सकते हैं?"
         elif action == "constraints":
             fallback_reply = "बाउंड्री लिमिट्स और डुप्लीकेट एलिमेंट्स पर ध्यान दें. सुनिश्चित करें कि आपका दृष्टिकोण बिना किसी ओवरफ़्लो के काम करे."
         else:
-            fallback_reply = f"{role} के लिए यह एक विचारणीय बिंदु है. अपने निर्णय को चरण दर चरण समझाएं और बताएं कि आप इसे कैसे सत्यापित करेंगे."
+            fallback_reply = f"मैं आपकी सोच को समझने के लिए उत्सुक हूँ. {role} भूमिका के लिए अपने निर्णय को चरण दर चरण समझाएं."
         return CyraChatResponse(
             reply=fallback_reply,
-            action_type=action,
+            action_type=resolved_action,
             suggested_followups=[
                 "डुप्लिकेट एलिमेंट्स को कैसे संभालें?",
                 "अमॉर्टाइज्ड रनटाइम क्या होगा?",
             ],
         )
 
-    if action == "teach":
+    if is_teach:
         fallback_reply = (
             "💡 **Core Mental Model**: Think of this problem in terms of invariant state tracking. Instead of repeatedly re-scanning previous elements in O(N²), store observed values in an auxiliary hash map or two-pointer window to achieve O(N) or O(1) query time.\n\n"
             "📐 **Top-Tier Framework**:\n"
@@ -3059,16 +4343,16 @@ def generate_cyra_chat_response(
             "4. Handle edge cases (empty input, single element, large values).\n\n"
             "⚖️ **Trade-offs**: Time drops from O(N²) to O(N), trading O(N) auxiliary space. Would you like to walk through the implementation in the workbench?"
         )
-    elif action == "hint":
+    elif is_hint:
         fallback_reply = "Consider the invariant of your active state: can you track the required condition in O(1) time using an auxiliary frequency map or two pointers rather than re-scanning?"
     elif action == "constraints":
         fallback_reply = "Pay attention to boundary limits and duplicate elements. Ensure your approach handles extreme values without quadratic time degradation or integer overflow."
     else:
-        fallback_reply = f"That's a thoughtful consideration for a {role}. Walk through your decision step-by-step and explain how you plan to verify the invariants before implementation."
+        fallback_reply = f"I'm following your reasoning for {role}. Walk through your decision step-by-step and explain how you plan to verify the invariants before implementation."
 
     return CyraChatResponse(
         reply=fallback_reply,
-        action_type=action,
+        action_type=resolved_action,
         suggested_followups=[
             "How do we handle duplicate elements?",
             "What is the amortized runtime?",

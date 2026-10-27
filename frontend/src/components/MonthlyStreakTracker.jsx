@@ -81,56 +81,56 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
   const getIntensityStyles = (intensity, hasWork, isToday, isFuture, isSelected) => {
     if (isFuture) {
       return {
-        bg: "#f8fafc",
-        border: "1px dashed #cbd5e1",
-        color: "#94a3b8",
+        bg: "var(--surface-2, var(--cv-bg-subtle))",
+        border: "1px dashed var(--border, var(--cv-border))",
+        color: "var(--text-muted, var(--cv-muted))",
         badgeBg: "transparent",
-        badgeText: "#94a3b8",
+        badgeText: "var(--text-muted, var(--cv-muted))",
         opacity: 0.55,
       };
     }
 
     if (!hasWork) {
       return {
-        bg: isSelected ? "#f1f5f9" : "#f8fafc",
-        border: isSelected ? "2px solid #94a3b8" : "1px solid #e2e8f0",
-        color: "#64748b",
-        badgeBg: "#f1f5f9",
-        badgeText: "#94a3b8",
+        bg: isSelected ? "var(--accent-soft, var(--cv-accent-soft))" : "var(--surface-2, var(--cv-bg-subtle))",
+        border: isSelected ? "2px solid var(--accent, var(--cv-accent))" : "1px solid var(--border, var(--cv-border))",
+        color: "var(--text-muted, var(--cv-muted))",
+        badgeBg: "var(--surface, var(--cv-surface))",
+        badgeText: "var(--text-muted, var(--cv-muted))",
         opacity: 1,
       };
     }
 
     // Active intensities
     switch (intensity) {
-      case 3: // 6+ problems (Intense / LeetCode Green 🔥)
+      case 3: // 6+ problems
         return {
-          bg: isSelected ? "#15803d" : "#22c55e",
-          border: isSelected ? "2px solid #0f172a" : "1px solid #16a34a",
+          bg: isSelected ? "var(--accent, #15803d)" : "var(--success, #22c55e)",
+          border: isSelected ? "2px solid var(--text, #0f172a)" : "1px solid var(--success, #16a34a)",
           color: "#ffffff",
           badgeBg: "rgba(255, 255, 255, 0.25)",
           badgeText: "#ffffff",
-          shadow: "0 2px 8px rgba(34, 197, 94, 0.35)",
+          shadow: "0 2px 8px rgba(34, 197, 94, 0.25)",
           opacity: 1,
         };
-      case 2: // 3-5 problems (Steady)
+      case 2: // 3-5 problems
         return {
-          bg: isSelected ? "#4ade80" : "#86efac",
-          border: isSelected ? "2px solid #15803d" : "1px solid #4ade80",
-          color: "#065f46",
-          badgeBg: "rgba(6, 95, 70, 0.12)",
-          badgeText: "#065f46",
-          shadow: "0 2px 6px rgba(134, 239, 172, 0.25)",
+          bg: isSelected ? "rgba(34, 197, 94, 0.4)" : "rgba(34, 197, 94, 0.25)",
+          border: isSelected ? "2px solid var(--success, #15803d)" : "1px solid rgba(34, 197, 94, 0.4)",
+          color: "var(--text, var(--cv-text))",
+          badgeBg: "rgba(34, 197, 94, 0.15)",
+          badgeText: "var(--text, var(--cv-text))",
+          shadow: "none",
           opacity: 1,
         };
-      case 1: // 1-2 problems (Light)
+      case 1: // 1-2 problems
       default:
         return {
-          bg: isSelected ? "#bbf7d0" : "#dcfce7",
-          border: isSelected ? "2px solid #16a34a" : "1px solid #86efac",
-          color: "#166534",
-          badgeBg: "rgba(22, 101, 52, 0.1)",
-          badgeText: "#166534",
+          bg: isSelected ? "rgba(34, 197, 94, 0.25)" : "rgba(34, 197, 94, 0.12)",
+          border: isSelected ? "2px solid rgba(34, 197, 94, 0.4)" : "1px solid var(--border, var(--cv-border))",
+          color: "var(--text, var(--cv-text))",
+          badgeBg: "rgba(34, 197, 94, 0.1)",
+          badgeText: "var(--text, var(--cv-text))",
           shadow: "none",
           opacity: 1,
         };
@@ -140,8 +140,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
   return (
     <div
       style={{
-        background: "#ffffff",
-        border: "1px solid var(--cv-rule, #e2e8f0)",
+        background: "var(--surface, var(--cv-surface))",
+        border: "1px solid var(--border, var(--cv-border))",
         borderRadius: "16px",
         padding: "1.5rem",
         marginBottom: "1.75rem",
@@ -158,7 +158,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
           gap: "1rem",
           marginBottom: "1.25rem",
           paddingBottom: "1rem",
-          borderBottom: "1px solid #f1f5f9",
+          borderBottom: "1px solid var(--border, var(--cv-border))",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -167,11 +167,11 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "#eff6ff",
+              background: "var(--accent-soft, var(--cv-accent-soft))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#2563eb",
+              color: "var(--accent, var(--cv-accent))",
             }}
           >
             <CalendarIcon size={20} />
@@ -182,7 +182,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 margin: 0,
                 fontSize: "1.1rem",
                 fontWeight: 800,
-                color: "#0f172a",
+                color: "var(--text, var(--cv-text))",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
@@ -193,17 +193,17 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 style={{
                   fontSize: "0.72rem",
                   fontWeight: 700,
-                  background: "#dcfce7",
-                  color: "#15803d",
+                  background: "var(--success-soft, rgba(22, 163, 74, 0.12))",
+                  color: "var(--success, var(--cv-success))",
                   padding: "2px 8px",
                   borderRadius: "20px",
-                  border: "1px solid #86efac",
+                  border: "1px solid var(--success-border, rgba(22, 163, 74, 0.25))",
                 }}
               >
                 LeetCode & GFG Style
               </span>
             </h3>
-            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "var(--text-muted, var(--cv-muted))" }}>
               Solve problems and complete mock interviews every day to build your streak.
             </p>
           </div>
@@ -219,13 +219,13 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 display: "flex",
                 alignItems: "center",
                 gap: "5px",
-                background: "#f8fafc",
-                border: "1px solid #cbd5e1",
+                background: "var(--surface-2, var(--cv-bg-subtle))",
+                border: "1px solid var(--border, var(--cv-border))",
                 padding: "6px 12px",
                 borderRadius: "8px",
                 fontSize: "0.78rem",
                 fontWeight: 600,
-                color: "#334155",
+                color: "var(--text, var(--cv-text))",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
@@ -238,8 +238,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
+              background: "var(--surface-2, var(--cv-bg-subtle))",
+              border: "1px solid var(--border, var(--cv-border))",
               borderRadius: "10px",
               padding: "3px",
             }}
@@ -256,7 +256,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                color: "#475569",
+                color: "var(--text-muted, var(--cv-muted))",
               }}
             >
               <ChevronLeft size={18} />
@@ -267,7 +267,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 padding: "0 12px",
                 fontWeight: 800,
                 fontSize: "0.95rem",
-                color: "#0f172a",
+                color: "var(--text, var(--cv-text))",
                 minWidth: "140px",
                 textAlign: "center",
               }}
@@ -287,7 +287,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                color: "#475569",
+                color: "var(--text-muted, var(--cv-muted))",
               }}
             >
               <ChevronRight size={18} />
@@ -308,8 +308,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
         {/* Current Active Streak */}
         <div
           style={{
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
+            background: "var(--surface-2, var(--cv-bg-subtle))",
+            border: "1px solid var(--border, var(--cv-border))",
             borderRadius: "12px",
             padding: "10px 14px",
             display: "flex",
@@ -322,20 +322,20 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "#ffedd5",
+              background: "var(--accent-soft, var(--cv-accent-soft))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#ea580c",
+              color: "var(--accent, var(--cv-accent))",
             }}
           >
             <Flame size={20} />
           </div>
           <div>
-            <div style={{ fontSize: "0.72rem", color: "#9a3412", fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", fontWeight: 700, textTransform: "uppercase" }}>
               Current Streak
             </div>
-            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "#c2410c" }}>
+            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "var(--accent, var(--cv-accent))" }}>
               {metrics.currentStreak} {metrics.currentStreak === 1 ? "Day" : "Days"} 🔥
             </div>
           </div>
@@ -344,8 +344,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
         {/* Longest / Max Streak */}
         <div
           style={{
-            background: "#fefce8",
-            border: "1px solid #fef08a",
+            background: "var(--surface-2, var(--cv-bg-subtle))",
+            border: "1px solid var(--border, var(--cv-border))",
             borderRadius: "12px",
             padding: "10px 14px",
             display: "flex",
@@ -358,20 +358,20 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "#fef9c3",
+              background: "var(--accent-soft, var(--cv-accent-soft))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#ca8a04",
+              color: "var(--accent, var(--cv-accent))",
             }}
           >
             <Zap size={20} />
           </div>
           <div>
-            <div style={{ fontSize: "0.72rem", color: "#854d0e", fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", fontWeight: 700, textTransform: "uppercase" }}>
               Max Streak
             </div>
-            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "#a16207" }}>
+            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "var(--text, var(--cv-text))" }}>
               {metrics.maxStreak} Days ⚡
             </div>
           </div>
@@ -380,8 +380,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
         {/* Active Days this Month */}
         <div
           style={{
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
+            background: "var(--surface-2, var(--cv-bg-subtle))",
+            border: "1px solid var(--border, var(--cv-border))",
             borderRadius: "12px",
             padding: "10px 14px",
             display: "flex",
@@ -394,20 +394,20 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "#dcfce7",
+              background: "var(--success-soft, rgba(22, 163, 74, 0.12))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#16a34a",
+              color: "var(--success, var(--cv-success))",
             }}
           >
             <CheckCircle2 size={20} />
           </div>
           <div>
-            <div style={{ fontSize: "0.72rem", color: "#166534", fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", fontWeight: 700, textTransform: "uppercase" }}>
               Active in {MONTH_NAMES[currentMonth].slice(0, 3)}
             </div>
-            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "#15803d" }}>
+            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "var(--success, var(--cv-success))" }}>
               {metrics.activeDaysCount} / {metrics.totalDaysInMonth} Days
             </div>
           </div>
@@ -416,8 +416,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
         {/* Total Month Problems / Submissions */}
         <div
           style={{
-            background: "#f5f3ff",
-            border: "1px solid #ddd6fe",
+            background: "var(--surface-2, var(--cv-bg-subtle))",
+            border: "1px solid var(--border, var(--cv-border))",
             borderRadius: "12px",
             padding: "10px 14px",
             display: "flex",
@@ -430,20 +430,20 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "#ede9fe",
+              background: "var(--accent-soft, var(--cv-accent-soft))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#7c3aed",
+              color: "var(--accent, var(--cv-accent))",
             }}
           >
             <Target size={20} />
           </div>
           <div>
-            <div style={{ fontSize: "0.72rem", color: "#5b21b6", fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", fontWeight: 700, textTransform: "uppercase" }}>
               Total Activities
             </div>
-            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "#6d28d9" }}>
+            <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "var(--text, var(--cv-text))" }}>
               {metrics.totalProblemsCount} Solved 🎯
             </div>
           </div>
@@ -625,8 +625,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
       {selectedDay && (
         <div
           style={{
-            background: "#f8fafc",
-            border: "1px solid #cbd5e1",
+            background: "var(--surface-2, var(--cv-bg-subtle))",
+            border: "1px solid var(--border, var(--cv-border))",
             borderRadius: "12px",
             padding: "1rem 1.25rem",
             marginBottom: "1.25rem",
@@ -642,7 +642,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "0.92rem", fontWeight: 800, color: "#0f172a" }}>
+              <span style={{ fontSize: "0.92rem", fontWeight: 800, color: "var(--text, var(--cv-text))" }}>
                 {new Date(selectedDay.date + "T00:00:00").toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "short",
@@ -652,13 +652,13 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
               </span>
               <span
                 style={{
-                  background: selectedDay.hasWork ? "#dcfce7" : "#e2e8f0",
-                  color: selectedDay.hasWork ? "#15803d" : "#475569",
+                  background: selectedDay.hasWork ? "var(--success-soft, rgba(22, 163, 74, 0.12))" : "var(--surface, var(--cv-surface))",
+                  color: selectedDay.hasWork ? "var(--success, var(--cv-success))" : "var(--text-muted, var(--cv-muted))",
                   fontSize: "0.72rem",
                   fontWeight: 700,
                   padding: "2px 8px",
                   borderRadius: "12px",
-                  border: `1px solid ${selectedDay.hasWork ? "#86efac" : "#cbd5e1"}`,
+                  border: `1px solid ${selectedDay.hasWork ? "var(--success-border, rgba(22, 163, 74, 0.25))" : "var(--border, var(--cv-border))"}`,
                 }}
               >
                 {selectedDay.count} {selectedDay.count === 1 ? "Activity" : "Activities"}
@@ -670,7 +670,7 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 background: "transparent",
                 border: "none",
                 fontSize: "0.78rem",
-                color: "#64748b",
+                color: "var(--text-muted, var(--cv-muted))",
                 cursor: "pointer",
                 fontWeight: 600,
               }}
@@ -685,8 +685,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 <div
                   key={act.id || aIdx}
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--surface, var(--cv-surface))",
+                    border: "1px solid var(--border, var(--cv-border))",
                     borderRadius: "8px",
                     padding: "8px 12px",
                     display: "flex",
@@ -696,18 +696,18 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {act.type === "dsa" ? (
-                      <Code2 size={16} color="#0284c7" />
+                      <Code2 size={16} color="var(--accent, var(--cv-accent))" />
                     ) : act.type === "interview" ? (
-                      <Brain size={16} color="#7c3aed" />
+                      <Brain size={16} color="var(--accent, var(--cv-accent))" />
                     ) : (
-                      <CheckCircle2 size={16} color="#16a34a" />
+                      <CheckCircle2 size={16} color="var(--success, var(--cv-success))" />
                     )}
                     <div>
-                      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b" }}>
+                      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text, var(--cv-text))" }}>
                         {act.title}
                       </div>
                       {act.detail && (
-                        <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))" }}>
                           {act.detail}
                         </div>
                       )}
@@ -717,8 +717,8 @@ export default function MonthlyStreakTracker({ onOpenDsaModal }) {
                     style={{
                       fontSize: "0.68rem",
                       fontWeight: 700,
-                      color: "#15803d",
-                      background: "#dcfce7",
+                      color: "var(--success, var(--cv-success))",
+                      background: "var(--success-soft, rgba(22, 163, 74, 0.12))",
                       padding: "2px 6px",
                       borderRadius: "6px",
                     }}

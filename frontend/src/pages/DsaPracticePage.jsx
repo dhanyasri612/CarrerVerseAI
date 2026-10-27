@@ -346,7 +346,11 @@ export default function DsaPracticePage() {
     setBottomTab("testcases");
   };
 
-  const problemList = data?.recommended_problems || [];
+  const [platformFilter, setPlatformFilter] = useState("All"); // "All" | "LeetCode" | "HackerRank"
+  const allProblems = data?.recommended_problems || [];
+  const problemList = platformFilter === "All"
+    ? allProblems
+    : allProblems.filter((p) => (p.platform || "LeetCode").toLowerCase() === platformFilter.toLowerCase());
   const currentProblemIdx = problemList.findIndex((p) => p.id === selectedProblem?.id);
   const handlePrevProblem = () => {
     if (currentProblemIdx > 0) {
@@ -571,13 +575,8 @@ export default function DsaPracticePage() {
     }
   };
 
-  let authUser = null;
-  try {
-    const auth = typeof useAuth === "function" ? useAuth() : null;
-    if (auth && auth.user) authUser = auth.user;
-  } catch (_e) {
-    authUser = null;
-  }
+  const auth = useAuth();
+  const authUser = auth?.user || null;
   const user = authUser;
   const candidateName = user?.name || user?.full_name || user?.email?.split("@")[0] || "Amit Sharma";
   const candidateAvatar = user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80";
@@ -628,12 +627,13 @@ export default function DsaPracticePage() {
       {/* ─── TOP METRICS & ROLE SELECTOR STRIP ────────────────────────────── */}
       <section
         style={{
-          background: "#0f172a",
+          background: "var(--surface, var(--cv-surface))",
+          border: "1px solid var(--border, var(--cv-border))",
           borderRadius: "16px",
-          color: "#ffffff",
+          color: "var(--text, var(--cv-text))",
           padding: "1.25rem 1.75rem",
           margin: "1.5rem 0",
-          boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.2)",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
           display: "flex",
           flexDirection: "column",
           gap: "1rem",
@@ -647,28 +647,28 @@ export default function DsaPracticePage() {
                 width: 48,
                 height: 48,
                 borderRadius: "12px",
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#0f172a",
-                boxShadow: "0 4px 12px rgba(245, 158, 11, 0.35)",
+                color: "var(--accent, var(--cv-accent))",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
               }}
             >
               <Award size={26} />
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#fbbf24" }}>
+                <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--accent, var(--cv-accent))" }}>
                   {data?.overall_readiness_score || 70}% Readiness Score
                 </span>
                 {isLcConnected && (
-                  <span style={{ fontSize: "0.72rem", background: "rgba(34, 197, 94, 0.2)", color: "#4ade80", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
+                  <span style={{ fontSize: "0.72rem", background: "var(--success-soft, rgba(34, 197, 94, 0.2))", color: "var(--success, var(--cv-success))", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
                     LeetCode Live Sync
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: "0.84rem", color: "#94a3b8", maxWidth: "600px", marginTop: "2px" }}>
+              <div style={{ fontSize: "0.84rem", color: "var(--text-muted, var(--cv-text-muted))", maxWidth: "600px", marginTop: "2px" }}>
                 {data?.readiness_verdict || data?.standing_summary}
               </div>
             </div>
@@ -676,14 +676,14 @@ export default function DsaPracticePage() {
 
           {/* Right: Role Switcher */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "0.78rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Target:</span>
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted, var(--cv-text-muted))", textTransform: "uppercase", fontWeight: 600 }}>Target:</span>
             <select
               value={targetRole}
               onChange={(e) => handleRoleChange(e.target.value)}
               style={{
-                background: "#1e293b",
-                color: "#f8fafc",
-                border: "1px solid #334155",
+                background: "var(--surface-2, var(--cv-bg-subtle))",
+                color: "var(--text, var(--cv-text))",
+                border: "1px solid var(--border, var(--cv-border))",
                 borderRadius: "8px",
                 padding: "6px 12px",
                 fontSize: "0.82rem",
@@ -704,7 +704,7 @@ export default function DsaPracticePage() {
         {/* Bottom Counters */}
         <div
           style={{
-            borderTop: "1px solid #1e293b",
+            borderTop: "1px solid var(--border, var(--cv-border))",
             paddingTop: "0.75rem",
             display: "flex",
             alignItems: "center",
@@ -716,22 +716,22 @@ export default function DsaPracticePage() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
             <span>
-              <strong style={{ color: "#94a3b8" }}>Total LeetCode Solved:</strong>{" "}
-              <span style={{ color: "#fbbf24", fontWeight: 800, fontSize: "0.95rem" }}>
+              <strong style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>Total LeetCode Solved:</strong>{" "}
+              <span style={{ color: "var(--accent, var(--cv-accent))", fontWeight: 800, fontSize: "0.95rem" }}>
                 {lcStats.total_solved && lcStats.total_solved > 0 ? lcStats.total_solved : 525}
               </span>
             </span>
             <span>
-              <strong style={{ color: "#94a3b8" }}>Easy:</strong>{" "}
-              <span style={{ color: "#4ade80", fontWeight: 700 }}>{lcStats.easy_solved || 145}</span>
+              <strong style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>Easy:</strong>{" "}
+              <span style={{ color: "var(--success, var(--cv-success))", fontWeight: 700 }}>{lcStats.easy_solved || 145}</span>
             </span>
             <span>
-              <strong style={{ color: "#94a3b8" }}>Medium:</strong>{" "}
-              <span style={{ color: "#facc15", fontWeight: 700 }}>{lcStats.medium_solved || 310}</span>
+              <strong style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>Medium:</strong>{" "}
+              <span style={{ color: "var(--warning, var(--cv-warning))", fontWeight: 700 }}>{lcStats.medium_solved || 310}</span>
             </span>
             <span>
-              <strong style={{ color: "#94a3b8" }}>Hard:</strong>{" "}
-              <span style={{ color: "#f87171", fontWeight: 700 }}>{lcStats.hard_solved || 70}</span>
+              <strong style={{ color: "var(--text-muted, var(--cv-text-muted))" }}>Hard:</strong>{" "}
+              <span style={{ color: "var(--danger, var(--cv-danger))", fontWeight: 700 }}>{lcStats.hard_solved || 70}</span>
             </span>
 
             {/* Live LeetCode Sync Action */}
@@ -745,9 +745,9 @@ export default function DsaPracticePage() {
                 alignItems: "center",
                 gap: "5px",
                 padding: "4px 10px",
-                background: "rgba(245, 158, 11, 0.15)",
-                color: "#fbbf24",
-                border: "1px solid rgba(245, 158, 11, 0.4)",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
+                color: "var(--accent, var(--cv-accent))",
+                border: "1px solid var(--accent-border, var(--cv-accent-border))",
                 borderRadius: "6px",
                 fontSize: "0.76rem",
                 fontWeight: 700,
@@ -755,18 +755,12 @@ export default function DsaPracticePage() {
                 transition: "all 0.15s ease",
               }}
             >
-              <RefreshCw size={12} style={{ animation: isSyncingLc ? "spin 1s linear infinite" : "none" }} />
-              {isSyncingLc ? "Syncing (525+)..." : "⚡ Sync LeetCode (Live)"}
+              <RefreshCw size={12} className={isSyncingLc ? "cv-spin" : ""} />
+              {isSyncingLc ? "Syncing LeetCode..." : "Force Sync LeetCode"}
             </button>
-
-            {syncNotice && (
-              <span style={{ color: "#4ade80", fontSize: "0.76rem", fontWeight: 600 }}>
-                ✓ {syncNotice}
-              </span>
-            )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#94a3b8" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-muted, var(--cv-text-muted))" }}>
             <button
               type="button"
               onClick={() => setShowRagModal(true)}
@@ -775,22 +769,18 @@ export default function DsaPracticePage() {
                 alignItems: "center",
                 gap: "6px",
                 padding: "5px 12px",
-                background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-                color: "#ffffff",
-                border: "none",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
+                color: "var(--accent, var(--cv-accent))",
+                border: "1px solid var(--accent-border, var(--cv-accent-border))",
                 borderRadius: "6px",
                 fontSize: "0.76rem",
                 fontWeight: 700,
                 cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(124, 58, 237, 0.3)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
               }}
             >
               <Wand2 size={13} /> 🪄 Generate via RAG
             </button>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <Flame size={14} color="#f59e0b" />
-              <span>Daily Solved: <strong>{solvedProblems.length} active</strong></span>
-            </div>
           </div>
         </div>
       </section>
@@ -802,7 +792,7 @@ export default function DsaPracticePage() {
           alignItems: "center",
           justifyContent: "space-between",
           margin: "1.75rem 0 1.25rem 0",
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: "1px solid var(--border, var(--cv-border))",
           paddingBottom: "0.75rem",
           flexWrap: "wrap",
           gap: "1rem",
@@ -819,8 +809,8 @@ export default function DsaPracticePage() {
               padding: "8px 16px",
               borderRadius: "8px",
               border: "none",
-              background: activeTab === "topics" ? "#0f172a" : "#f1f5f9",
-              color: activeTab === "topics" ? "#fbbf24" : "#475569",
+              background: activeTab === "topics" ? "var(--cv-surface-raised)" : "var(--cv-bg-subtle)",
+              color: activeTab === "topics" ? "var(--cv-warning)" : "var(--cv-text-muted)",
               fontWeight: 600,
               fontSize: "0.85rem",
               cursor: "pointer",
@@ -839,8 +829,8 @@ export default function DsaPracticePage() {
               padding: "8px 16px",
               borderRadius: "8px",
               border: "none",
-              background: activeTab === "roadmap" ? "#0f172a" : "#f1f5f9",
-              color: activeTab === "roadmap" ? "#fbbf24" : "#475569",
+              background: activeTab === "roadmap" ? "var(--cv-surface-raised)" : "var(--cv-bg-subtle)",
+              color: activeTab === "roadmap" ? "var(--cv-warning)" : "var(--cv-text-muted)",
               fontWeight: 600,
               fontSize: "0.85rem",
               cursor: "pointer",
@@ -861,15 +851,15 @@ export default function DsaPracticePage() {
               padding: "8px 16px",
               borderRadius: "8px",
               border: "none",
-              background: activeTab === "problems" ? "#0f172a" : "#f1f5f9",
-              color: activeTab === "problems" ? "#fbbf24" : "#475569",
+              background: activeTab === "problems" ? "var(--cv-surface-raised)" : "var(--cv-bg-subtle)",
+              color: activeTab === "problems" ? "var(--cv-warning)" : "var(--cv-text-muted)",
               fontWeight: 600,
               fontSize: "0.85rem",
               cursor: "pointer",
               transition: "all 0.15s ease",
             }}
           >
-            <Zap size={15} /> Daily Practice Studio ({data?.recommended_problems?.length || 4})
+            <Zap size={15} /> Daily Practice Studio ({allProblems.length || 26})
           </button>
         </div>
 
@@ -890,8 +880,8 @@ export default function DsaPracticePage() {
                     width: 26,
                     height: 26,
                     borderRadius: "50%",
-                    background: "#dcfce7",
-                    color: "#16a34a",
+                    background: "var(--success-soft, var(--cv-success-soft, #dcfce7))",
+                    color: "var(--success, #16a34a)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -901,15 +891,15 @@ export default function DsaPracticePage() {
                 >
                   ✓
                 </div>
-                <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 700 }}>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", color: "var(--cv-text)", fontWeight: 700 }}>
                   Already Practiced Topics ({practicedTopics.length})
                 </h3>
-                <span style={{ fontSize: "0.82rem", color: "#64748b" }}>
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                   • Assessed for technical interview readiness
                 </span>
               </div>
 
-              <span style={{ fontSize: "0.82rem", color: "#16a34a", fontWeight: 700 }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--success, #16a34a)", fontWeight: 700 }}>
                 {practicedTopics.filter((t) => t.is_good_enough).length} Evaluated as "Good Enough"
               </span>
             </div>
@@ -918,11 +908,11 @@ export default function DsaPracticePage() {
               <div
                 style={{
                   padding: "2rem",
-                  background: "#ffffff",
+                  background: "var(--surface, var(--cv-surface))",
                   borderRadius: "14px",
-                  border: "1px dashed #cbd5e1",
+                  border: "1px dashed var(--border, var(--cv-border))",
                   textAlign: "center",
-                  color: "#64748b",
+                  color: "var(--text-muted, var(--cv-text-muted))",
                   fontSize: "0.9rem",
                 }}
               >
@@ -934,9 +924,9 @@ export default function DsaPracticePage() {
                   <div
                     key={i}
                     style={{
-                      background: "#ffffff",
+                      background: "var(--surface, var(--cv-surface))",
                       borderRadius: "14px",
-                      border: topic.is_good_enough ? "1.5px solid #86efac" : "1px solid #e2e8f0",
+                      border: topic.is_good_enough ? "1.5px solid var(--success-border, var(--cv-success-border, #86efac))" : "1px solid var(--border, var(--cv-border))",
                       padding: "1.4rem",
                       boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
                       display: "flex",
@@ -947,10 +937,10 @@ export default function DsaPracticePage() {
                     {/* Card Top */}
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div>
-                        <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0f172a" }}>
+                        <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--cv-text)" }}>
                           {topic.topic}
                         </div>
-                        <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                           {topic.solved_count} / {topic.target_count} target problems solved
                         </div>
                       </div>
@@ -965,9 +955,9 @@ export default function DsaPracticePage() {
                           fontWeight: 700,
                           padding: "4px 12px",
                           borderRadius: "20px",
-                          background: topic.is_good_enough ? "#dcfce7" : "#fef3c7",
-                          color: topic.is_good_enough ? "#15803d" : "#b45309",
-                          border: topic.is_good_enough ? "1px solid #bbf7d0" : "1px solid #fde68a",
+                          background: topic.is_good_enough ? "var(--success-soft, var(--cv-success-soft, #dcfce7))" : "var(--accent-soft, var(--cv-accent-soft))",
+                          color: topic.is_good_enough ? "var(--success, #15803d)" : "var(--accent, var(--cv-accent))",
+                          border: topic.is_good_enough ? "1px solid var(--success-border, var(--cv-success-border, #bbf7d0))" : "1px solid var(--accent-border, var(--cv-accent-border))",
                         }}
                       >
                         {topic.is_good_enough ? (
@@ -984,18 +974,18 @@ export default function DsaPracticePage() {
 
                     {/* Progress Bar */}
                     <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#64748b", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted, var(--cv-text-muted))", marginBottom: "4px" }}>
                         <span>Topic Mastery</span>
-                        <span style={{ fontWeight: 700, color: topic.is_good_enough ? "#16a34a" : "#d97706" }}>
+                        <span style={{ fontWeight: 700, color: topic.is_good_enough ? "var(--success, #16a34a)" : "var(--accent, var(--cv-accent))" }}>
                           {topic.score_percent}%
                         </span>
                       </div>
-                      <div style={{ height: "7px", background: "#f1f5f9", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ height: "7px", background: "var(--surface-2, var(--cv-surface-raised, #f1f5f9))", borderRadius: "4px", overflow: "hidden" }}>
                         <div
                           style={{
                             height: "100%",
                             width: `${topic.score_percent}%`,
-                            background: topic.is_good_enough ? "#22c55e" : "#f59e0b",
+                            background: topic.is_good_enough ? "var(--success, #22c55e)" : "var(--accent, #f59e0b)",
                             borderRadius: "4px",
                           }}
                         />
@@ -1005,13 +995,13 @@ export default function DsaPracticePage() {
                     {/* Assessment Verdict */}
                     <div
                       style={{
-                        background: "#f8fafc",
+                        background: "var(--surface-2, var(--cv-surface-raised, #f8fafc))",
                         padding: "10px 14px",
                         borderRadius: "8px",
                         fontSize: "0.85rem",
-                        color: "#334155",
+                        color: "var(--text, var(--cv-text))",
                         lineHeight: 1.5,
-                        borderLeft: topic.is_good_enough ? "3.5px solid #22c55e" : "3.5px solid #f59e0b",
+                        borderLeft: topic.is_good_enough ? "3.5px solid var(--success, #22c55e)" : "3.5px solid var(--accent, #f59e0b)",
                       }}
                     >
                       <strong>Diagnostic Verdict:</strong> {topic.assessment_verdict}
@@ -1020,7 +1010,7 @@ export default function DsaPracticePage() {
                     {/* Curated Resources Loaded Properly */}
                     {topic.resources && topic.resources.length > 0 && (
                       <div style={{ marginTop: "4px" }}>
-                        <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted, var(--cv-text-muted))", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                           <BookOpen size={13} /> Curated Resources & Cheatsheets
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -1035,16 +1025,16 @@ export default function DsaPracticePage() {
                                 alignItems: "center",
                                 justifyContent: "space-between",
                                 fontSize: "0.8rem",
-                                color: "#2563eb",
+                                color: "var(--accent, var(--cv-accent, #2563eb))",
                                 textDecoration: "none",
-                                background: "#f8fafc",
-                                border: "1px solid #f1f5f9",
+                                background: "var(--surface-2, var(--cv-surface-raised, #f8fafc))",
+                                border: "1px solid var(--border, var(--cv-border))",
                                 padding: "6px 12px",
                                 borderRadius: "6px",
                               }}
                             >
                               <span style={{ fontWeight: 600 }}>{res.title}</span>
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "0.74rem", color: "#64748b" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "0.74rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                                 {res.resource_type} <ExternalLink size={12} />
                               </span>
                             </a>
@@ -1066,8 +1056,8 @@ export default function DsaPracticePage() {
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
-                  background: "#fee2e2",
-                  color: "#ef4444",
+                  background: "var(--danger-soft, var(--cv-danger-soft, #fee2e2))",
+                  color: "var(--danger, #ef4444)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1077,10 +1067,10 @@ export default function DsaPracticePage() {
               >
                 !
               </div>
-              <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 700 }}>
+              <h3 style={{ margin: 0, fontSize: "1.15rem", color: "var(--cv-text)", fontWeight: 700 }}>
                 Priority Topics Needing Practice ({toPracticeTopics.length})
               </h3>
-              <span style={{ fontSize: "0.82rem", color: "#64748b" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                 • Crucial for {targetRole} technical interview loops
               </span>
             </div>
@@ -1090,9 +1080,9 @@ export default function DsaPracticePage() {
                 <div
                   key={i}
                   style={{
-                    background: "#ffffff",
+                    background: "var(--surface, var(--cv-surface))",
                     borderRadius: "14px",
-                    border: "1px solid #fed7aa",
+                    border: "1px solid var(--border, var(--cv-border))",
                     padding: "1.4rem",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
                     display: "flex",
@@ -1102,10 +1092,10 @@ export default function DsaPracticePage() {
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0f172a" }}>
+                      <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--cv-text)" }}>
                         {topic.topic}
                       </div>
-                      <div style={{ fontSize: "0.8rem", color: "#b45309", fontWeight: 500 }}>
+                      <div style={{ fontSize: "0.8rem", color: "var(--accent, var(--cv-accent, #b45309))", fontWeight: 500 }}>
                         Status: {topic.mastery_level} • Target: {topic.target_count} problems
                       </div>
                     </div>
@@ -1119,8 +1109,9 @@ export default function DsaPracticePage() {
                         fontWeight: 700,
                         padding: "3px 10px",
                         borderRadius: "14px",
-                        background: "#fee2e2",
-                        color: "#dc2626",
+                        background: "var(--danger-soft, var(--cv-danger-soft, #fee2e2))",
+                        color: "var(--danger, #dc2626)",
+                        border: "1px solid var(--danger-border, var(--cv-danger-border, transparent))",
                       }}
                     >
                       <AlertTriangle size={13} /> Priority Focus
@@ -1130,13 +1121,13 @@ export default function DsaPracticePage() {
                   {/* Recommendation */}
                   <div
                     style={{
-                      background: "#fffbeb",
+                      background: "var(--surface-2, var(--cv-surface-raised, #fffbeb))",
                       padding: "10px 14px",
                       borderRadius: "8px",
                       fontSize: "0.85rem",
-                      color: "#92400e",
+                      color: "var(--text, var(--cv-text))",
                       lineHeight: 1.5,
-                      borderLeft: "3.5px solid #f59e0b",
+                      borderLeft: "3.5px solid var(--accent, #f59e0b)",
                     }}
                   >
                     <strong>Action Plan:</strong> {topic.recommended_action}
@@ -1145,7 +1136,7 @@ export default function DsaPracticePage() {
                   {/* Verified Resources for This Priority Topic */}
                   {topic.resources && topic.resources.length > 0 && (
                     <div>
-                      <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted, var(--cv-text-muted))", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <BookOpen size={13} /> Master This Pattern:
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -1160,19 +1151,19 @@ export default function DsaPracticePage() {
                               alignItems: "center",
                               justifyContent: "space-between",
                               fontSize: "0.8rem",
-                              color: "#2563eb",
+                              color: "var(--accent, var(--cv-accent, #2563eb))",
                               textDecoration: "none",
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
+                              background: "var(--surface-2, var(--cv-surface-raised, #f8fafc))",
+                              border: "1px solid var(--border, var(--cv-border))",
                               padding: "7px 12px",
                               borderRadius: "6px",
                             }}
                           >
                             <div>
-                              <div style={{ fontWeight: 600, color: "#1e293b" }}>{res.title}</div>
-                              <div style={{ fontSize: "0.74rem", color: "#64748b" }}>{res.summary}</div>
+                              <div style={{ fontWeight: 600, color: "var(--text, var(--cv-text))" }}>{res.title}</div>
+                              <div style={{ fontSize: "0.74rem", color: "var(--text-muted, var(--cv-text-muted))" }}>{res.summary}</div>
                             </div>
-                            <ExternalLink size={14} color="#2563eb" style={{ flexShrink: 0, marginLeft: "10px" }} />
+                            <ExternalLink size={14} color="var(--accent, var(--cv-accent, #2563eb))" style={{ flexShrink: 0, marginLeft: "10px" }} />
                           </a>
                         ))}
                       </div>
@@ -1188,16 +1179,16 @@ export default function DsaPracticePage() {
       {/* ─── TAB 2: PERFORMANCE-ADAPTIVE ROADMAP ───────────────────────────── */}
       {activeTab === "roadmap" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div style={{ background: "#ffffff", padding: "1.5rem 1.75rem", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "var(--surface, var(--cv-surface))", padding: "1.5rem 1.75rem", borderRadius: "14px", border: "1px solid var(--border, var(--cv-border))" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-              <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a", fontWeight: 700 }}>
+              <h3 style={{ margin: 0, fontSize: "1.15rem", color: "var(--cv-text)", fontWeight: 700 }}>
                 Algorithmic Milestone Roadmap • {targetRole}
               </h3>
-              <span style={{ fontSize: "0.82rem", background: "#fef3c7", color: "#92400e", padding: "3px 10px", borderRadius: "14px", fontWeight: 700 }}>
+              <span style={{ fontSize: "0.82rem", background: "var(--accent-soft, var(--cv-accent-soft, #fef3c7))", color: "var(--accent, var(--cv-accent, #92400e))", padding: "3px 10px", borderRadius: "14px", fontWeight: 700 }}>
                 Tuned to Practice Readiness ({data?.overall_readiness_score}%)
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: "0.9rem", color: "#64748b", lineHeight: 1.6 }}>
+            <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted, var(--cv-text-muted))", lineHeight: 1.6 }}>
               {data?.standing_summary}
             </p>
           </div>
@@ -1211,9 +1202,9 @@ export default function DsaPracticePage() {
                 <div
                   key={stage.stage}
                   style={{
-                    background: "#ffffff",
+                    background: "var(--surface, var(--cv-surface))",
                     borderRadius: "14px",
-                    border: isCompleted ? "1.5px solid #86efac" : isInProgress ? "1.5px solid #fde047" : "1px solid #e2e8f0",
+                    border: isCompleted ? "1.5px solid var(--success-border, var(--cv-success-border, #86efac))" : isInProgress ? "1.5px solid var(--accent-border, var(--cv-accent-border, #fde047))" : "1px solid var(--border, var(--cv-border))",
                     padding: "1.5rem 1.75rem",
                     display: "flex",
                     gap: "1.5rem",
@@ -1225,15 +1216,15 @@ export default function DsaPracticePage() {
                       width: 52,
                       height: 52,
                       borderRadius: "14px",
-                      background: isCompleted ? "#dcfce7" : isInProgress ? "#fef3c7" : "#f1f5f9",
-                      color: isCompleted ? "#15803d" : isInProgress ? "#b45309" : "#64748b",
+                      background: isCompleted ? "var(--success-soft, var(--cv-success-soft, #dcfce7))" : isInProgress ? "var(--accent-soft, var(--cv-accent-soft, #fef3c7))" : "var(--surface-2, var(--cv-surface-raised, #f1f5f9))",
+                      color: isCompleted ? "var(--success, #15803d)" : isInProgress ? "var(--accent, var(--cv-accent, #b45309))" : "var(--text-muted, var(--cv-text-muted, #64748b))",
                       fontWeight: 800,
                       fontSize: "1.25rem",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
-                      border: isCompleted ? "1px solid #bbf7d0" : isInProgress ? "1px solid #fde68a" : "1px solid #cbd5e1",
+                      border: isCompleted ? "1px solid var(--success-border, var(--cv-success-border, #bbf7d0))" : isInProgress ? "1px solid var(--accent-border, var(--cv-accent-border, #fde68a))" : "1px solid var(--border, var(--cv-border))",
                     }}
                   >
                     {isCompleted ? "✓" : stage.stage}
@@ -1242,7 +1233,7 @@ export default function DsaPracticePage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <h4 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a", fontWeight: 700 }}>
+                        <h4 style={{ margin: 0, fontSize: "1.1rem", color: "var(--cv-text)", fontWeight: 700 }}>
                           {stage.title}
                         </h4>
                         <span
@@ -1251,24 +1242,24 @@ export default function DsaPracticePage() {
                             fontWeight: 700,
                             padding: "3px 9px",
                             borderRadius: "10px",
-                            background: isCompleted ? "#dcfce7" : isInProgress ? "#fef3c7" : "#f1f5f9",
-                            color: isCompleted ? "#15803d" : isInProgress ? "#b45309" : "#64748b",
+                            background: isCompleted ? "var(--success-soft, var(--cv-success-soft, #dcfce7))" : isInProgress ? "var(--accent-soft, var(--cv-accent-soft, #fef3c7))" : "var(--surface-2, var(--cv-surface-raised, #f1f5f9))",
+                            color: isCompleted ? "var(--success, #15803d)" : isInProgress ? "var(--accent, var(--cv-accent, #b45309))" : "var(--text-muted, var(--cv-text-muted, #64748b))",
                             textTransform: "uppercase",
                           }}
                         >
                           {isCompleted ? "Completed" : isInProgress ? "In Progress" : "Upcoming"}
                         </span>
                       </div>
-                      <span style={{ fontSize: "0.82rem", background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: "12px", fontWeight: 600 }}>
+                      <span style={{ fontSize: "0.82rem", background: "var(--surface-2, var(--cv-surface-raised, #f1f5f9))", color: "var(--text-muted, var(--cv-text-muted, #475569))", padding: "3px 10px", borderRadius: "12px", fontWeight: 600 }}>
                         {stage.duration}
                       </span>
                     </div>
 
-                    <div style={{ fontSize: "0.88rem", color: "#475569", marginBottom: "6px", fontWeight: 600 }}>
+                    <div style={{ fontSize: "0.88rem", color: "var(--text, var(--cv-text))", marginBottom: "6px", fontWeight: 600 }}>
                       <strong>Pattern Focus:</strong> {stage.pattern}
                     </div>
 
-                    <p style={{ margin: "0 0 12px 0", fontSize: "0.88rem", color: "#64748b", lineHeight: 1.55 }}>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.88rem", color: "var(--text-muted, var(--cv-text-muted))", lineHeight: 1.55 }}>
                       {stage.learning_goal}
                     </p>
 
@@ -1276,13 +1267,13 @@ export default function DsaPracticePage() {
                     {stage.stage_assessment && (
                       <div
                         style={{
-                          background: isCompleted ? "rgba(34, 197, 94, 0.08)" : "#f8fafc",
+                          background: isCompleted ? "var(--success-soft, var(--cv-success-soft))" : "var(--surface-2, var(--cv-surface-raised, #f8fafc))",
                           padding: "8px 14px",
                           borderRadius: "8px",
                           fontSize: "0.84rem",
-                          color: isCompleted ? "#15803d" : "#334155",
+                          color: isCompleted ? "var(--success, #15803d)" : "var(--text, var(--cv-text))",
                           marginBottom: "12px",
-                          borderLeft: isCompleted ? "3.5px solid #22c55e" : "3.5px solid #94a3b8",
+                          borderLeft: isCompleted ? "3.5px solid var(--cv-success)" : "3.5px solid var(--cv-text-muted)",
                         }}
                       >
                         <strong>Stage Assessment:</strong> {stage.stage_assessment}
@@ -1296,18 +1287,18 @@ export default function DsaPracticePage() {
                             key={ti}
                             style={{
                               fontSize: "0.76rem",
-                              background: "#f1f5f9",
-                              color: "#334155",
+                              background: "var(--surface-2, var(--cv-surface-raised, #f1f5f9))",
+                              color: "var(--text, var(--cv-text))",
                               padding: "3px 9px",
                               borderRadius: "4px",
-                              border: "1px solid #e2e8f0",
+                              border: "1px solid var(--border, var(--cv-border))",
                             }}
                           >
                             {t}
                           </span>
                         ))}
                       </div>
-                      <span style={{ fontSize: "0.84rem", color: "#64748b" }}>
+                      <span style={{ fontSize: "0.84rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                         Target: <strong>{stage.target_problems_count} problems</strong> • Mastery: <strong>{stage.mastery_score}%</strong>
                       </span>
                     </div>
@@ -1365,14 +1356,14 @@ export default function DsaPracticePage() {
           {/* ── 1. COMPACT INTERVIEW TOOLBAR ─────────────────────────────────── */}
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #e5e2d9",
+              background: "var(--surface, var(--cv-surface))",
+              border: "1px solid var(--border, var(--cv-border))",
               borderRadius: "12px",
               padding: "10px 18px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              boxShadow: "0 2px 8px rgba(28, 28, 30, 0.03)",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
               flexWrap: "wrap",
               gap: "12px",
             }}
@@ -1380,7 +1371,7 @@ export default function DsaPracticePage() {
             {/* Left: Problem navigation, Title, Difficulty, Topic */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               {/* Prev / Next buttons */}
-              <div style={{ display: "flex", alignItems: "center", gap: "2px", background: "#f8fafc", padding: "2px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "2px", background: "var(--surface-2, var(--cv-surface-raised))", padding: "2px", borderRadius: "8px", border: "1px solid var(--border, var(--cv-border))" }}>
                 <button
                   type="button"
                   onClick={handlePrevProblem}
@@ -1392,7 +1383,7 @@ export default function DsaPracticePage() {
                     padding: "4px 8px",
                     borderRadius: "6px",
                     cursor: currentProblemIdx <= 0 ? "not-allowed" : "pointer",
-                    color: currentProblemIdx <= 0 ? "#cbd5e1" : "#475569",
+                    color: currentProblemIdx <= 0 ? "var(--border, #cbd5e1)" : "var(--text, #475569)",
                     display: "flex",
                     alignItems: "center",
                   }}
@@ -1402,15 +1393,15 @@ export default function DsaPracticePage() {
                 <button
                   type="button"
                   onClick={handleNextProblem}
-                  disabled={currentProblemIdx >= (data?.recommended_problems?.length || 1) - 1}
+                  disabled={currentProblemIdx >= (problemList.length || 1) - 1}
                   title="Next Problem"
                   style={{
                     background: "transparent",
                     border: "none",
                     padding: "4px 8px",
                     borderRadius: "6px",
-                    cursor: currentProblemIdx >= (data?.recommended_problems?.length || 1) - 1 ? "not-allowed" : "pointer",
-                    color: currentProblemIdx >= (data?.recommended_problems?.length || 1) - 1 ? "#cbd5e1" : "#475569",
+                    cursor: currentProblemIdx >= (problemList.length || 1) - 1 ? "not-allowed" : "pointer",
+                    color: currentProblemIdx >= (problemList.length || 1) - 1 ? "var(--border, #cbd5e1)" : "var(--text, #475569)",
                     display: "flex",
                     alignItems: "center",
                   }}
@@ -1419,17 +1410,49 @@ export default function DsaPracticePage() {
                 </button>
               </div>
 
+              {/* Platform Filter Dropdown */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <select
+                  value={platformFilter}
+                  onChange={(e) => {
+                    const nextPlatform = e.target.value;
+                    setPlatformFilter(nextPlatform);
+                    const filtered = nextPlatform === "All"
+                      ? allProblems
+                      : allProblems.filter((p) => (p.platform || "LeetCode").toLowerCase() === nextPlatform.toLowerCase());
+                    if (filtered.length > 0 && !filtered.find((p) => p.id === selectedProblem?.id)) {
+                      handleSelectProblem(filtered[0]);
+                    }
+                  }}
+                  style={{
+                    background: "var(--surface, var(--cv-surface))",
+                    color: "var(--text, var(--cv-text))",
+                    border: "1px solid var(--border, var(--cv-border))",
+                    borderRadius: "8px",
+                    padding: "6px 10px",
+                    fontSize: "0.82rem",
+                    fontWeight: 700,
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="All">All Platforms ({allProblems.length})</option>
+                  <option value="LeetCode">LeetCode ({allProblems.filter(p => (p.platform || "LeetCode") === "LeetCode").length})</option>
+                  <option value="HackerRank">HackerRank ({allProblems.filter(p => p.platform === "HackerRank").length})</option>
+                </select>
+              </div>
+
               {/* Problem Selector Dropdown */}
               <select
                 value={selectedProblem?.id || ""}
                 onChange={(e) => {
-                  const prob = data?.recommended_problems?.find((p) => p.id === e.target.value);
+                  const prob = problemList.find((p) => p.id === e.target.value);
                   if (prob) handleSelectProblem(prob);
                 }}
                 style={{
-                  background: "#ffffff",
-                  color: "#0f172a",
-                  border: "1px solid #cbd5e1",
+                  background: "var(--surface, var(--cv-surface))",
+                  color: "var(--text, var(--cv-text))",
+                  border: "1px solid var(--border, var(--cv-border))",
                   borderRadius: "8px",
                   padding: "6px 12px",
                   fontSize: "0.85rem",
@@ -1439,12 +1462,38 @@ export default function DsaPracticePage() {
                   maxWidth: "280px",
                 }}
               >
-                {data?.recommended_problems?.map((p, idx) => (
+                {problemList.map((p, idx) => (
                   <option key={p.id} value={p.id}>
-                    {idx + 1}. {p.title}
+                    [{p.platform || "LeetCode"}] {idx + 1}. {p.title}
                   </option>
                 ))}
               </select>
+
+              {/* Platform & Canonical Link Badge */}
+              {selectedProblem?.canonical_url && (
+                <a
+                  href={selectedProblem.canonical_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    padding: "3px 9px",
+                    borderRadius: "16px",
+                    textDecoration: "none",
+                    background: selectedProblem.platform === "HackerRank" ? "#ecfdf5" : "#fff7ed",
+                    color: selectedProblem.platform === "HackerRank" ? "#047857" : "#c2410c",
+                    border: selectedProblem.platform === "HackerRank" ? "1px solid #a7f3d0" : "1px solid #ffedd5",
+                  }}
+                  title={`Solve original problem on ${selectedProblem.platform || "LeetCode"}`}
+                >
+                  <span>{selectedProblem.platform || "LeetCode"}</span>
+                  <ExternalLink size={11} />
+                </a>
+              )}
 
               {/* Difficulty pill */}
               <span
@@ -1656,13 +1705,13 @@ export default function DsaPracticePage() {
             {/* ═══════════════════════════════════════════════════════════════ */}
             <div
               style={{
-                background: "#ffffff",
-                border: "1px solid #e5e2d9",
+                background: "var(--surface, var(--cv-surface))",
+                border: "1px solid var(--border, var(--cv-border))",
                 borderRadius: "14px",
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
-                boxShadow: "0 2px 10px rgba(28, 28, 30, 0.03)",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)",
                 height: "640px",
               }}
             >
@@ -1670,7 +1719,7 @@ export default function DsaPracticePage() {
               <div
                 style={{
                   display: "flex",
-                  borderBottom: "1px solid #e5e2d9",
+                  borderBottom: "1px solid var(--border, var(--cv-border))",
                   background: "#faf9f6",
                   padding: "0 8px",
                   gap: "2px",
@@ -1678,6 +1727,7 @@ export default function DsaPracticePage() {
               >
                 {[
                   { id: "description", label: "Description", icon: BookOpen },
+                  { id: "teaching", label: "Step-by-Step Guide", icon: Compass },
                   { id: "examples", label: "Examples", icon: FileText },
                   { id: "constraints", label: "Constraints", icon: ShieldCheck },
                   { id: "hints", label: "Hints & Approach", icon: Lightbulb },
@@ -1731,7 +1781,7 @@ export default function DsaPracticePage() {
                           margin: "0 0 10px 0",
                           fontSize: "1.25rem",
                           fontWeight: 800,
-                          color: "#0f172a",
+                          color: "var(--cv-text)",
                           letterSpacing: "-0.01em",
                         }}
                       >
@@ -1914,7 +1964,7 @@ export default function DsaPracticePage() {
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#0f172a" }}>
+                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--cv-text)" }}>
                               Hint {hIdx + 1}
                             </span>
                             <button
@@ -1956,6 +2006,137 @@ export default function DsaPracticePage() {
                         </div>
                         <p style={{ margin: 0, fontSize: "0.82rem", color: "#14532d", lineHeight: 1.5 }}>
                           {selectedProblem.approach}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 5: STEP-BY-STEP TEACHING GUIDE */}
+                {leftPaneTab === "teaching" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <div
+                      style={{
+                        background: "linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)",
+                        border: "1px solid rgba(79, 70, 229, 0.2)",
+                        borderRadius: "12px",
+                        padding: "16px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <Compass size={18} color="#4f46e5" />
+                        <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--cv-text, #1e293b)" }}>
+                          Socratic Algorithmic Mastery Guide
+                        </h4>
+                      </div>
+                      <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--cv-text-muted, #475569)", lineHeight: 1.5 }}>
+                        Step-by-step pedagogical breakdown covering core invariants, brute-force to optimal derivation, dry runs, edge cases, and senior interview pitfalls.
+                      </p>
+                    </div>
+
+                    {selectedProblem?.step_by_step_teaching ? (
+                      <>
+                        {/* 1. Intuition */}
+                        {selectedProblem.step_by_step_teaching.intuition && (
+                          <div style={{ background: "var(--cv-surface, #ffffff)", border: "1px solid var(--cv-border, #e2e8f0)", borderRadius: "10px", padding: "14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                              <Lightbulb size={15} color="#eab308" />
+                              <strong style={{ fontSize: "0.84rem", color: "var(--cv-text, #1e293b)" }}>1. Intuition & Mental Model</strong>
+                            </div>
+                            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--cv-text-muted, #475569)", lineHeight: 1.6 }}>
+                              {selectedProblem.step_by_step_teaching.intuition}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* 2. Invariants */}
+                        {selectedProblem.step_by_step_teaching.invariants && (
+                          <div style={{ background: "var(--cv-surface, #ffffff)", border: "1px solid var(--cv-border, #e2e8f0)", borderRadius: "10px", padding: "14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                              <ShieldCheck size={15} color="#3b82f6" />
+                              <strong style={{ fontSize: "0.84rem", color: "var(--cv-text, #1e293b)" }}>2. Algorithmic Invariants</strong>
+                            </div>
+                            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--cv-text-muted, #475569)", lineHeight: 1.6 }}>
+                              {selectedProblem.step_by_step_teaching.invariants}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* 3. Brute Force vs Optimal */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px" }}>
+                            <strong style={{ fontSize: "0.78rem", color: "#991b1b", textTransform: "uppercase" }}>Brute Force Baseline</strong>
+                            <p style={{ margin: "6px 0 0 0", fontSize: "0.8rem", color: "#7f1d1d", lineHeight: 1.5 }}>
+                              {selectedProblem.step_by_step_teaching.brute_force || "Exhaustive combinatorial search."}
+                            </p>
+                          </div>
+                          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", padding: "12px" }}>
+                            <strong style={{ fontSize: "0.78rem", color: "#166534", textTransform: "uppercase" }}>Optimal Derivation</strong>
+                            <p style={{ margin: "6px 0 0 0", fontSize: "0.8rem", color: "#14532d", lineHeight: 1.5 }}>
+                              {selectedProblem.step_by_step_teaching.optimal_derivation || selectedProblem.approach}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 4. Dry Run */}
+                        {selectedProblem.step_by_step_teaching.dry_run && (
+                          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                              <Terminal size={14} color="#64748b" />
+                              <strong style={{ fontSize: "0.84rem", color: "#334155" }}>Step-by-Step Dry Run</strong>
+                            </div>
+                            <pre style={{ margin: 0, fontSize: "0.78rem", background: "#1e293b", color: "#e2e8f0", padding: "10px", borderRadius: "6px", overflowX: "auto", fontFamily: "monospace" }}>
+                              {selectedProblem.step_by_step_teaching.dry_run}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* 5. Edge Cases & Pitfalls */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          {selectedProblem.step_by_step_teaching.edge_cases && (
+                            <div style={{ background: "var(--cv-surface, #ffffff)", border: "1px solid var(--cv-border, #e2e8f0)", borderRadius: "10px", padding: "12px" }}>
+                              <strong style={{ fontSize: "0.78rem", color: "#d97706", display: "flex", alignItems: "center", gap: "4px" }}>
+                                <AlertTriangle size={13} /> Boundary Edge Cases
+                              </strong>
+                              <ul style={{ margin: "6px 0 0 0", paddingLeft: "18px", fontSize: "0.8rem", color: "var(--cv-text-muted, #475569)" }}>
+                                {selectedProblem.step_by_step_teaching.edge_cases.map((ec, idx) => (
+                                  <li key={idx} style={{ marginBottom: "3px" }}>{ec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {selectedProblem.step_by_step_teaching.pitfalls && (
+                            <div style={{ background: "var(--cv-surface, #ffffff)", border: "1px solid var(--cv-border, #e2e8f0)", borderRadius: "10px", padding: "12px" }}>
+                              <strong style={{ fontSize: "0.78rem", color: "#dc2626", display: "flex", alignItems: "center", gap: "4px" }}>
+                                <AlertCircle size={13} /> Traps & Pitfalls
+                              </strong>
+                              <ul style={{ margin: "6px 0 0 0", paddingLeft: "18px", fontSize: "0.8rem", color: "var(--cv-text-muted, #475569)" }}>
+                                {selectedProblem.step_by_step_teaching.pitfalls.map((pf, idx) => (
+                                  <li key={idx} style={{ marginBottom: "3px" }}>{pf}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 6. Senior Follow-ups */}
+                        {selectedProblem.step_by_step_teaching.follow_ups && (
+                          <div style={{ background: "linear-gradient(135deg, rgba(238, 242, 255, 0.6) 0%, rgba(245, 243, 255, 0.6) 100%)", border: "1px solid #c7d2fe", borderRadius: "10px", padding: "12px" }}>
+                            <strong style={{ fontSize: "0.78rem", color: "#3730a3", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <Sparkles size={13} /> Senior Interview Follow-Ups
+                            </strong>
+                            <ul style={{ margin: "6px 0 0 0", paddingLeft: "18px", fontSize: "0.8rem", color: "#312e81" }}>
+                              {selectedProblem.step_by_step_teaching.follow_ups.map((fu, idx) => (
+                                <li key={idx} style={{ marginBottom: "3px" }}>{fu}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px" }}>
+                        <p style={{ margin: 0, fontSize: "0.84rem", color: "#64748b" }}>
+                          Study the problem approach and hints in the <strong>Hints & Approach</strong> tab, or ask <strong>Alex AI Tutor</strong> for tailored Socratic feedback on your active code.
                         </p>
                       </div>
                     )}
@@ -2089,7 +2270,7 @@ export default function DsaPracticePage() {
                       background: "rgba(245, 158, 11, 0.15)",
                       border: "1px solid rgba(245, 158, 11, 0.5)",
                       borderRadius: "6px",
-                      color: "#fbbf24",
+                      color: "var(--cv-warning)",
                       padding: "6px 14px",
                       fontSize: "0.78rem",
                       fontWeight: 700,
@@ -2227,8 +2408,8 @@ export default function DsaPracticePage() {
                 {/* Alex Header */}
                 <div
                   style={{
-                    background: "#ffffff",
-                    borderBottom: "1px solid #e5e2d9",
+                    background: "var(--surface, var(--cv-surface))",
+                    borderBottom: "1px solid var(--border, var(--cv-border))",
                     padding: "12px 16px",
                     display: "flex",
                     alignItems: "center",
@@ -2241,20 +2422,20 @@ export default function DsaPracticePage() {
                         width: 28,
                         height: 28,
                         borderRadius: "8px",
-                        background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                        background: "var(--accent-soft, var(--cv-accent-soft))",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "#ffffff",
+                        color: "var(--accent, var(--cv-accent))",
                       }}
                     >
                       <Bot size={16} />
                     </div>
                     <div>
-                      <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#0f172a" }}>
+                      <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "var(--cv-text)" }}>
                         Alex • Socratic AI Tutor
                       </div>
-                      <div style={{ fontSize: "0.68rem", color: "#686766" }}>
+                      <div style={{ fontSize: "0.68rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                         Conceptual guidance & invariant checks
                       </div>
                     </div>
@@ -2265,7 +2446,7 @@ export default function DsaPracticePage() {
                     style={{
                       background: "transparent",
                       border: "none",
-                      color: "#64748b",
+                      color: "var(--text-muted, var(--cv-text-muted))",
                       cursor: "pointer",
                       padding: "4px",
                     }}
@@ -2278,7 +2459,7 @@ export default function DsaPracticePage() {
                 <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
                   {/* Quick Socratic Prompt Chips */}
                   <div>
-                    <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#686766", textTransform: "uppercase", marginBottom: "6px" }}>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-muted, var(--cv-text-muted))", textTransform: "uppercase", marginBottom: "6px" }}>
                       QUICK SOCRATIC INQUIRY
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -2297,13 +2478,13 @@ export default function DsaPracticePage() {
                           }}
                           disabled={aiHintState.loading}
                           style={{
-                            background: "#ffffff",
-                            border: "1px solid #e5e2d9",
+                            background: "var(--surface, var(--cv-surface))",
+                            border: "1px solid var(--border, var(--cv-border))",
                             borderRadius: "14px",
                             padding: "4px 10px",
                             fontSize: "0.72rem",
                             fontWeight: 600,
-                            color: "#4f46e5",
+                            color: "var(--accent, var(--cv-accent))",
                             cursor: "pointer",
                             textAlign: "left",
                           }}
@@ -2318,12 +2499,12 @@ export default function DsaPracticePage() {
                   {aiHintState.loading ? (
                     <div
                       style={{
-                        background: "#ffffff",
-                        border: "1px solid #e5e2d9",
+                        background: "var(--surface, var(--cv-surface))",
+                        border: "1px solid var(--border, var(--cv-border))",
                         borderRadius: "10px",
                         padding: "16px",
                         fontSize: "0.8rem",
-                        color: "#4f46e5",
+                        color: "var(--accent, var(--cv-accent))",
                         fontWeight: 600,
                       }}
                     >
@@ -2332,8 +2513,8 @@ export default function DsaPracticePage() {
                   ) : aiHintState.hint ? (
                     <div
                       style={{
-                        background: "#ffffff",
-                        border: "1px solid #e5e2d9",
+                        background: "var(--surface, var(--cv-surface))",
+                        border: "1px solid var(--border, var(--cv-border))",
                         borderRadius: "10px",
                         padding: "14px",
                         display: "flex",
@@ -2345,9 +2526,9 @@ export default function DsaPracticePage() {
                         style={{
                           fontSize: "0.72rem",
                           fontWeight: 800,
-                          color: "#b45309",
+                          color: "var(--accent, var(--cv-accent))",
                           textTransform: "uppercase",
-                          background: "#fef3c7",
+                          background: "var(--accent-soft, var(--cv-accent-soft))",
                           padding: "2px 8px",
                           borderRadius: "6px",
                           alignSelf: "flex-start",
@@ -2355,17 +2536,17 @@ export default function DsaPracticePage() {
                       >
                         {aiHintState.mistake_category || "Invariant Check"}
                       </div>
-                      <div style={{ fontSize: "0.82rem", color: "#1c1c1e", lineHeight: 1.55 }}>
+                      <div style={{ fontSize: "0.82rem", color: "var(--text, var(--cv-text))", lineHeight: 1.55 }}>
                         {aiHintState.hint}
                       </div>
                       {aiHintState.socratic_question && (
                         <div
                           style={{
-                            background: "#eef2ff",
-                            borderLeft: "3px solid #4f46e5",
+                            background: "var(--accent-soft, var(--cv-accent-soft))",
+                            borderLeft: "3px solid var(--accent, var(--cv-accent))",
                             padding: "8px 12px",
                             borderRadius: "4px",
-                            color: "#4338ca",
+                            color: "var(--accent, var(--cv-accent))",
                             fontSize: "0.78rem",
                           }}
                         >
@@ -2373,13 +2554,13 @@ export default function DsaPracticePage() {
                         </div>
                       )}
                       {aiHintState.suggested_test_input && (
-                        <div style={{ fontSize: "0.74rem", color: "#686766" }}>
+                        <div style={{ fontSize: "0.74rem", color: "var(--text-muted, var(--cv-text-muted))" }}>
                           <strong>Test Input to Inspect: </strong>
                           <code>{aiHintState.suggested_test_input}</code>
                         </div>
                       )}
                       {(aiHintState.time_complexity_estimate || aiHintState.space_complexity_estimate) && (
-                        <div style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 700 }}>
+                        <div style={{ fontSize: "0.72rem", color: "var(--success, var(--cv-success))", fontWeight: 700 }}>
                           Estimated: Time {aiHintState.time_complexity_estimate || "O(N)"} • Space {aiHintState.space_complexity_estimate || "O(1)"}
                         </div>
                       )}
@@ -2387,11 +2568,11 @@ export default function DsaPracticePage() {
                   ) : (
                     <div
                       style={{
-                        background: "#ffffff",
-                        border: "1px solid #e5e2d9",
+                        background: "var(--surface, var(--cv-surface))",
+                        border: "1px solid var(--border, var(--cv-border))",
                         borderRadius: "10px",
                         padding: "14px",
-                        color: "#686766",
+                        color: "var(--text-muted, var(--cv-text-muted))",
                         fontSize: "0.8rem",
                         lineHeight: 1.5,
                       }}
@@ -2415,7 +2596,9 @@ export default function DsaPracticePage() {
                           flex: 1,
                           padding: "8px 10px",
                           borderRadius: "8px",
-                          border: "1px solid #e5e2d9",
+                          border: "1px solid var(--border, var(--cv-border))",
+                          background: "var(--surface, var(--cv-surface))",
+                          color: "var(--text, var(--cv-text))",
                           fontSize: "0.78rem",
                           outline: "none",
                         }}
@@ -2425,7 +2608,7 @@ export default function DsaPracticePage() {
                         onClick={() => handleAskAiHint()}
                         disabled={aiHintState.loading}
                         style={{
-                          background: "#4f46e5",
+                          background: "var(--accent, var(--cv-accent))",
                           color: "#ffffff",
                           border: "none",
                           borderRadius: "8px",
@@ -2447,20 +2630,20 @@ export default function DsaPracticePage() {
           {/* ── 3. BELOW THE WORKSPACE: RESULTS & TELEMETRY CONSOLE ──────────── */}
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #e5e2d9",
+              background: "var(--surface, var(--cv-surface))",
+              border: "1px solid var(--border, var(--cv-border))",
               borderRadius: "14px",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              boxShadow: "0 2px 10px rgba(28, 28, 30, 0.03)",
+              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)",
             }}
           >
             {/* Console Header Tabs */}
             <div
               style={{
                 display: "flex",
-                borderBottom: "1px solid #e5e2d9",
+                borderBottom: "1px solid var(--border, var(--cv-border))",
                 background: "#faf9f6",
                 padding: "0 10px",
                 gap: "2px",
@@ -2829,7 +3012,7 @@ export default function DsaPracticePage() {
                   <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
                     RAG Problem Synthesizer
                   </h3>
-                  <p style={{ margin: 0, fontSize: "0.78rem", color: "#94a3b8" }}>
+                  <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--cv-text-muted)" }}>
                     Calibrated against your {lcStats.total_solved || 525}+ LeetCode solves
                   </p>
                 </div>
@@ -2849,7 +3032,7 @@ export default function DsaPracticePage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "var(--cv-text-muted)", textTransform: "uppercase", marginBottom: "6px" }}>
                   Select Topic Focus
                 </label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -2884,7 +3067,7 @@ export default function DsaPracticePage() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "var(--cv-text-muted)", textTransform: "uppercase", marginBottom: "6px" }}>
                   Target Difficulty
                 </label>
                 <div style={{ display: "flex", gap: "8px" }}>

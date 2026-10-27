@@ -1,0 +1,14 @@
+unit: career-intelligence
+side_effects:
+  - source_loc: "frontend/src/pages/CareerIntelligencePage.jsx:78"
+    effect: "runs the multi-agent career intelligence request and renders synthesis/evidence"
+    must_preserve: true
+branches:
+  - source_loc: "frontend/src/pages/CareerIntelligencePage.jsx:78"
+    condition: "AI response is completed, empty, or failed"
+    behavior: "show synthesis, honest unavailable state, or retryable error"
+    must_preserve: true
+error_paths: []
+concurrency:
+  model: async
+  tx_boundary: null

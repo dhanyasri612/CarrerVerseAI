@@ -34,6 +34,8 @@ class DsaRecommendedProblem(BaseModel):
     title: str
     difficulty: str  # "Easy", "Medium", "Hard"
     topic: str
+    platform: str = "LeetCode"  # "LeetCode" | "HackerRank"
+    canonical_url: Optional[str] = None
     similar_to: Optional[str] = None
     description: str
     examples: List[DsaProblemExample] = Field(default_factory=list)
@@ -44,6 +46,7 @@ class DsaRecommendedProblem(BaseModel):
     space_complexity: Optional[str] = None
     resources: List[TopicResource] = Field(default_factory=list)
     starter_code: Dict[str, str] = Field(default_factory=dict)
+    step_by_step_teaching: Optional[Dict[str, Any]] = None
 
 
 class DsaRoadmapStage(BaseModel):

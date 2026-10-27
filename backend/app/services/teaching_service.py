@@ -2108,12 +2108,66 @@ def chat_with_teaching_mentor(
             demonstrated_understanding = False
             limitations_note = "AI provider unavailable; assessment could not be evaluated."
         else:
-            cyra_reply = (
-                f"I'm delighted you asked about that in **{current_lesson_title}**!\n\n"
-                f"Here is the core mental model: Think of this pattern as maintaining an invariant ledger. "
-                f"Instead of re-evaluating state repeatedly, we store proven facts so lookups take O(1) time.\n\n"
-                f"Would you like me to walk through a concrete step-by-step code example, or explore how this connects to your projects?"
-            )
+            msg_lower = user_msg.lower()
+            if "simply" in msg_lower or "eli5" in msg_lower or "simple" in msg_lower:
+                cyra_reply = (
+                    f"Let's break down **{current_lesson_title}** into plain terms.\n\n"
+                    f"Imagine you are organizing a shared team workspace. Instead of every person re-verifying information from scratch, "
+                    f"you establish a single source of truth that guarantees consistent inputs and predictable outputs. "
+                    f"In **{target_id}**, this concept does exactly that: it abstracts complexity into modular, reusable components so you don't repeat boilerplate."
+                )
+            elif "different example" in msg_lower or "another example" in msg_lower:
+                cyra_reply = (
+                    f"Here is an alternative practical example for **{current_lesson_title}** in **{target_id}**:\n\n"
+                    f"```python\n# Alternative implementation pattern for {current_lesson_title}\n"
+                    f"# Demonstrates clean separation of concerns and robust error handling\n"
+                    f"def execute_pipeline(payload: dict) -> dict:\n"
+                    f"    if not payload:\n"
+                    f"        raise ValueError('Payload cannot be empty')\n"
+                    f"    return {{'status': 'success', 'topic': '{current_lesson_title}', 'data': payload}}\n```\n\n"
+                    f"Notice how this decouples the configuration from the actual execution logic."
+                )
+            elif "hint" in msg_lower:
+                cyra_reply = (
+                    f"💡 **Mentor Hint for {current_lesson_title}**:\n\n"
+                    f"Think about the data transformation pipeline. What is the exact state right before the operation runs? "
+                    f"Check whether the required inputs or schemas match the expected structure before invoking the logic."
+                )
+            elif "why my answer is incorrect" in msg_lower or "incorrect" in msg_lower:
+                cyra_reply = (
+                    f"Let's examine why that approach might be sub-optimal in **{current_lesson_title}**:\n\n"
+                    f"1. **Input Preconditions**: Verify if edge cases or unvalidated types cause unexpected runtime failures.\n"
+                    f"2. **State Management**: Ensure you are not mutating shared references or bypassing framework lifecycle contracts.\n"
+                    f"3. **Return Expectations**: Compare your output structure against the required schema."
+                )
+            elif "practical challenge" in msg_lower or "challenge" in msg_lower:
+                cyra_reply = (
+                    f"🎯 **Hands-On Challenge for {current_lesson_title}**:\n\n"
+                    f"Build a lightweight utility function that accepts an input configuration, validates the input parameters, "
+                    f"and returns a structured result without throwing unhandled exceptions. "
+                    f"Write your solution in the code workspace and let me know when you're ready to review!"
+                )
+            elif "project" in msg_lower or "connect" in msg_lower:
+                if connected_projects_info:
+                    cyra_reply = (
+                        f"Connecting **{current_lesson_title}** to your project:\n\n"
+                        f"{connected_projects_info}\n\n"
+                        f"In your repository, applying this pattern allows you to separate configuration parameters from execution logic, "
+                        f"ensuring your application handles scaling gracefully without tight coupling."
+                    )
+                else:
+                    cyra_reply = (
+                        f"Connecting **{current_lesson_title}** to practical project work:\n\n"
+                        f"In real-world applications using **{target_id}**, this pattern is deployed in the core business logic layer. "
+                        f"It keeps your controllers/handlers thin and moves orchestration into dedicated, unit-testable modules."
+                    )
+            else:
+                cyra_reply = (
+                    f"I'm delighted you asked about that in **{current_lesson_title}**!\n\n"
+                    f"Here is the core mental model: In **{target_id}**, {current_lesson_title} ensures that operations maintain predictable invariants. "
+                    f"Instead of handling state transitions ad-hoc, we rely on established architectural contracts.\n\n"
+                    f"Would you like me to walk through a concrete step-by-step code example, or explore how this connects to your projects?"
+                )
 
     # Process assessment score if present — only when provider actually succeeded
     if is_assessment and provider_succeeded:

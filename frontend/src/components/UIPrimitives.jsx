@@ -78,3 +78,6 @@ export function ActionButton({ children, href, onClick, variant = "primary", ico
 
   return <button className={`action-button action-button-${variant}`} type="button" onClick={onClick} {...props}>{content}</button>;
 }
+
+// Re-export standardized ThemeComponents for application-wide consistency
+export * from "./theme/ThemeComponents";

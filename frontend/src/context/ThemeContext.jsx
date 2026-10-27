@@ -88,6 +88,13 @@ const THEME_STORAGE_KEY = "careerverse_theme_preference_v2";
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     try {
+      if (typeof window !== "undefined") {
+        const queryTheme = new URLSearchParams(window.location.search).get("theme");
+        if (queryTheme) {
+          const resolved = ALIASES[queryTheme] || queryTheme;
+          if (THEMES.some((t) => t.id === resolved)) return resolved;
+        }
+      }
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
       if (saved) {
         const resolved = ALIASES[saved] || saved;

@@ -7,6 +7,7 @@
    THEME 01 — PAPER / IRIS (Default / Editorial Career Magazine)
    ========================================================================== */
 :root,
+html[data-theme="paper-iris"],
 [data-theme="paper-iris"],
 .theme-paper-iris {
   --cv-bg: #F9F8F5;
@@ -15,6 +16,12 @@
   --cv-surface-raised: #FFFFFF;
   --cv-surface-overlay: rgba(255, 255, 255, 0.92);
   --cv-surface-active: #EFECE4;
+
+  --cv-paper: #FFFFFF;
+  --cv-rule: #E5E2D9;
+  --cv-muted: #686766;
+  --cv-card-bg: #FFFFFF;
+  color-scheme: light;
 
   --cv-text: #1C1C1E;
   --cv-text-muted: #686766;
@@ -57,6 +64,7 @@
 /* ==========================================================================
    THEME 02 — MIDNIGHT / NEBULA (Deep AI Workspace)
    ========================================================================== */
+html[data-theme="midnight-nebula"],
 [data-theme="midnight-nebula"],
 .theme-midnight-nebula {
   --cv-bg: #0B0E14;
@@ -65,6 +73,12 @@
   --cv-surface-raised: #1F2433;
   --cv-surface-overlay: rgba(23, 27, 38, 0.94);
   --cv-surface-active: #282E42;
+
+  --cv-paper: #171B26;
+  --cv-rule: #222838;
+  --cv-muted: #8E98AB;
+  --cv-card-bg: #1F2433;
+  color-scheme: dark;
 
   --cv-text: #F1F3F9;
   --cv-text-muted: #8E98AB;
@@ -107,6 +121,7 @@
 /* ==========================================================================
    THEME 03 — CLAY / SUNRISE (Creative Studio & Human Warmth)
    ========================================================================== */
+html[data-theme="clay-sunrise"],
 [data-theme="clay-sunrise"],
 .theme-clay-sunrise {
   --cv-bg: #FAF6F0;
@@ -115,6 +130,12 @@
   --cv-surface-raised: #FFFFFF;
   --cv-surface-overlay: rgba(255, 255, 255, 0.94);
   --cv-surface-active: #EADFCF;
+
+  --cv-paper: #FFFFFF;
+  --cv-rule: #E8DDCE;
+  --cv-muted: #786C62;
+  --cv-card-bg: #FFFFFF;
+  color-scheme: light;
 
   --cv-text: #261F1A;
   --cv-text-muted: #786C62;
@@ -157,7 +178,10 @@
 /* ==========================================================================
    THEME 04 — MOSS / GRAPHITE (Technical & Mature Engineering)
    ========================================================================== */
+html[data-theme="moss-graphite"],
+html[data-theme="botanical"],
 [data-theme="moss-graphite"],
+[data-theme="botanical"],
 .theme-moss-graphite {
   --cv-bg: #181B1A;
   --cv-bg-subtle: #202423;
@@ -165,6 +189,12 @@
   --cv-surface-raised: #2E3432;
   --cv-surface-overlay: rgba(37, 42, 40, 0.94);
   --cv-surface-active: #39423F;
+
+  --cv-paper: #252A28;
+  --cv-rule: #303734;
+  --cv-muted: #8E9C94;
+  --cv-card-bg: #2E3432;
+  color-scheme: dark;
 
   --cv-text: #EDF2EE;
   --cv-text-muted: #8E9C94;
@@ -177,7 +207,7 @@
 
   --cv-accent: #34D399;          /* Emerald / Deep Moss */
   --cv-accent-hover: #10B981;
-  --cv-accent-soft: rgba(52, 211, 153, 0.14);
+  --cv-accent-soft: rgba(52, 211, 153, 0.16);
   --cv-accent-border: rgba(52, 211, 153, 0.35);
   --cv-accent-contrast: #064E3B;
 
@@ -210,6 +240,7 @@
 /* ==========================================================================
    THEME 05 — OCEAN / MIST (Intelligent, Calm & Focused)
    ========================================================================== */
+html[data-theme="ocean-mist"],
 [data-theme="ocean-mist"],
 .theme-ocean-mist {
   --cv-bg: #F2F7FA;
@@ -218,6 +249,12 @@
   --cv-surface-raised: #FFFFFF;
   --cv-surface-overlay: rgba(255, 255, 255, 0.94);
   --cv-surface-active: #DCE7F0;
+
+  --cv-paper: #FFFFFF;
+  --cv-rule: #D1DFEA;
+  --cv-muted: #4B647A;
+  --cv-card-bg: #FFFFFF;
+  color-scheme: light;
 
   --cv-text: #0E2233;
   --cv-text-muted: #4B647A;
@@ -260,6 +297,8 @@
 /* ==========================================================================
    THEME 06 — CINEMA / NIGHT (Atmospheric, Warm Gold & Reflective)
    ========================================================================== */
+html[data-theme="cinema"],
+html[data-theme="cinema-night"],
 [data-theme="cinema"],
 [data-theme="cinema-night"],
 .theme-cinema-night {
@@ -269,6 +308,12 @@
   --cv-surface-raised: #2F2C26;
   --cv-surface-overlay: rgba(37, 35, 30, 0.94);
   --cv-surface-active: #3C3831;
+
+  --cv-paper: #25231E;
+  --cv-rule: #484338;
+  --cv-muted: #B6AD99;
+  --cv-card-bg: #2F2C26;
+  color-scheme: dark;
 
   --cv-text: #F0E8D7;
   --cv-text-muted: #B6AD99;
@@ -311,6 +356,8 @@
 /* ==========================================================================
    THEME 07 — MONO / GRAPHITE (Technical & Precise)
    ========================================================================== */
+html[data-theme="mono"],
+html[data-theme="mono-graphite"],
 [data-theme="mono"],
 [data-theme="mono-graphite"],
 .theme-mono-graphite {
@@ -321,8 +368,14 @@
   --cv-surface-overlay: rgba(242, 242, 236, 0.94);
   --cv-surface-active: #DDDED6;
 
+  --cv-paper: #F2F2EC;
+  --cv-rule: #BFC3BD;
+  --cv-muted: #525855;
+  --cv-card-bg: #FFFFFF;
+  color-scheme: light;
+
   --cv-text: #292D2D;
-  --cv-text-muted: #656B68;
+  --cv-text-muted: #525855;
   --cv-text-faint: #989E9B;
   --cv-text-inverse: #FFFFFF;
 
@@ -330,8 +383,8 @@
   --cv-border-subtle: #D1D5CF;
   --cv-border-strong: #9EA39C;
 
-  --cv-accent: #414C49;          /* Deep Slate Graphite */
-  --cv-accent-hover: #292D2D;
+  --cv-accent: #333D3A;          /* Deep Slate Graphite */
+  --cv-accent-hover: #1F2523;
   --cv-accent-soft: #D9DED9;
   --cv-accent-border: #A8AFA9;
   --cv-accent-contrast: #FFFFFF;
@@ -339,11 +392,11 @@
   --cv-secondary: #76796E;       /* Muted Olive Slate */
   --cv-secondary-soft: #E5E8E0;
 
-  --cv-success: #4D7A60;
+  --cv-success: #2E6847;
   --cv-success-soft: #E2ECE5;
-  --cv-warning: #B57E3E;
+  --cv-warning: #9E6728;
   --cv-warning-soft: #F9EFE4;
-  --cv-danger: #AD4B4B;
+  --cv-danger: #A33636;
   --cv-danger-soft: #F9EBEB;
   --cv-info: #4E738A;
   --cv-info-soft: #E7EEF3;
@@ -355,6 +408,78 @@
 
   --cv-rail-bg: #DFDFD8;
   --cv-rail-border: #C5C9C2;
-  --cv-glow: rgba(65, 76, 73, 0.18);
+  --cv-glow: rgba(51, 61, 58, 0.18);
   --cv-badge-bg: #E0E3DD;
+}
+
+/* ==========================================================================
+   CANONICAL SHORT TOKEN MAPPINGS & DESIGN TOKENS
+   Mapped dynamically to whichever theme is currently active
+   ========================================================================== */
+:root,
+[data-theme] {
+  /* Canonical Core Surface & Typography Tokens */
+  --bg: var(--cv-bg);
+  --surface: var(--cv-surface);
+  --surface-2: var(--cv-surface-raised);
+  --surface-overlay: var(--cv-surface-overlay);
+  --surface-active: var(--cv-surface-active);
+
+  --border: var(--cv-border);
+  --border-subtle: var(--cv-border-subtle);
+  --border-strong: var(--cv-border-strong);
+
+  --text: var(--cv-text);
+  --text-muted: var(--cv-text-muted);
+  --text-faint: var(--cv-text-faint);
+  --text-inverse: var(--cv-text-inverse);
+
+  --accent: var(--cv-accent);
+  --accent-hover: var(--cv-accent-hover);
+  --accent-soft: var(--cv-accent-soft);
+  --accent-border: var(--cv-accent-border);
+  --accent-contrast: var(--cv-accent-contrast);
+
+  --success: var(--cv-success);
+  --success-soft: var(--cv-success-soft);
+  --danger: var(--cv-danger);
+  --danger-soft: var(--cv-danger-soft);
+  --warning: var(--cv-warning);
+  --warning-soft: var(--cv-warning-soft);
+  --info: var(--cv-info);
+  --info-soft: var(--cv-info-soft);
+
+  /* Shared Geometry & Spacing Scale */
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --radius-sm: 6px;
+  --radius-full: 9999px;
+
+  /* Focus & Elevation Tokens */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --shadow-card: var(--cv-shadow-sm);
+  --shadow-overlay: var(--cv-shadow-popover);
+
+  /* Backward Compatibility Bridge */
+  --bg-page: var(--cv-bg);
+  --bg-subtle: var(--cv-bg-subtle);
+  --bg-surface: var(--cv-surface);
+  --bg-surface-hover: var(--cv-surface-active);
+  --bg-surface-active: var(--cv-surface-active);
+  --border-color: var(--cv-border);
+  --border-hover: var(--cv-border-strong);
+  --text-primary: var(--cv-text);
+  --text-secondary: var(--cv-text-muted);
+  --primary: var(--cv-accent);
+  --primary-text: var(--cv-accent);
+  --primary-hover: var(--cv-accent-hover);
+  --primary-light: var(--cv-accent-soft);
+  --primary-subtle: var(--cv-accent-soft);
+  --primary-border: var(--cv-accent-border);
+
+  /* Editorial Legacy Aliases mapped to active theme */
+  --cv-paper: var(--cv-surface);
+  --cv-rule: var(--cv-border);
+  --cv-muted: var(--cv-text-muted);
+  --cv-card-bg: var(--cv-surface-raised);
 }

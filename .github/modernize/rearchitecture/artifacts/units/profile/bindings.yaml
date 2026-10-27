@@ -1,0 +1,9 @@
+unit: profile
+bindings:
+  - type: route-declaration
+    name: "GET /profile"
+    source_loc: "frontend/src/App.jsx:52"
+    target: ProfilePage
+    must_appear_in_target: true
+    notes: "Authenticated chapter page."
+runtime_config: []

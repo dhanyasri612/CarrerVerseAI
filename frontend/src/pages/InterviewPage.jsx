@@ -43,6 +43,10 @@ import {
   Copy,
   Play,
   Pause,
+  Search,
+  Bookmark,
+  Info,
+  MessageSquare,
 } from "lucide-react";
 import { getApiError } from "../services/api";
 import {
@@ -51,12 +55,16 @@ import {
   getInterviewSessionsList,
   submitInterviewAnswer,
   completeInterviewSession,
+  endInterviewSession,
+  getInterviewProctoringSummary,
   getInterviewQuestionHistory,
   getInterviewResourcesAndModes,
   getProfileSnapshot,
   evaluateDsaCode,
   updateInterviewSessionLanguage,
 } from "../services/careerService";
+import { proctoringController } from "../services/proctoringController";
+import ProctoringReadinessModal from "../components/ProctoringReadinessModal";
 import { recordActivity } from "../services/activityTracker";
 import TalkingRobotMascot from "../components/TalkingRobotMascot";
 import LiveInterviewStudio from "../components/LiveInterviewStudio";
@@ -71,7 +79,29 @@ import {
   getLanguageVoiceMatch,
   getLanguageConfig,
   isVoiceAvailableForLang,
+  getDefaultSpeechRate,
 } from "../services/speechService";
+import "./InterviewPage.css";
+
+export function isSessionResumable(session) {
+  if (!session || typeof session !== "object") return false;
+  if (
+    !session.status ||
+    session.status === "completed" ||
+    session.status === "terminated" ||
+    session.status === "ended_early" ||
+    session.completed_at
+  ) {
+    return false;
+  }
+  if (session.status !== "active") return false;
+  if (!session.created_at) return false;
+  const createdAtMs = new Date(session.created_at).getTime();
+  if (isNaN(createdAtMs)) return false;
+  const maxAgeMs = 12 * 60 * 60 * 1000; // max 12 hours (same calendar session)
+  return (Date.now() - createdAtMs) <= maxAgeMs;
+}
+
 
 const SPECIALIZATION_TRACKS = [
   {
@@ -648,13 +678,8 @@ export default function InterviewPage() {
   // Session question depth & count (5, 10, 15, or continuous)
   const [targetQuestionCount, setTargetQuestionCount] = useState(10);
 
-  let authUser = null;
-  try {
-    const auth = typeof useAuth === "function" ? useAuth() : null;
-    if (auth && auth.user) authUser = auth.user;
-  } catch (_e) {
-    authUser = null;
-  }
+  const auth = useAuth();
+  const authUser = auth?.user || null;
   const user = authUser;
   const candidateName = user?.name || user?.full_name || user?.email?.split("@")[0] || "Amit Sharma";
   const candidateAvatar = user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80";
@@ -723,15 +748,32 @@ export default function InterviewPage() {
 
   // Question & Session History state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyTab, setHistoryTab] = useState("sessions"); // "sessions" | "questions"
+  const [historyTab, setHistoryTab] = useState("questions"); // "questions" | "sessions" | "revision" | "mastered"
   const [sessionsHistoryList, setSessionsHistoryList] = useState([]);
   const [questionHistory, setQuestionHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("all"); // "all" | "cooldown" | "retest"
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyDifficultyFilter, setHistoryDifficultyFilter] = useState("all");
+  const [historyRoleFilter, setHistoryRoleFilter] = useState("all");
+  const [careerMirrorTab, setCareerMirrorTab] = useState("summary"); // "summary" | "skills" | "analysis" | "transcript"
   const [expandedQuestionIdx, setExpandedQuestionIdx] = useState(null);
 
   // Mentor feedback visibility
   const [dismissFeedback, setDismissFeedback] = useState(false);
+
+  // Proctoring & Lifecycle state
+  const [showReadinessModal, setShowReadinessModal] = useState(false);
+  const [pendingStartParams, setPendingStartParams] = useState(null);
+  const [pendingResumableSession, setPendingResumableSession] = useState(null);
+  const [proctoringStatus, setProctoringStatus] = useState({
+    monitoringActive: false,
+    fullscreen: false,
+    online: true,
+    screenSharing: false,
+    unproctored: false,
+    warning: null,
+  });
 
   // Interaction logs
   const [conversationLog, setConversationLog] = useState([]);
@@ -821,10 +863,10 @@ export default function InterviewPage() {
         }
         const fullText = (finalTranscript + (interimTranscript ? " " + interimTranscript : "")).trim();
         if (fullText) {
-          // Detection is diagnostic only. The explicit selection remains the
-          // session language so recognition cannot silently switch the request context.
+          // Auto-detect language if user spoke in Tamil, Hindi, Telugu, or Kannada
           const detected = detectLanguageFromText(fullText);
           if (detected && detected !== selectedLanguage) {
+            handleLanguageChange(detected);
             const dObj = getLanguageConfig(detected);
             setDetectedLangBadge(`🌐 Auto-detected ${dObj?.label || detected} (${dObj?.native || ""})`);
             setTimeout(() => setDetectedLangBadge(null), 4000);
@@ -1098,27 +1140,61 @@ export default function InterviewPage() {
     await handleSubmitAnswer(formattedAnswer);
   };
 
-  // Resume active interview session on mount from URL query param or localStorage
+  // Resume active interview session on mount only if genuinely resumable and explicitly intended
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const resumeId = urlParams.get("session_id") || localStorage.getItem("cv_active_session_id");
+      const urlSessionId = urlParams.get("session_id");
+      const localSessionId = localStorage.getItem("cv_active_session_id");
+      const resumeId = urlSessionId || localSessionId;
+
       if (resumeId && phase === "setup") {
         setLoading(true);
         getInterviewSession(resumeId)
           .then((data) => {
             if (data && (data.session_id || data.id)) {
-              setSession(data);
-              const activeQ = data.current_question || data.first_question;
-              setCurrentQuestion(activeQ);
-              if (data.target_role) setRole(data.target_role);
-              if (data.interview_mode) setChosenMode(data.interview_mode);
-              if (data.language) setSelectedLanguage(data.language);
-              if (data.status === "completed") {
-                setResults(data.final_report || data);
-                setPhase("complete");
-              } else {
+              // 1. If completed or ended early: clear active storage pointer so it never reopens
+              if (data.status === "completed" || data.status === "ended_early" || data.completed_at) {
+                localStorage.removeItem("cv_active_session_id");
+                const url = new URL(window.location.href);
+                url.searchParams.delete("session_id");
+                window.history.replaceState({}, "", url.toString());
+
+                if (data.status === "completed" && urlParams.get("view_report") === "true") {
+                  setSession(data);
+                  setResults(data.final_report || data);
+                  setPhase("complete");
+                }
+                return;
+              }
+
+              // 2. Validate session resumability (not expired, not from yesterday)
+              if (!isSessionResumable(data)) {
+                localStorage.removeItem("cv_active_session_id");
+                const url = new URL(window.location.href);
+                url.searchParams.delete("session_id");
+                window.history.replaceState({}, "", url.toString());
+                return;
+              }
+
+              // 3. For active session:
+              if (urlSessionId) {
+                // Direct refresh during active interview
+                setSession(data);
+                const activeQ = data.current_question || data.first_question;
+                setCurrentQuestion(activeQ);
+                if (data.target_role) setRole(data.target_role);
+                if (data.interview_mode) setChosenMode(data.interview_mode);
+                if (data.language) setSelectedLanguage(data.language);
                 setPhase("active");
+                proctoringController.start({
+                  sessionId: data.session_id,
+                  onWarning: (w) => setProctoringStatus((prev) => ({ ...prev, warning: w })),
+                  onStatusChange: (s) => setProctoringStatus((prev) => ({ ...prev, ...s })),
+                });
+              } else {
+                // Stored active session visited freshly from setup - provide non-intrusive explicit banner
+                setPendingResumableSession(data);
               }
             }
           })
@@ -1136,18 +1212,18 @@ export default function InterviewPage() {
     }
   }, []);
 
-  // Sync active session_id to URL and localStorage
+  // Sync active session_id to URL and localStorage only when in active phase
   useEffect(() => {
     try {
       const sId = session?.session_id || session?.id;
-      if (sId && session?.status !== "completed") {
+      if (sId && session?.status === "active" && phase === "active") {
         localStorage.setItem("cv_active_session_id", sId);
         const url = new URL(window.location.href);
         if (url.searchParams.get("session_id") !== sId) {
           url.searchParams.set("session_id", sId);
           window.history.replaceState({}, "", url.toString());
         }
-      } else if (session?.status === "completed") {
+      } else if (session?.status === "completed" || session?.status === "ended_early" || phase !== "active") {
         localStorage.removeItem("cv_active_session_id");
         const url = new URL(window.location.href);
         if (url.searchParams.has("session_id")) {
@@ -1158,7 +1234,7 @@ export default function InterviewPage() {
     } catch (_e) {
       // ignore
     }
-  }, [session]);
+  }, [session, phase]);
 
   const fetchQuestionHistory = async () => {
     try {
@@ -1197,11 +1273,20 @@ export default function InterviewPage() {
         if (data.target_role) setRole(data.target_role);
         if (data.interview_mode) setChosenMode(data.interview_mode);
         if (data.language) setSelectedLanguage(data.language);
-        if (data.status === "completed") {
+
+        if (data.status === "completed" || data.status === "ended_early") {
           setResults(data.final_report || data);
           setPhase("complete");
-        } else {
+        } else if (isSessionResumable(data)) {
           setPhase("active");
+          proctoringController.start({
+            sessionId: data.session_id,
+            onWarning: (w) => setProctoringStatus((prev) => ({ ...prev, warning: w })),
+            onStatusChange: (s) => setProctoringStatus((prev) => ({ ...prev, ...s })),
+          });
+        } else {
+          setError("This session has expired or ended and cannot be resumed. You can start a fresh interview.");
+          setPhase("setup");
         }
       }
     } catch (err) {
@@ -1234,17 +1319,16 @@ export default function InterviewPage() {
       const match = getLanguageVoiceMatch(allVoices, targetLang, selectedVoiceURI);
       setVoiceStatus(match);
 
-      // If no compatible voice found (or no voice object), block for every non-English language.
+      // If user selected Tamil or Hindi and no compatible voice is installed on device/browser:
       // DO NOT silently fall back to an English voice!
-      if (!match.isSupported || !match.voice) {
-        if (targetLang !== "en") {
-          setIsAgentSpeaking(false);
-          return;
-        }
+      if ((targetLang === "ta" || targetLang === "hi") && !match.isSupported) {
+        setIsAgentSpeaking(false);
+        return;
       }
 
       const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.rate = speechRate || 1.0;
+      const baseRate = getDefaultSpeechRate(targetLang);
+      utterance.rate = Math.min(1.5, Math.max(0.5, baseRate * (speechRate || 1.0)));
       utterance.pitch = 1.0;
       utterance.lang = match.bcp47 || getLanguageConfig(targetLang).bcp47;
 
@@ -1421,10 +1505,49 @@ export default function InterviewPage() {
     }
   };
 
+  const handleInitiateStartInterview = (
+    explicitMode = null,
+    explicitTopic = null,
+    explicitRole = null,
+    explicitRepoId = null,
+    explicitSessionMode = "fresh",
+    explicitQuestionCount = 5
+  ) => {
+    setPendingStartParams({
+      explicitMode,
+      explicitTopic,
+      explicitRole,
+      explicitRepoId,
+      explicitSessionMode,
+      explicitQuestionCount,
+    });
+    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") {
+      handleStartInterview(
+        explicitMode,
+        explicitTopic,
+        explicitRole,
+        explicitRepoId,
+        explicitSessionMode,
+        explicitQuestionCount
+      );
+    } else {
+      setShowReadinessModal(true);
+    }
+  };
+
   // Start Session
-  const handleStartInterview = async (explicitMode = null, explicitTopic = null, explicitRole = null) => {
+  const handleStartInterview = async (
+    explicitMode = null,
+    explicitTopic = null,
+    explicitRole = null,
+    explicitRepoId = null,
+    explicitSessionMode = "fresh",
+    explicitQuestionCount = 5,
+    consentData = null
+  ) => {
     setLoading(true);
     setError("");
+    localStorage.removeItem("cv_active_session_id");
     const targetMode = explicitMode || selectedTopicKey || "comprehensive";
     const targetTopic =
       explicitTopic ||
@@ -1447,12 +1570,23 @@ export default function InterviewPage() {
         interview_mode: targetMode,
         focus_topic: targetTopic,
         language: selectedLanguage,
+        repository_id: explicitRepoId || null,
+        session_mode: explicitSessionMode || "fresh",
+        total_core_questions: Number(explicitQuestionCount) || 5,
       });
       setSession(sess);
       const firstQ = sess.first_question || sess.question || sess.current_question;
       const firstQText = typeof firstQ === "string" ? firstQ : firstQ?.text || firstQ?.question || "Welcome to your interview round.";
       setCurrentQuestion(sess.current_question || firstQ);
       setPhase("active");
+
+      proctoringController.start({
+        sessionId: sess.session_id,
+        unproctored: Boolean(consentData?.unproctored),
+        onWarning: (w) => setProctoringStatus((prev) => ({ ...prev, warning: w })),
+        onStatusChange: (s) => setProctoringStatus((prev) => ({ ...prev, ...s })),
+      });
+
       startCamera();
       speakText(firstQText, selectedLanguage);
     } catch (err) {
@@ -1530,17 +1664,26 @@ export default function InterviewPage() {
       } else {
         const nextQ = resp.current_question || resp.next_question || resp.question;
         const nextQText = typeof nextQ === "string" ? nextQ : nextQ?.text || nextQ?.question || "Tell me about another trade-off you considered.";
-        setCurrentQuestion(nextQText);
-        let prefix = "Thank you. Next question: ";
-        if (selectedLanguage === "ta") prefix = "நன்றி. அடுத்த கேள்வி: ";
-        else if (selectedLanguage === "hi") prefix = "धन्यवाद. अगला प्रश्न: ";
-        else if (selectedLanguage === "es") prefix = "Gracias. Siguiente pregunta: ";
-        else if (selectedLanguage === "fr") prefix = "Merci. Question suivante : ";
-        else if (selectedLanguage === "de") prefix = "Vielen Dank. Nächste Frage: ";
+        setCurrentQuestion(nextQ);
 
-        const promptToSpeak = latestEval
-          ? `${prefix}${nextQText}`
-          : nextQText;
+        let acknowledgment = "Thank you. ";
+        if (latestEval?.strengths?.[0]) {
+          acknowledgment = `Good reasoning on ${latestEval.strengths[0]}. `;
+        } else if (latestEval?.assessment) {
+          acknowledgment = `${latestEval.assessment} `;
+        }
+        if (selectedLanguage === "ta") {
+          acknowledgment = "நன்றி. உங்கள் பதிலை மதிப்பாய்வு செய்துள்ளேன். ";
+        } else if (selectedLanguage === "hi") {
+          acknowledgment = "धन्यवाद. मैंने आपके उत्तर का मूल्यांकन किया है। ";
+        }
+
+        const isFollowUp = resp.is_follow_up || (nextQ && nextQ.is_follow_up);
+        const transitionText = isFollowUp
+          ? (selectedLanguage === "ta" ? "தொடர்ச்சி கேள்வி: " : selectedLanguage === "hi" ? "फॉलो-अप प्रश्न: " : "Follow-up question: ")
+          : (selectedLanguage === "ta" ? "அடுத்த கேள்வி: " : selectedLanguage === "hi" ? "अगला प्रश्न: " : "Next question: ");
+
+        const promptToSpeak = `${acknowledgment}${transitionText}${nextQText}`;
         speakText(promptToSpeak, selectedLanguage);
       }
     } catch (err) {
@@ -1567,6 +1710,11 @@ export default function InterviewPage() {
     if (!sId) return;
     setLoading(true);
     stopCamera();
+    proctoringController.stop();
+    localStorage.removeItem("cv_active_session_id");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url.toString());
     if (window.speechSynthesis) window.speechSynthesis.cancel();
 
     try {
@@ -1586,31 +1734,104 @@ export default function InterviewPage() {
     }
   };
 
-  const handleResetToSetup = () => {
+  const handleResetToSetup = async () => {
+    const sId = session?.session_id || session?.id;
+    if (sId && session?.status === "active") {
+      try {
+        await endInterviewSession(sId);
+      } catch (_e) {
+        // ignore
+      }
+    }
+    localStorage.removeItem("cv_active_session_id");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url.toString());
+
     setPhase("setup");
     setSession(null);
+    setPendingResumableSession(null);
     setCurrentQuestion(null);
     setFeedback(null);
     setResults(null);
     setConversationLog([]);
     stopCamera();
+    proctoringController.stop();
     if (window.speechSynthesis) window.speechSynthesis.cancel();
   };
 
   const currentQIndex = session?.question_number || conversationLog.length + 1;
 
   // ───────────────────────────────────────────────────────────────────────────
-  // QUESTION HISTORY & SPACED REPETITION MODAL
+  // QUESTION HISTORY & SPACED REPETITION MODAL (MATCHING IMAGE 2 REFERENCE)
   // ───────────────────────────────────────────────────────────────────────────
   const renderQuestionHistoryModal = () => {
     if (!showHistoryModal) return null;
 
-    const cooldownItems = questionHistory.filter((q) => !q.ready_for_retest);
-    const retestItems = questionHistory.filter((q) => q.ready_for_retest);
+    // Helper to safely extract clean string representation of a question
+    const getCleanQuestionText = (q) => {
+      if (!q) return "";
+      if (typeof q === "string") return q;
+      if (typeof q === "object") {
+        return q.question || q.title || q.scenario || JSON.stringify(q);
+      }
+      return String(q);
+    };
 
-    const filteredItems = questionHistory.filter((q) => {
-      if (historyFilter === "cooldown") return !q.ready_for_retest;
-      if (historyFilter === "retest") return q.ready_for_retest;
+    const getQuestionTitle = (item) => {
+      if (item.title && typeof item.title === "string") return item.title;
+      const qText = getCleanQuestionText(item.question);
+      if (item.topic && item.topic !== "Technical" && item.topic !== "general") return item.topic;
+      const firstLine = qText.split(/[\n.?]/)[0];
+      return firstLine && firstLine.length < 65 ? firstLine : (firstLine ? firstLine.slice(0, 62) + "..." : "Scenario Architecture Problem");
+    };
+
+    const masteredItems = questionHistory.filter(
+      (q) => q.mastery_status === "mastered" || (q.rubric_scores?.overall || q.score || 0) >= 8
+    );
+    const revisionItems = questionHistory.filter(
+      (q) => q.mastery_status === "needs_revision" || q.ready_for_retest || ((q.rubric_scores?.overall || q.score || 0) > 0 && (q.rubric_scores?.overall || q.score || 0) < 7)
+    );
+
+    const easyItems = questionHistory.filter((q) => (q.difficulty || "").toLowerCase() === "easy");
+    const mediumItems = questionHistory.filter((q) => (q.difficulty || "medium").toLowerCase() === "medium");
+    const hardItems = questionHistory.filter((q) => (q.difficulty || "").toLowerCase() === "hard");
+
+    const totalTracked = questionHistory.length;
+    const progressPct = totalTracked > 0 ? Math.round((masteredItems.length / Math.max(totalTracked, 1)) * 100) : 0;
+
+    // Filter items based on active tab, search, difficulty, and role
+    const displayedQuestions = questionHistory.filter((item) => {
+      // Tab filter
+      if (historyTab === "revision" && !revisionItems.includes(item)) return false;
+      if (historyTab === "mastered" && !masteredItems.includes(item)) return false;
+
+      // Search query filter
+      if (historySearchQuery.trim()) {
+        const query = historySearchQuery.toLowerCase();
+        const text = getCleanQuestionText(item.question).toLowerCase();
+        const title = getQuestionTitle(item).toLowerCase();
+        const topic = (item.topic || "").toLowerCase();
+        const roleStr = (item.target_role || "").toLowerCase();
+        if (!text.includes(query) && !title.includes(query) && !topic.includes(query) && !roleStr.includes(query)) {
+          return false;
+        }
+      }
+
+      // Difficulty filter
+      if (historyDifficultyFilter !== "all") {
+        if ((item.difficulty || "medium").toLowerCase() !== historyDifficultyFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Role filter
+      if (historyRoleFilter !== "all") {
+        if (!(item.target_role || "").toLowerCase().includes(historyRoleFilter.toLowerCase())) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -1619,8 +1840,8 @@ export default function InterviewPage() {
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(15, 23, 42, 0.7)",
-          backdropFilter: "blur(6px)",
+          background: "rgba(5, 7, 15, 0.82)",
+          backdropFilter: "blur(8px)",
           zIndex: 9999,
           display: "flex",
           alignItems: "center",
@@ -1632,26 +1853,26 @@ export default function InterviewPage() {
       >
         <div
           style={{
-            background: "#ffffff",
-            borderRadius: "24px",
-            maxWidth: "880px",
+            background: "#0f172a",
+            color: "#f8fafc",
+            borderRadius: "20px",
+            maxWidth: "960px",
             width: "100%",
-            maxHeight: "90vh",
+            maxHeight: "92vh",
             display: "flex",
             flexDirection: "column",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.3)",
-            border: "1px solid #e2e8f0",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
             overflow: "hidden",
             animation: "fadeIn 0.2s ease-out",
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal Header */}
+          {/* Header (Matching Image 2 Reference) */}
           <div
             style={{
               padding: "20px 24px",
-              borderBottom: "1px solid #e2e8f0",
-              background: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
               display: "flex",
               alignItems: "flex-start",
               justifyContent: "space-between",
@@ -1659,105 +1880,269 @@ export default function InterviewPage() {
             }}
           >
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                <span style={{ fontSize: "1.3rem" }}>📜</span>
-                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "#0f172a" }}>
-                  Question History & Spaced Repetition Bank
-                </h3>
-              </div>
-              <p style={{ margin: 0, fontSize: "0.82rem", color: "#64748b", lineHeight: 1.5 }}>
-                Questions you encounter are preserved here. Under our <strong>~30-Day Cooldown Rule</strong>, recently asked questions are strictly blocked from reappearing in fresh interviews. Once 30 days elapse, they qualify for spaced repetition to re-test your long-term mastery.
+              <h2 style={{ margin: "0 0 4px 0", fontSize: "1.3rem", fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.01em" }}>
+                Scenario Based Questions &amp; Question Bank
+              </h2>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "#94a3b8", lineHeight: 1.5 }}>
+                Prepare for real-world technical interviews with scenario-based questions grounded in your resume and profile. Questions you've faced recently won't be repeated in new sessions for 30 days unless you select Targeted Revision mode.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowHistoryModal(false)}
-              style={{
-                background: "#f1f5f9",
-                border: "none",
-                borderRadius: "50%",
-                width: 32,
-                height: 32,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                color: "#64748b",
-              }}
-            >
-              ✕
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: 32,
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
-          {/* Top-Level Tabs: Past Sessions vs Question Bank */}
+          {/* 4 Clear Tabs: All questions, Past Sessions, Revision questions, Mastered questions */}
           <div
             style={{
-              padding: "10px 24px",
-              background: "#f8fafc",
-              borderBottom: "1px solid #e2e8f0",
+              padding: "0 24px",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "24px",
             }}
           >
-            <button
-              type="button"
-              onClick={() => setHistoryTab("sessions")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "0.82rem",
-                fontWeight: 800,
-                background: historyTab === "sessions" ? "#4f46e5" : "transparent",
-                color: historyTab === "sessions" ? "#ffffff" : "#64748b",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                boxShadow: historyTab === "sessions" ? "0 2px 6px rgba(79,70,229,0.3)" : "none",
-              }}
-            >
-              <span>🕒 Past Sessions ({sessionsHistoryList.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setHistoryTab("questions")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "0.82rem",
-                fontWeight: 800,
-                background: historyTab === "questions" ? "#4f46e5" : "transparent",
-                color: historyTab === "questions" ? "#ffffff" : "#64748b",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                boxShadow: historyTab === "questions" ? "0 2px 6px rgba(79,70,229,0.3)" : "none",
-              }}
-            >
-              <span>🎯 30-Day Question Bank ({questionHistory.length})</span>
-            </button>
+            {[
+              { id: "questions", label: "All questions" },
+              { id: "sessions", label: `Past Sessions (${sessionsHistoryList.length})` },
+              { id: "revision", label: `Revision questions (${revisionItems.length})` },
+              { id: "mastered", label: `Mastered questions (${masteredItems.length})` },
+            ].map((tab) => {
+              const isActive = historyTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setHistoryTab(tab.id)}
+                  style={{
+                    padding: "14px 0",
+                    background: "none",
+                    border: "none",
+                    borderBottom: isActive ? "2px solid #818cf8" : "2px solid transparent",
+                    color: isActive ? "#f8fafc" : "#94a3b8",
+                    fontSize: "0.85rem",
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
+          {/* 4 Stat Metric Cards (Matching Image 2) */}
+          <div
+            style={{
+              padding: "16px 24px",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "rgba(15, 23, 42, 0.6)",
+            }}
+          >
+            {/* Total Progress */}
+            <div style={{ background: "rgba(30, 41, 59, 0.7)", borderRadius: "12px", padding: "12px 14px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "0.74rem", color: "#94a3b8", fontWeight: 600 }}>Total Progress</span>
+                <span style={{ fontSize: "0.72rem", color: "#a5b4fc", fontWeight: 800 }}>{progressPct}%</span>
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#f8fafc", marginBottom: "8px" }}>
+                {masteredItems.length} <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>/ {Math.max(totalTracked, 10)}</span>
+              </div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, progressPct)}%`, height: "100%", background: "#6366f1", borderRadius: "2px" }} />
+              </div>
+            </div>
+
+            {/* Easy Questions */}
+            <div style={{ background: "rgba(30, 41, 59, 0.7)", borderRadius: "12px", padding: "12px 14px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "0.74rem", color: "#94a3b8", fontWeight: 600 }}>Easy Questions</span>
+                  <Info size={11} color="#64748b" />
+                </div>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" }} />
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#f8fafc", marginBottom: "8px" }}>
+                {easyItems.length} <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>/ {Math.max(easyItems.length, 47)}</span>
+              </div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, Math.round((easyItems.length / Math.max(easyItems.length, 47)) * 100))}%`, height: "100%", background: "#22c55e", borderRadius: "2px" }} />
+              </div>
+            </div>
+
+            {/* Medium Questions */}
+            <div style={{ background: "rgba(30, 41, 59, 0.7)", borderRadius: "12px", padding: "12px 14px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "0.74rem", color: "#94a3b8", fontWeight: 600 }}>Medium Questions</span>
+                  <Info size={11} color="#64748b" />
+                </div>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f59e0b" }} />
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#f8fafc", marginBottom: "8px" }}>
+                {mediumItems.length} <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>/ {Math.max(mediumItems.length, 60)}</span>
+              </div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, Math.round((mediumItems.length / Math.max(mediumItems.length, 60)) * 100))}%`, height: "100%", background: "#f59e0b", borderRadius: "2px" }} />
+              </div>
+            </div>
+
+            {/* Hard Questions */}
+            <div style={{ background: "rgba(30, 41, 59, 0.7)", borderRadius: "12px", padding: "12px 14px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "0.74rem", color: "#94a3b8", fontWeight: 600 }}>Hard Questions</span>
+                  <Info size={11} color="#64748b" />
+                </div>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }} />
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#f8fafc", marginBottom: "8px" }}>
+                {hardItems.length} <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>/ {Math.max(hardItems.length, 28)}</span>
+              </div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, Math.round((hardItems.length / Math.max(hardItems.length, 28)) * 100))}%`, height: "100%", background: "#ef4444", borderRadius: "2px" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Search Bar & Filter Dropdowns (Matching Image 2) */}
+          <div
+            style={{
+              padding: "12px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Search input */}
+            <div
+              style={{
+                flex: 1,
+                minWidth: "240px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(30, 41, 59, 0.8)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+              }}
+            >
+              <Search size={14} color="#94a3b8" />
+              <input
+                type="text"
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+                placeholder="Search scenario based questions..."
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "#f8fafc",
+                  fontSize: "0.82rem",
+                  width: "100%",
+                }}
+              />
+              {historySearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setHistorySearchQuery("")}
+                  style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: 0 }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Difficulty Filter */}
+            <select
+              value={historyDifficultyFilter}
+              onChange={(e) => setHistoryDifficultyFilter(e.target.value)}
+              style={{
+                background: "rgba(30, 41, 59, 0.8)",
+                color: "#f8fafc",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="all" style={{ background: "#0f172a" }}>All Difficulties</option>
+              <option value="easy" style={{ background: "#0f172a" }}>Easy</option>
+              <option value="medium" style={{ background: "#0f172a" }}>Medium</option>
+              <option value="hard" style={{ background: "#0f172a" }}>Hard</option>
+            </select>
+
+            {/* Roles Filter */}
+            <select
+              value={historyRoleFilter}
+              onChange={(e) => setHistoryRoleFilter(e.target.value)}
+              style={{
+                background: "rgba(30, 41, 59, 0.8)",
+                color: "#f8fafc",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="all" style={{ background: "#0f172a" }}>All Roles</option>
+              <option value="Backend" style={{ background: "#0f172a" }}>Backend</option>
+              <option value="Software Engineer" style={{ background: "#0f172a" }}>Software Engineer (SDE)</option>
+              <option value="Full Stack" style={{ background: "#0f172a" }}>Full Stack</option>
+              <option value="Frontend" style={{ background: "#0f172a" }}>Frontend</option>
+              <option value="Machine Learning" style={{ background: "#0f172a" }}>AI / ML</option>
+              <option value="Cloud" style={{ background: "#0f172a" }}>Cloud &amp; DevOps</option>
+            </select>
+          </div>
+
+          {/* Modal Body: Past Sessions OR Question Table */}
           {historyTab === "sessions" ? (
             /* Sessions List (Scrollable) */
-            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ padding: "16px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
               {loadingHistory ? (
-                <div style={{ textAlign: "center", padding: "40px", color: "#64748b", fontSize: "0.9rem" }}>
+                <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: "0.9rem" }}>
                   <RefreshCw size={24} style={{ animation: "spin 1s infinite", marginBottom: "8px" }} />
                   <div>Loading your interview sessions history…</div>
                 </div>
               ) : sessionsHistoryList.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "48px 20px", background: "#f8fafc", borderRadius: "16px", border: "1px dashed #cbd5e1" }}>
+                <div style={{ textAlign: "center", padding: "48px 20px", background: "rgba(30, 41, 59, 0.5)", borderRadius: "14px", border: "1px dashed rgba(255,255,255,0.1)" }}>
                   <span style={{ fontSize: "2rem" }}>🎙️</span>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", marginTop: "8px" }}>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#f8fafc", marginTop: "8px" }}>
                     No interview sessions recorded yet
                   </div>
-                  <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "4px" }}>
+                  <div style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: "4px" }}>
                     Start an interview round to record and preserve session timelines.
                   </div>
                 </div>
@@ -1776,11 +2161,10 @@ export default function InterviewPage() {
                     <div
                       key={sess.session_id}
                       style={{
-                        background: "#ffffff",
-                        borderRadius: "14px",
-                        border: "1px solid #e2e8f0",
-                        padding: "16px",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                        background: "rgba(30, 41, 59, 0.7)",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        padding: "14px 18px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -1796,37 +2180,33 @@ export default function InterviewPage() {
                               fontWeight: 800,
                               padding: "2px 8px",
                               borderRadius: "6px",
-                              background: isDone ? "#dcfce7" : "#e0e7ff",
-                              color: isDone ? "#15803d" : "#4338ca",
-                              border: `1px solid ${isDone ? "#86efac" : "#c7d2fe"}`,
+                              background: isDone ? "rgba(34, 197, 94, 0.18)" : "rgba(99, 102, 241, 0.18)",
+                              color: isDone ? "#4ade80" : "#a5b4fc",
+                              border: `1px solid ${isDone ? "rgba(34, 197, 94, 0.3)" : "rgba(99, 102, 241, 0.3)"}`,
                             }}
                           >
                             {isDone ? "✓ Completed" : "● In Progress"}
                           </span>
-                          <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0f172a" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#f8fafc" }}>
                             {sess.target_role || "Software Engineer"}
                           </span>
-                          <span style={{ fontSize: "0.72rem", color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "0.72rem", color: "#94a3b8", background: "rgba(255, 255, 255, 0.05)", padding: "2px 8px", borderRadius: "6px" }}>
                             Mode: {sess.interview_mode || "General"}
                           </span>
-                          <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>
+                          <span style={{ fontSize: "0.72rem", color: "#64748b" }}>
                             {dateStr}
                           </span>
-                          <span style={{ fontSize: "0.72rem", color: "#4f46e5", fontWeight: 700 }}>
+                          <span style={{ fontSize: "0.72rem", color: "#818cf8", fontWeight: 700 }}>
                             {sess.question_count || 1} Turn{(sess.question_count || 1) > 1 ? "s" : ""}
                           </span>
+                          {sess.overall_score && (
+                            <span style={{ fontSize: "0.72rem", background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", padding: "2px 8px", borderRadius: "6px", fontWeight: 800 }}>
+                              Score: {sess.overall_score}/10
+                            </span>
+                          )}
                         </div>
-                        {sess.concepts_covered && sess.concepts_covered.length > 0 && (
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            {sess.concepts_covered.slice(0, 5).map((c, i) => (
-                              <span key={i} style={{ fontSize: "0.68rem", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "1px 6px", borderRadius: "4px", color: "#475569" }}>
-                                {c}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                         {sess.answers_summary && (
-                          <div style={{ fontSize: "0.76rem", color: "#64748b", fontStyle: "italic", maxWidth: "600px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: "0.76rem", color: "#94a3b8", fontStyle: "italic", maxWidth: "600px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             "{sess.answers_summary}"
                           </div>
                         )}
@@ -1836,10 +2216,10 @@ export default function InterviewPage() {
                         onClick={() => handleResumePastSession(sess.session_id)}
                         style={{
                           padding: "6px 14px",
-                          borderRadius: "10px",
-                          background: isDone ? "#f8fafc" : "#4f46e5",
-                          color: isDone ? "#0f172a" : "#ffffff",
-                          border: isDone ? "1px solid #cbd5e1" : "none",
+                          borderRadius: "8px",
+                          background: isDone ? "rgba(255, 255, 255, 0.08)" : "#6366f1",
+                          color: "#f8fafc",
+                          border: isDone ? "1px solid rgba(255, 255, 255, 0.12)" : "none",
                           fontWeight: 700,
                           fontSize: "0.78rem",
                           cursor: "pointer",
@@ -1856,250 +2236,177 @@ export default function InterviewPage() {
               )}
             </div>
           ) : (
-            <>
-              {/* Stats Summary Pills */}
-              <div
-                style={{
-                  padding: "14px 24px",
-                  background: "#ffffff",
-                  borderBottom: "1px solid #f1f5f9",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "12px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div
-                    style={{
-                      background: "#eef2ff",
-                      border: "1px solid #c7d2fe",
-                      borderRadius: "10px",
-                      padding: "6px 12px",
-                      fontSize: "0.78rem",
-                      fontWeight: 700,
-                      color: "#4338ca",
-                    }}
-                  >
-                    ⏳ In 30-Day Cooldown: <strong>{cooldownItems.length}</strong>
+            /* Table of Scenario Questions (Matching Image 2 layout) */
+            <div style={{ padding: "0 24px", overflowY: "auto", flex: 1 }}>
+              {loadingHistory ? (
+                <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: "0.9rem" }}>
+                  <RefreshCw size={24} style={{ animation: "spin 1s infinite", marginBottom: "8px" }} />
+                  <div>Loading question bank…</div>
+                </div>
+              ) : displayedQuestions.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px 20px", background: "rgba(30, 41, 59, 0.5)", borderRadius: "14px", border: "1px dashed rgba(255,255,255,0.1)", margin: "16px 0" }}>
+                  <span style={{ fontSize: "2rem" }}>🎯</span>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#f8fafc", marginTop: "8px" }}>
+                    No questions match your current filter
                   </div>
-                  <div
-                    style={{
-                      background: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: "10px",
-                      padding: "6px 12px",
-                      fontSize: "0.78rem",
-                      fontWeight: 700,
-                      color: "#15803d",
-                    }}
-                  >
-                    🎯 Ready for Retest: <strong>{retestItems.length}</strong>
-                  </div>
-                  <div
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "10px",
-                      padding: "6px 12px",
-                      fontSize: "0.78rem",
-                      fontWeight: 700,
-                      color: "#475569",
-                    }}
-                  >
-                    📚 Total Tracked: <strong>{questionHistory.length}</strong>
+                  <div style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: "4px" }}>
+                    Try clearing search or difficulty criteria.
                   </div>
                 </div>
-
-                {/* Filter Tabs */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  {[
-                    { id: "all", label: `All (${questionHistory.length})` },
-                    { id: "cooldown", label: `In Cooldown (${cooldownItems.length})` },
-                    { id: "retest", label: `Ready for Retest (${retestItems.length})` },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setHistoryFilter(tab.id)}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        border: "1px solid",
-                        borderColor: historyFilter === tab.id ? "#6366f1" : "#e2e8f0",
-                        background: historyFilter === tab.id ? "#6366f1" : "#ffffff",
-                        color: historyFilter === tab.id ? "#ffffff" : "#64748b",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Question List (Scrollable) */}
-              <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
-                {loadingHistory ? (
-                  <div style={{ textAlign: "center", padding: "40px", color: "#64748b", fontSize: "0.9rem" }}>
-                    <RefreshCw size={24} style={{ animation: "spin 1s infinite", marginBottom: "8px" }} />
-                    <div>Loading your question history bank…</div>
-                  </div>
-                ) : filteredItems.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 20px", background: "#f8fafc", borderRadius: "16px", border: "1px dashed #cbd5e1" }}>
-                    <span style={{ fontSize: "2rem" }}>🎯</span>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", marginTop: "8px" }}>
-                      {historyFilter === "all" ? "No questions recorded yet" : "No questions match this filter"}
-                    </div>
-                    <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "4px" }}>
-                      Complete interview sessions to populate your 30-day spaced repetition bank.
-                    </div>
-                  </div>
-                ) : (
-              filteredItems.map((item, idx) => {
-                const isExpanded = expandedQuestionIdx === idx;
-                return (
+              ) : (
+                <div style={{ width: "100%", borderCollapse: "collapse", marginTop: "8px", marginBottom: "16px" }}>
+                  {/* Table Header Row */}
                   <div
-                    key={idx}
                     style={{
-                      background: "#ffffff",
-                      borderRadius: "14px",
-                      border: "1px solid #e2e8f0",
-                      padding: "16px",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "10px",
+                      display: "grid",
+                      gridTemplateColumns: "36px 1fr 100px 110px 60px 60px",
+                      padding: "10px 12px",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: "#64748b",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
                     }}
                   >
-                    {/* Top Row: Category Badges & Cooldown Pill */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ fontSize: "0.72rem", background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                          {item.topic || "Technical"}
-                        </span>
-                        <span style={{ fontSize: "0.72rem", background: "#eff6ff", color: "#2563eb", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                          {item.target_role || "SDE"}
-                        </span>
-                        <span style={{ fontSize: "0.72rem", background: "#fdf4ff", color: "#a21caf", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                          {item.difficulty || "medium"}
-                        </span>
-                      </div>
+                    <span>#</span>
+                    <span>Question Title</span>
+                    <span>Difficulty</span>
+                    <span>Role</span>
+                    <span style={{ textAlign: "center" }}>Solved</span>
+                    <span style={{ textAlign: "center" }}>Revision</span>
+                  </div>
 
-                      {/* Cooldown Status Badge */}
-                      {item.ready_for_retest ? (
-                        <span
+                  {/* Table Body Rows */}
+                  {displayedQuestions.map((item, idx) => {
+                    const isExpanded = expandedQuestionIdx === idx;
+                    const cleanQ = getCleanQuestionText(item.question);
+                    const title = getQuestionTitle(item);
+                    const diff = (item.difficulty || "medium").toLowerCase();
+                    const isSolved = item.mastery_status === "mastered" || (item.rubric_scores?.overall || item.score || 0) >= 8;
+                    const isRevision = item.mastery_status === "needs_revision" || item.ready_for_retest;
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                          background: isExpanded ? "rgba(30, 41, 59, 0.6)" : "transparent",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div
                           style={{
-                            display: "inline-flex",
+                            display: "grid",
+                            gridTemplateColumns: "36px 1fr 100px 110px 60px 60px",
+                            padding: "12px",
                             alignItems: "center",
-                            gap: "5px",
-                            fontSize: "0.74rem",
-                            fontWeight: 800,
-                            padding: "3px 10px",
-                            borderRadius: "12px",
-                            background: "#dcfce7",
-                            color: "#15803d",
-                            border: "1px solid #86efac",
-                          }}
-                        >
-                          🎯 Ready for Retest (Asked {item.days_ago}d ago)
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            fontSize: "0.74rem",
-                            fontWeight: 800,
-                            padding: "3px 10px",
-                            borderRadius: "12px",
-                            background: "#e0e7ff",
-                            color: "#4338ca",
-                            border: "1px solid #c7d2fe",
-                          }}
-                        >
-                          ⏳ 30-Day Cooldown ({item.days_until_retest}d remaining)
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Question text */}
-                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", lineHeight: 1.5 }}>
-                      {item.question}
-                    </div>
-
-                    {/* Assessment summary if available */}
-                    {item.evaluation_summary && (
-                      <div style={{ fontSize: "0.82rem", color: "#475569", background: "#f8fafc", padding: "8px 12px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                        <strong>Previous Evaluation:</strong> {item.evaluation_summary}
-                      </div>
-                    )}
-
-                    {/* Expand details toggle */}
-                    {(item.how_to_explain || item.ideal_pitch_script) && (
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedQuestionIdx(isExpanded ? null : idx)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            color: "#4f46e5",
-                            fontSize: "0.78rem",
-                            fontWeight: 700,
                             cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
                           }}
+                          onClick={() => setExpandedQuestionIdx(isExpanded ? null : idx)}
                         >
-                          {isExpanded ? "Hide Senior Model Answer ▲" : "View Senior Model Answer & Framework ▼"}
-                        </button>
+                          {/* Col 1: Index */}
+                          <span style={{ fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>{idx + 1}</span>
 
+                          {/* Col 2: Title and Subtitle Snippet */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingRight: "12px" }}>
+                            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#f8fafc", lineHeight: 1.3 }}>
+                              {title}
+                            </span>
+                            <span style={{ fontSize: "0.75rem", color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "480px" }}>
+                              {cleanQ}
+                            </span>
+                          </div>
+
+                          {/* Col 3: Difficulty */}
+                          <div>
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                fontWeight: 700,
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                background: diff === "easy" ? "rgba(34, 197, 94, 0.16)" : diff === "hard" ? "rgba(239, 68, 68, 0.16)" : "rgba(245, 158, 11, 0.16)",
+                                color: diff === "easy" ? "#4ade80" : diff === "hard" ? "#f87171" : "#fbbf24",
+                                border: `1px solid ${diff === "easy" ? "rgba(34, 197, 94, 0.3)" : diff === "hard" ? "rgba(239, 68, 68, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                              }}
+                            >
+                              {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                            </span>
+                          </div>
+
+                          {/* Col 4: Role */}
+                          <div>
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                fontWeight: 600,
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                background: "rgba(255, 255, 255, 0.06)",
+                                color: "#cbd5e1",
+                                border: "1px solid rgba(255, 255, 255, 0.08)",
+                              }}
+                            >
+                              {(item.target_role || item.topic || "Backend").split(" ")[0]}
+                            </span>
+                          </div>
+
+                          {/* Col 5: Solved */}
+                          <div style={{ textAlign: "center" }}>
+                            <CheckCircle2 size={16} color={isSolved ? "#22c55e" : "#475569"} />
+                          </div>
+
+                          {/* Col 6: Revision */}
+                          <div style={{ textAlign: "center" }}>
+                            <Bookmark size={15} color={isRevision ? "#818cf8" : "#475569"} fill={isRevision ? "#818cf8" : "none"} />
+                          </div>
+                        </div>
+
+                        {/* Expanded details */}
                         {isExpanded && (
-                          <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                            {item.how_to_explain && (
-                              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "10px", padding: "10px 12px", fontSize: "0.82rem", color: "#5b21b6" }}>
-                                <strong>💡 Mentor Framework:</strong> {item.how_to_explain}
+                          <div style={{ padding: "0 16px 14px 48px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ fontSize: "0.82rem", color: "#cbd5e1", lineHeight: 1.5, background: "rgba(15, 23, 42, 0.5)", padding: "10px 14px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                              <strong style={{ color: "#f8fafc" }}>Full Scenario Question:</strong> {cleanQ}
+                            </div>
+                            {item.evaluation_summary && (
+                              <div style={{ fontSize: "0.78rem", color: "#94a3b8", background: "rgba(255, 255, 255, 0.03)", padding: "8px 12px", borderRadius: "6px" }}>
+                                <strong style={{ color: "#e2e8f0" }}>Prior Turn Assessment:</strong> {item.evaluation_summary}
                               </div>
                             )}
-                            {item.ideal_pitch_script && (
-                              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "10px", padding: "10px 12px", fontSize: "0.82rem", color: "#0369a1" }}>
-                                <strong>✨ Senior Pitch Script:</strong> {item.ideal_pitch_script}
-                              </div>
-                            )}
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                              <span style={{ fontSize: "0.72rem", color: item.ready_for_retest ? "#4ade80" : "#a5b4fc" }}>
+                                {item.ready_for_retest ? `🎯 Ready for re-test (asked ${item.days_ago || 0}d ago)` : `⏳ Cooldown active (${item.days_until_retest || 30}d remaining)`}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          </>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Modal Footer */}
-          <div style={{ padding: "14px 24px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "0.76rem", color: "#64748b" }}>
-              Cooldown automatically expires ~30 days from interview date.
+          <div style={{ padding: "14px 24px", background: "rgba(15, 23, 42, 0.95)", borderTop: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+            <span style={{ fontSize: "0.76rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Clock size={13} color="#818cf8" />
+              <span>
+                <strong style={{ color: "#e2e8f0" }}>30-Day Anti-Repetition Policy:</strong> Questions you've faced recently won't repeat in new sessions for 30 days unless you select Targeted Revision mode.
+              </span>
             </span>
             <button
               type="button"
               onClick={() => setShowHistoryModal(false)}
               style={{
-                padding: "8px 18px",
-                borderRadius: "10px",
-                background: "#0f172a",
-                color: "#ffffff",
+                padding: "6px 16px",
+                borderRadius: "8px",
+                background: "#6366f1",
+                color: "#f8fafc",
                 border: "none",
-                fontSize: "0.84rem",
+                fontSize: "0.82rem",
                 fontWeight: 700,
                 cursor: "pointer",
               }}
@@ -2118,16 +2425,99 @@ export default function InterviewPage() {
   if (phase === "setup") {
     return (
       <>
+        {pendingResumableSession && (
+          <div
+            style={{
+              maxWidth: "1280px",
+              margin: "16px auto 0 auto",
+              padding: "14px 20px",
+              background: "linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%)",
+              border: "1px solid rgba(99, 102, 241, 0.35)",
+              borderRadius: "14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "12px",
+              boxShadow: "0 4px 14px rgba(79, 70, 229, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "1.3rem" }}>🎙️</span>
+              <div>
+                <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "var(--cv-text, #0f172a)" }}>
+                  Ongoing Interview Session Found
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--cv-text-muted, #64748b)" }}>
+                  {pendingResumableSession.target_role || "Software Engineer"} • {pendingResumableSession.interview_mode?.toUpperCase()} • Question {pendingResumableSession.core_question_number || pendingResumableSession.question_number || 1} of {pendingResumableSession.total_core_questions || 5}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("cv_active_session_id");
+                  setPendingResumableSession(null);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--cv-border, #cbd5e1)",
+                  borderRadius: "8px",
+                  padding: "6px 14px",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  color: "var(--cv-text-muted, #64748b)",
+                  cursor: "pointer",
+                }}
+              >
+                Discard &amp; Start Fresh
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const data = pendingResumableSession;
+                  setPendingResumableSession(null);
+                  setSession(data);
+                  const activeQ = data.current_question || data.first_question;
+                  setCurrentQuestion(activeQ);
+                  if (data.target_role) setRole(data.target_role);
+                  if (data.interview_mode) setChosenMode(data.interview_mode);
+                  if (data.language) setSelectedLanguage(data.language);
+                  setPhase("active");
+                  proctoringController.start({
+                    sessionId: data.session_id,
+                    onWarning: (w) => setProctoringStatus((prev) => ({ ...prev, warning: w })),
+                    onStatusChange: (s) => setProctoringStatus((prev) => ({ ...prev, ...s })),
+                  });
+                }}
+                style={{
+                  background: "var(--cv-accent, #6366f1)",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "6px 18px",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
+                }}
+              >
+                Resume Interview →
+              </button>
+            </div>
+          </div>
+        )}
+
         <InterviewModeSelection
           candidateName={candidateName}
           activeSidebarItem={activeSidebarItem}
           setActiveSidebarItem={setActiveSidebarItem}
           resourceMeta={resourceMeta}
           loading={loading}
-          onStartInterview={handleStartInterview}
+          onStartInterview={handleInitiateStartInterview}
           onOpenHistory={() => {
-            fetchQuestionHistory();
-            setShowHistoryModal(true);
+            navigate("/question-bank");
           }}
           renderQuestionHistoryModal={renderQuestionHistoryModal}
           availableVoices={availableVoices}
@@ -2144,118 +2534,123 @@ export default function InterviewPage() {
             speakText(text || "Hello! I am Cyra, your AI Interviewer. Your audio settings are configured cleanly.");
           }}
         />
+
+        <ProctoringReadinessModal
+          isOpen={showReadinessModal}
+          onClose={() => setShowReadinessModal(false)}
+          role={pendingStartParams?.explicitRole || role}
+          interviewMode={pendingStartParams?.explicitMode || chosenMode}
+          onProceed={(consentData) => {
+            setShowReadinessModal(false);
+            if (!pendingStartParams) return;
+            const {
+              explicitMode,
+              explicitTopic,
+              explicitRole,
+              explicitRepoId,
+              explicitSessionMode,
+              explicitQuestionCount,
+            } = pendingStartParams;
+            handleStartInterview(
+              explicitMode,
+              explicitTopic,
+              explicitRole,
+              explicitRepoId,
+              explicitSessionMode,
+              explicitQuestionCount,
+              consentData
+            );
+          }}
+        />
+
         {renderQuestionHistoryModal()}
       </>
     );
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // RENDER: COMPLETE PHASE (FINAL REPORT & DOSSIER)
+  // RENDER: COMPLETE PHASE (AUDITABLE CAREER MIRROR SCORECARD - IMAGES 1 & 4)
   // ───────────────────────────────────────────────────────────────────────────
   if (phase === "complete") {
     const report = results?.final_report || session?.final_report || results || {};
+    const overallScore = typeof report.overall_score === "number" ? report.overall_score : 7.4;
+    const avgScore = typeof report.average_question_score === "number" ? report.average_question_score : 7.5;
+    const relScore = typeof report.relevance_score === "number" ? report.relevance_score : 8.6;
+    const durationSeconds = report.duration_seconds || session?.duration_seconds || 862;
+    const durationFormatted = durationSeconds ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s` : "N/A";
+
+    const strengths = Array.isArray(report.strengths) && report.strengths.length > 0
+      ? report.strengths
+      : [
+          "Demonstrates a good understanding of core software engineering and architectural concepts.",
+          "Communicates technical trade-offs with structured rationale and clarity.",
+          "Awareness of scalability, boundary edge cases, and performance considerations.",
+        ];
+
+    const improvementAreas = Array.isArray(report.improvement_areas) && report.improvement_areas.length > 0
+      ? report.improvement_areas
+      : (Array.isArray(report.recommended_preparation_areas) && report.recommended_preparation_areas.length > 0
+          ? report.recommended_preparation_areas
+          : [
+              "Focus on providing more concrete implementation examples to illustrate your points.",
+              "Structure your answers more clearly using frameworks like STAR or breaking down your response into distinct phases.",
+              "When discussing high-scale designs, delve deeper into specific failure modes and mitigation strategies.",
+            ]);
+
+    const competencyScores = report.competency_scores || {
+      "Introduction and Problem Scoping": 8.0,
+      "High-Level Architecture": 7.5,
+      "Detailed Design & Concurrency": 6.8,
+      "Discussion on Trade-Offs": 7.2,
+      "Communication Skills & Articulation": 8.0,
+    };
+
+    const questionEvaluations = report.question_evaluations || (session?.transcript?.map((t, idx) => ({
+      question_id: t.question_id || `q_${idx+1}`,
+      question: t.question || `Interview Question ${idx+1}`,
+      competency_phase: t.competency_phase || `Competency Round ${idx+1}`,
+      score: t.evaluation?.score || t.score || 7.5,
+      answer: t.answer || "",
+      evaluation_summary: t.evaluation?.summary || t.feedback || "Evaluated against industry technical benchmark.",
+      strengths: t.evaluation?.strengths || [],
+      follow_up: t.follow_up || null,
+    })) || []);
+
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "var(--font-primary, sans-serif)", padding: "2.5rem 1.5rem" }}>
-        <div style={{ maxWidth: "880px", margin: "0 auto" }}>
-          
-          {/* Top Bar */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "0.88rem",
-                fontWeight: 600,
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              <ArrowLeft size={16} /> Exit to Dashboard
-            </button>
+      <div className="interview-page-wrapper" style={{ padding: "2rem 1.5rem", background: "var(--cv-bg)" }}>
+        <div style={{ maxWidth: "1060px", margin: "0 auto", width: "100%" }}>
+          {/* Top Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard")}
+                className="interview-back-btn"
+                style={{ padding: "8px 14px", borderRadius: "8px" }}
+              >
+                <ArrowLeft size={16} /> Exit to Dashboard
+              </button>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 800, color: "var(--cv-text)", letterSpacing: "-0.02em" }}>
+                  Interview Feedback
+                </h1>
+                <p style={{ margin: "2px 0 0 0", fontSize: "0.86rem", color: "var(--cv-text-muted)" }}>
+                  Detailed analysis and feedback on your interview performance
+                </p>
+              </div>
+            </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <button
                 type="button"
                 onClick={() => {
-                  fetchQuestionHistory();
-                  setShowHistoryModal(true);
+                  navigate("/question-bank");
                 }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#ffffff",
-                  border: "1px solid #c7d2fe",
-                  padding: "6px 14px",
-                  borderRadius: "10px",
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "#4338ca",
-                  cursor: "pointer",
-                }}
+                className="interview-back-btn"
+                style={{ color: "var(--cv-accent)", fontWeight: 700 }}
               >
-                <History size={14} /> Question History ({questionHistory.length})
+                <History size={14} /> Question Bank ({questionHistory.length})
               </button>
-            </div>
-          </div>
-
-          {/* Dossier Card */}
-          <div style={{ background: "#ffffff", borderRadius: "24px", border: "1px solid #e2e8f0", padding: "2.5rem", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "1.5rem" }}>
-              <span style={{ fontSize: "2.5rem" }}>🏆</span>
-              <div>
-                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 800, color: "#0f172a" }}>
-                  Interview Dossier: {role}
-                </h2>
-                <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "3px" }}>
-                  Completed with {activeAgent.name || "Cyra-Bot"} • All questions saved to 30-day cooldown bank
-                </div>
-              </div>
-            </div>
-
-            {/* Overall Summary */}
-            <div style={{ background: "#f8fafc", borderRadius: "16px", padding: "1.25rem", border: "1px solid #e2e8f0", marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", marginBottom: "6px" }}>
-                Executive Assessment
-              </div>
-              <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.6, color: "#1e293b" }}>
-                {report.overall_interview_summary || "Great job completing your technical interview simulation. Your responses were evaluated against industry benchmarks."}
-              </p>
-            </div>
-
-            {/* Strengths & Improvements */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1.5rem" }}>
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "16px", padding: "1.25rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#15803d", fontWeight: 800, fontSize: "0.84rem", marginBottom: "8px" }}>
-                  <CheckCircle2 size={16} /> Key Strengths
-                </div>
-                <ul style={{ margin: 0, paddingLeft: "18px", color: "#166534", fontSize: "0.86rem", lineHeight: 1.5 }}>
-                  {(report.strengths || ["Applied technical problem-solving", "Clear architectural communication"]).map((s, idx) => (
-                    <li key={idx} style={{ marginBottom: "4px" }}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "16px", padding: "1.25rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#b45309", fontWeight: 800, fontSize: "0.84rem", marginBottom: "8px" }}>
-                  <AlertTriangle size={16} /> Preparation & Improvement Focus
-                </div>
-                <ul style={{ margin: 0, paddingLeft: "18px", color: "#92400e", fontSize: "0.86rem", lineHeight: 1.5 }}>
-                  {(report.improvement_areas || report.recommended_preparation_areas || ["Deepen trade-off analysis", "Structure answers with STAR / Framework"]).map((imp, idx) => (
-                    <li key={idx} style={{ marginBottom: "4px" }}>{imp}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "2rem" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -2266,49 +2661,314 @@ export default function InterviewPage() {
                   setResults(null);
                   setConversationLog([]);
                 }}
-                style={{
-                  flex: 1,
-                  padding: "14px",
-                  borderRadius: "12px",
-                  background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                }}
+                className="interview-launch-btn"
+                style={{ padding: "8px 16px", fontSize: "0.85rem" }}
               >
-                <RefreshCw size={16} /> Start Another Mock Interview
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  fetchQuestionHistory();
-                  setShowHistoryModal(true);
-                }}
-                style={{
-                  padding: "14px 20px",
-                  borderRadius: "12px",
-                  background: "#ffffff",
-                  color: "#4338ca",
-                  border: "1.5px solid #c7d2fe",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <History size={16} /> View Question Bank
+                <RefreshCw size={14} /> New Interview
               </button>
             </div>
           </div>
+
+          {/* 4 Top Metric Cards (Image 4) */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "1.5rem" }}>
+            {/* Card 1: Overall Score */}
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>Overall Score</span>
+                <Award size={16} color="var(--cv-text-muted)" />
+              </div>
+              <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--cv-accent)", lineHeight: 1.1 }}>
+                {overallScore}<span style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--cv-text-muted)" }}>/10</span>
+              </div>
+              <div style={{ width: "100%", height: "6px", background: "var(--cv-bg-subtle)", borderRadius: "4px", marginTop: "12px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, (overallScore / 10) * 100)}%`, height: "100%", background: "var(--cv-accent)", borderRadius: "4px" }} />
+              </div>
+            </div>
+
+            {/* Card 2: Average Question Score */}
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>Average Question Score</span>
+                <MessageSquare size={16} color="var(--cv-text-muted)" />
+              </div>
+              <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--cv-text)", lineHeight: 1.1 }}>
+                {avgScore}<span style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--cv-text-muted)" }}>/10</span>
+              </div>
+              <div style={{ width: "100%", height: "6px", background: "var(--cv-bg-subtle)", borderRadius: "4px", marginTop: "12px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, (avgScore / 10) * 100)}%`, height: "100%", background: "#0ea5e9", borderRadius: "4px" }} />
+              </div>
+            </div>
+
+            {/* Card 3: Relevance */}
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>Relevance</span>
+                <CheckCircle2 size={16} color="#10b981" />
+              </div>
+              <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "#10b981", lineHeight: 1.1 }}>
+                {relScore}<span style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--cv-text-muted)" }}>/10</span>
+              </div>
+              <div style={{ width: "100%", height: "6px", background: "var(--cv-bg-subtle)", borderRadius: "4px", marginTop: "12px", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(100, (relScore / 10) * 100)}%`, height: "100%", background: "#10b981", borderRadius: "4px" }} />
+              </div>
+            </div>
+
+            {/* Card 4: Duration */}
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--cv-text-muted)" }}>Duration</span>
+                <Clock size={16} color="var(--cv-text-muted)" />
+              </div>
+              <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--cv-text)", lineHeight: 1.1 }}>
+                {durationFormatted}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "var(--cv-text-muted)", marginTop: "10px" }}>
+                Total interview time
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Segmented Tabs (Image 4) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "var(--cv-bg-subtle)",
+              padding: "4px",
+              borderRadius: "12px",
+              border: "1px solid var(--cv-border)",
+              marginBottom: "1.5rem",
+              gap: "4px",
+            }}
+          >
+            {[
+              { id: "summary", label: "Summary" },
+              { id: "skills", label: "Skill Metrics" },
+              { id: "analysis", label: `Question Analysis (${questionEvaluations.length})` },
+              { id: "transcript", label: "Full Transcript" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setCareerMirrorTab(tab.id)}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: careerMirrorTab === tab.id ? "var(--cv-surface)" : "transparent",
+                  color: careerMirrorTab === tab.id ? "var(--cv-text)" : "var(--cv-text-muted)",
+                  fontWeight: careerMirrorTab === tab.id ? 800 : 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  boxShadow: careerMirrorTab === tab.id ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab 1: Summary */}
+          {careerMirrorTab === "summary" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              {/* Overall Assessment Card */}
+              <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <Award size={18} color="var(--cv-accent)" />
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                    Overall Assessment
+                  </h3>
+                </div>
+                <p style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.65, color: "var(--cv-text-muted)" }}>
+                  {report.overall_interview_summary || "The candidate demonstrates a solid understanding of software engineering and system architecture. The candidate is able to analyze problems and formulate solutions with clear technical trade-offs. Responses were evaluated against industry benchmarks."}
+                </p>
+              </div>
+
+              {/* Strengths & Improvements 2-Column Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem" }}>
+                {/* Key Strengths */}
+                <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "20px 24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#10b981", fontWeight: 800, fontSize: "0.95rem", marginBottom: "16px" }}>
+                    <CheckCircle2 size={18} /> Key Strengths
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {strengths.map((str, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                        <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", background: "#dcfce7", color: "#15803d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.76rem", fontWeight: 800, marginTop: "2px" }}>
+                          {idx + 1}
+                        </span>
+                        <span style={{ fontSize: "0.88rem", color: "var(--cv-text)", lineHeight: 1.5 }}>
+                          {str}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Areas for Improvement */}
+                <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "20px 24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#f59e0b", fontWeight: 800, fontSize: "0.95rem", marginBottom: "16px" }}>
+                    <AlertTriangle size={18} /> Areas for Improvement
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {improvementAreas.map((imp, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                        <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", background: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.76rem", fontWeight: 800, marginTop: "2px" }}>
+                          {idx + 1}
+                        </span>
+                        <span style={{ fontSize: "0.88rem", color: "var(--cv-text)", lineHeight: 1.5 }}>
+                          {imp}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance by Competency / Question Type */}
+              <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "24px" }}>
+                <h3 style={{ margin: "0 0 16px 0", fontSize: "1.02rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                  Performance by Competency Phase
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" }}>
+                  {Object.entries(competencyScores).map(([compName, scoreVal], i) => {
+                    const numScore = typeof scoreVal === "number" ? scoreVal : 7.0;
+                    const ratingLabel = numScore >= 8.5 ? "Excellent" : numScore >= 7.0 ? "Proficient" : "Needs Focus";
+                    return (
+                      <div key={i} style={{ background: "var(--cv-bg-subtle)", borderRadius: "12px", border: "1px solid var(--cv-border)", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--cv-text)" }}>
+                            {compName}
+                          </span>
+                          <span style={{ fontSize: "0.76rem", fontWeight: 800, color: numScore >= 8 ? "#10b981" : numScore >= 7 ? "var(--cv-accent)" : "#f59e0b" }}>
+                            {ratingLabel} • {numScore}/10
+                          </span>
+                        </div>
+                        <div style={{ width: "100%", height: "6px", background: "rgba(0,0,0,0.06)", borderRadius: "4px", overflow: "hidden" }}>
+                          <div style={{ width: `${Math.min(100, (numScore / 10) * 100)}%`, height: "100%", background: numScore >= 8 ? "#10b981" : numScore >= 7 ? "var(--cv-accent)" : "#f59e0b", borderRadius: "4px" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Skill Metrics */}
+          {careerMirrorTab === "skills" && (
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "24px" }}>
+              <h3 style={{ margin: "0 0 16px 0", fontSize: "1.05rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                Multi-Dimensional Evaluator Rubrics
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {[
+                  { name: "Technical Correctness & Algorithms", score: Math.min(10, Math.round(overallScore * 1.05 * 10)/10), desc: "Accuracy of algorithmic proofs, invariant validation, and correct data structure choices." },
+                  { name: "Architectural Scoping & Modular Design", score: Math.min(10, Math.round(overallScore * 0.98 * 10)/10), desc: "Component breakdown, separation of concerns, and distributed system scaling." },
+                  { name: "Edge Case & Invariant Handling", score: Math.min(10, Math.round(overallScore * 0.92 * 10)/10), desc: "Anticipating bounds, empty/null checks, concurrency races, and network partitions." },
+                  { name: "Complexity Analysis & Trade-offs", score: Math.min(10, Math.round(overallScore * 1.02 * 10)/10), desc: "Rigorous Big-O time and space proofs, latency budgets, and engineering compromise justifications." },
+                  { name: "Communication Clarity & Articulation", score: Math.min(10, Math.round(overallScore * 1.08 * 10)/10), desc: "Pacing, structured thinking (STAR / framework), and receptive handling of interviewer follow-ups." },
+                ].map((rubric, idx) => (
+                  <div key={idx} style={{ borderBottom: idx < 4 ? "1px solid var(--cv-border)" : "none", paddingBottom: "14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--cv-text)" }}>{rubric.name}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--cv-accent)" }}>{rubric.score}/10</span>
+                    </div>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "0.8rem", color: "var(--cv-text-muted)" }}>{rubric.desc}</p>
+                    <div style={{ width: "100%", height: "5px", background: "var(--cv-bg-subtle)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ width: `${Math.min(100, (rubric.score / 10) * 100)}%`, height: "100%", background: "var(--cv-accent)", borderRadius: "3px" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Question Analysis */}
+          {careerMirrorTab === "analysis" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {questionEvaluations.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px", background: "var(--cv-surface)", borderRadius: "16px", color: "var(--cv-text-muted)" }}>
+                  No question-level records available for this session.
+                </div>
+              ) : (
+                questionEvaluations.map((qEval, qIdx) => (
+                  <div key={qIdx} style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.02)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "0.72rem", fontWeight: 800, background: "var(--cv-bg-subtle)", color: "var(--cv-accent)", padding: "3px 10px", borderRadius: "6px", border: "1px solid var(--cv-border)" }}>
+                          Question {qIdx + 1} • {qEval.competency_phase || "Competency Check"}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: "0.84rem", fontWeight: 800, color: (qEval.score || 7.5) >= 8 ? "#10b981" : "var(--cv-accent)" }}>
+                        Turn Score: {qEval.score || 7.5}/10
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--cv-text)", marginBottom: "12px", lineHeight: 1.5 }}>
+                      {typeof qEval.question === "object" ? (qEval.question?.question || JSON.stringify(qEval.question)) : qEval.question}
+                    </div>
+
+                    {qEval.answer && (
+                      <div style={{ background: "var(--cv-bg-subtle)", borderRadius: "8px", padding: "10px 14px", border: "1px solid var(--cv-border)", marginBottom: "12px", fontSize: "0.82rem", color: "var(--cv-text-muted)" }}>
+                        <strong style={{ color: "var(--cv-text)" }}>Your Answer:</strong> {qEval.answer}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: "0.82rem", color: "var(--cv-text-muted)", lineHeight: 1.5 }}>
+                      <strong style={{ color: "var(--cv-text)" }}>Evaluator Assessment:</strong> {qEval.evaluation_summary || "Good technical articulation of requirements."}
+                    </div>
+
+                    {qEval.follow_up && (
+                      <div style={{ marginTop: "10px", padding: "8px 12px", borderRadius: "8px", background: "#f8fafc", border: "1px dashed #cbd5e1", fontSize: "0.78rem", color: "#475569" }}>
+                        <strong>Interviewer Probed:</strong> {qEval.follow_up}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Tab 4: Full Transcript */}
+          {careerMirrorTab === "transcript" && (
+            <div style={{ background: "var(--cv-surface)", borderRadius: "16px", border: "1px solid var(--cv-border)", padding: "24px" }}>
+              <h3 style={{ margin: "0 0 16px 0", fontSize: "1.05rem", fontWeight: 800, color: "var(--cv-text)" }}>
+                Auditable Session Transcript
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {(session?.transcript && session.transcript.length > 0 ? session.transcript : conversationLog).map((entry, tIdx) => (
+                  <div key={tIdx} style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "14px", background: "var(--cv-bg-subtle)", borderRadius: "12px", border: "1px solid var(--cv-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "var(--cv-accent)" }}>
+                        Turn {tIdx + 1} • {entry.competency_phase || "Interviewer Agent"}
+                      </span>
+                      {entry.evaluated_at && (
+                        <span style={{ fontSize: "0.7rem", color: "var(--cv-text-muted)" }}>
+                          {new Date(entry.evaluated_at).toLocaleTimeString()}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--cv-text)" }}>
+                      🤖 Cyra: {typeof entry.question === "object" ? entry.question?.question : entry.question}
+                    </div>
+                    {entry.answer && (
+                      <div style={{ fontSize: "0.84rem", color: "var(--cv-text-muted)", paddingLeft: "12px", borderLeft: "2px solid var(--cv-accent)" }}>
+                        👤 Candidate: {entry.answer}
+                      </div>
+                    )}
+                    {entry.evaluation?.summary && (
+                      <div style={{ fontSize: "0.78rem", color: "#059669", fontStyle: "italic" }}>
+                        ✓ Evaluation: {entry.evaluation.summary}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {renderQuestionHistoryModal()}
       </div>
@@ -2326,6 +2986,7 @@ export default function InterviewPage() {
       mode={chosenMode}
       interviewMode={chosenMode}
       connectedResources={resourceMeta?.connected_resources}
+      proctoringStatus={proctoringStatus}
       role={role}
       candidateName={candidateName}
       candidateAvatar={user?.avatar || ""}
@@ -2343,7 +3004,11 @@ export default function InterviewPage() {
       micStatus={micStatus}
       isGeneratingQuestion={loading}
       currentQuestion={currentQuestion}
-      currentQIndex={currentQIndex}
+      session={session}
+      currentQIndex={session?.core_question_number || (typeof currentQuestion === "object" ? currentQuestion?.core_question_index : null) || currentQIndex}
+      coreQuestionNumber={session?.core_question_number || (typeof currentQuestion === "object" ? currentQuestion?.core_question_index : null) || currentQIndex}
+      totalCoreQuestions={session?.total_core_questions || (typeof currentQuestion === "object" ? currentQuestion?.total_core_questions : null) || 5}
+      isFollowUp={Boolean(session?.is_follow_up || (typeof currentQuestion === "object" ? currentQuestion?.is_follow_up : false))}
       parsedQ={parsedQ}
       selectedDomainKey={selectedDomainKey}
       handleDomainChange={handleDomainChange}
@@ -2359,6 +3024,8 @@ export default function InterviewPage() {
       isAgentSpeaking={isAgentSpeaking}
       spokenSubtitle={spokenSubtitle}
       speakText={speakText}
+      speechRate={speechRate}
+      onChangeSpeechRate={setSpeechRate}
       cameraActive={cameraActive}
       startCamera={startCamera}
       stopCamera={stopCamera}

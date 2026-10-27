@@ -4,10 +4,10 @@
  */
 
 @import './design-system/tokens.css';
-@import './design-system/themes.css';
 @import './design-system/typography.css';
 @import './design-system/motion.css';
 @import './design-system/cv-editorial.css';
+@import './design-system/themes.css';
 
 /* Backwards-compatibility bridge for existing tokens */
 :root {

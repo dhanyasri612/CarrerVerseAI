@@ -68,6 +68,12 @@ HINDI_ROMANIZED_KEYWORDS = {
     "batao", "bataye", "chahiye", "kaunsa", "kaunsi", "karen", "tayari",
 }
 
+MALAYALAM_ROMANIZED_KEYWORDS = {
+    "enikku", "chodhyam", "venam", "enthaanu", "enganeyanu", "ariyilla",
+    "parayam", "cheyyam", "nokkaam", "cheyyanam", "aano", "aanu",
+    "undennu", "illa", "pakshe", "enthu", "engane", "ippol", "ningal",
+}
+
 
 class LanguageDetector:
     """
@@ -83,6 +89,8 @@ class LanguageDetector:
         if not raw_lang:
             return None
         cleaned = raw_lang.strip().lower()
+        if "-" in cleaned:
+            cleaned = cleaned.split("-")[0]
         if cleaned in LANGUAGE_METADATA_MAP:
             return cleaned
         if cleaned in LANGUAGE_NAME_TO_CODE:
@@ -110,23 +118,23 @@ class LanguageDetector:
 
         for char in text:
             code = ord(char)
-            # Tamil: U+0B80 – U+0BFF
+            # Tamil: 0x0B80 - 0x0BFF
             if 0x0B80 <= code <= 0x0BFF:
                 tamil_chars += 1
                 total_letters += 1
-            # Devanagari (Hindi/Marathi): U+0900 – U+097F
+            # Devanagari (Hindi): 0x0900 - 0x097F
             elif 0x0900 <= code <= 0x097F:
                 devanagari_chars += 1
                 total_letters += 1
-            # Telugu: U+0C00 – U+0C7F
+            # Telugu: 0x0C00 - 0x0C7F
             elif 0x0C00 <= code <= 0x0C7F:
                 telugu_chars += 1
                 total_letters += 1
-            # Kannada: U+0C80 – U+0CFF
+            # Kannada: 0x0C80 - 0x0CFF
             elif 0x0C80 <= code <= 0x0CFF:
                 kannada_chars += 1
                 total_letters += 1
-            # Malayalam: U+0D00 – U+0D7F
+            # Malayalam: 0x0D00 - 0x0D7F
             elif 0x0D00 <= code <= 0x0D7F:
                 malayalam_chars += 1
                 total_letters += 1
@@ -168,7 +176,7 @@ class LanguageDetector:
 
     def detect_romanized_lexicon(self, text: str) -> Optional[Tuple[str, float]]:
         """
-        Checks for transliterated / Romanized words (Tanglish / Hinglish).
+        Checks for transliterated / Romanized words (Tanglish / Hinglish / Manglish).
         """
         words = set(re.findall(r"\b[a-zA-Z]+\b", text.lower()))
         if not words:
@@ -176,6 +184,7 @@ class LanguageDetector:
 
         tamil_matches = words.intersection(TAMIL_ROMANIZED_KEYWORDS)
         hindi_matches = words.intersection(HINDI_ROMANIZED_KEYWORDS)
+        malayalam_matches = words.intersection(MALAYALAM_ROMANIZED_KEYWORDS)
 
         if len(tamil_matches) >= 2 or (len(tamil_matches) == 1 and len(words) <= 5):
             conf = min(0.95, 0.70 + (len(tamil_matches) * 0.1))
@@ -184,6 +193,10 @@ class LanguageDetector:
         if len(hindi_matches) >= 2 or (len(hindi_matches) == 1 and len(words) <= 5):
             conf = min(0.95, 0.70 + (len(hindi_matches) * 0.1))
             return "hi", conf
+
+        if len(malayalam_matches) >= 2 or (len(malayalam_matches) == 1 and len(words) <= 5):
+            conf = min(0.95, 0.70 + (len(malayalam_matches) * 0.1))
+            return "ml", conf
 
         return None
 

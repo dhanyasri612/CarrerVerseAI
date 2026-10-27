@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Award,
 } from "lucide-react";
+import "../pages/InterviewPage.css";
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
@@ -53,6 +54,9 @@ export default function InterviewModeSelection({
   const [selectedLang, setSelectedLang] = useState("en");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
+  const [selectedRepoId, setSelectedRepoId] = useState("");
+  const [sessionMode, setSessionMode] = useState("fresh");
+  const [questionCount, setQuestionCount] = useState(5);
 
   // Connected resources extraction
   const conn = resourceMeta?.connected_resources || {};
@@ -75,11 +79,11 @@ export default function InterviewModeSelection({
       tracks.push({
         id: "dsa",
         title: "LeetCode Algorithmic Problem Solving",
-        badge: "⚡ LeetCode Connected",
+        badge: "LeetCode Connected",
         role: "Software Engineer (SDE / Algorithms)",
-        color: "#ea580c",
-        bg: "#fff7ed",
-        border: "#fed7aa",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: Code2,
         connectedResource: "LeetCode",
         resourceEvidence: `${lcSolved > 0 ? `${lcSolved} Problems Solved` : "Profile Connected"}${
@@ -99,11 +103,11 @@ export default function InterviewModeSelection({
       tracks.push({
         id: "github",
         title: "GitHub Architecture & Codebase Review",
-        badge: "🐙 GitHub Connected",
+        badge: "GitHub Connected",
         role: "Full-Stack / Systems Engineer",
-        color: "#0f172a",
-        bg: "#f8fafc",
-        border: "#cbd5e1",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: GitBranch,
         connectedResource: "GitHub",
         resourceEvidence: `${ghRepos.length > 0 ? `${ghRepos.length} Repositories` : "Repository Connected"}: ${topRepo.name}`,
@@ -116,13 +120,13 @@ export default function InterviewModeSelection({
     if (hrSolved > 0 || (hrProfile?.badges && hrProfile.badges.length > 0) || hrProfile?.connected) {
       const topBadge = hrProfile?.badges?.[0]?.name || hrProfile?.badges?.[0] || "Problem Solving & SQL";
       tracks.push({
-        id: "dsa",
+        id: "hackerrank",
         title: "HackerRank Problem Solving & SQL Challenges",
-        badge: "🏆 HackerRank Connected",
+        badge: "HackerRank Connected",
         role: "Backend & Database Engineer",
-        color: "#16a34a",
-        bg: "#f0fdf4",
-        border: "#bbf7d0",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: CheckCircle2,
         connectedResource: "HackerRank",
         resourceEvidence: `${hrSolved > 0 ? `${hrSolved} Solved` : "Verified Badges"}: ${topBadge}`,
@@ -136,11 +140,11 @@ export default function InterviewModeSelection({
     tracks.push({
       id: "behavioral",
       title: "Resume Experience & STAR Leadership",
-      badge: "📄 Resume Connected",
+      badge: "Resume Connected",
       role: "Software Engineer",
-      color: "#0284c7",
-      bg: "#f0f9ff",
-      border: "#bae6fd",
+      color: "var(--accent, #6366f1)",
+      bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+      border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
       icon: MessageSquare,
       connectedResource: "Resume & Skills",
       resourceEvidence: `${skillsList.length > 0 ? `${skillsList.length} Verified Skills` : "Verified Work Experience"}`,
@@ -154,11 +158,11 @@ export default function InterviewModeSelection({
       tracks.push({
         id: "system_design",
         title: "System Design & Distributed Scalability",
-        badge: certsList.length > 0 ? "📜 Credentials Connected" : "🧠 Systems Scale",
+        badge: certsList.length > 0 ? "Credentials Connected" : "Systems Scale",
         role: "Backend Systems Engineer",
-        color: "#ef4444",
-        bg: "#fee2e2",
-        border: "#fecaca",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: Layers,
         connectedResource: certsList.length > 0 ? "Certifications" : "Codebase Scale",
         resourceEvidence:
@@ -176,11 +180,11 @@ export default function InterviewModeSelection({
       tracks.unshift({
         id: "dsa",
         title: "Algorithmic Problem Solving (LeetCode Bank)",
-        badge: "⚡ LeetCode Problem Bank",
+        badge: "LeetCode Problem Bank",
         role: "Software Engineer (SDE)",
-        color: "#6366f1",
-        bg: "#ede9fe",
-        border: "#c7d2fe",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: Code2,
         connectedResource: "LeetCode Bank",
         resourceEvidence: "Standard Problem Bank (Connect LeetCode to personalize)",
@@ -191,11 +195,11 @@ export default function InterviewModeSelection({
       tracks.push({
         id: "github",
         title: "GitHub Projects & Codebase",
-        badge: "🐙 GitHub Codebase",
+        badge: "GitHub Codebase",
         role: "Software Engineer",
-        color: "#f97316",
-        bg: "#ffedd5",
-        border: "#fed7aa",
+        color: "var(--accent, #6366f1)",
+        bg: "var(--accent-soft, rgba(99, 102, 241, 0.12))",
+        border: "var(--accent-border, rgba(99, 102, 241, 0.25))",
         icon: GitBranch,
         connectedResource: "GitHub",
         resourceEvidence: "Connect GitHub to analyze real repositories",
@@ -234,49 +238,25 @@ export default function InterviewModeSelection({
   };
 
   const handleLaunch = () => {
-    onStartInterview(currentTrack.id, currentTrack.title, targetRole);
+    onStartInterview(
+      currentTrack.id,
+      currentTrack.title,
+      targetRole,
+      selectedRepoId ? Number(selectedRepoId) : null,
+      sessionMode,
+      questionCount,
+    );
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: "#0f172a",
-        fontFamily: "var(--font-primary, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className="interview-page-wrapper">
       {/* ── CLEAN TOP HEADER ───────────────────────────────────────────── */}
-      <header
-        style={{
-          background: "#ffffff",
-          borderBottom: "1px solid #e2e8f0",
-          padding: "12px 28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <header className="interview-header">
+        <div className="interview-header-brand">
           <Link
             to="/dashboard"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "8px",
-              background: "#f1f5f9",
-              border: "1px solid #e2e8f0",
-              color: "#475569",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-              textDecoration: "none",
-              transition: "all 0.15s ease",
-            }}
+            className="interview-back-btn"
+            title="Return to Dashboard"
           >
             <ArrowLeft size={15} /> Dashboard
           </Link>
@@ -286,23 +266,23 @@ export default function InterviewModeSelection({
               style={{
                 width: 32,
                 height: 32,
-                borderRadius: "10px",
-                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+                borderRadius: "8px",
+                background: "var(--accent, #6366f1)",
+                color: "var(--accent-contrast, #ffffff)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#ffffff",
-                boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
+                boxShadow: "0 2px 8px var(--accent-glow, rgba(99, 102, 241, 0.25))",
               }}
             >
               <Bot size={18} />
             </span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: "0.98rem", color: "#0f172a", lineHeight: 1.2 }}>
+              <div style={{ fontWeight: 700, fontSize: "0.98rem", color: "var(--text)", lineHeight: 1.2 }}>
                 CareerVerse AI • Interview Studio
               </div>
-              <div style={{ fontSize: "0.72rem", color: "#16a34a", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a" }} />
+              <div className="interview-header-status">
+                <span className="interview-pulse-dot" />
                 Cyra AI Proctor Active
               </div>
             </div>
@@ -310,24 +290,13 @@ export default function InterviewModeSelection({
         </div>
 
         {/* Right Action: Question History & Candidate Name */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="interview-header-controls">
           <button
             type="button"
             data-testid="open-history-btn"
             onClick={onOpenHistory}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#eef2ff",
-              border: "1px solid #c7d2fe",
-              padding: "7px 14px",
-              borderRadius: "10px",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-              color: "#4338ca",
-              cursor: "pointer",
-            }}
+            className="interview-back-btn"
+            style={{ fontWeight: 700, color: "var(--text)" }}
           >
             <History size={15} /> Question History (30-Day Cooldown)
           </button>
@@ -339,11 +308,11 @@ export default function InterviewModeSelection({
               gap: "8px",
               padding: "4px 10px",
               borderRadius: "20px",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
               fontSize: "0.82rem",
               fontWeight: 700,
-              color: "#334155",
+              color: "var(--text)",
             }}
           >
             <span
@@ -351,8 +320,8 @@ export default function InterviewModeSelection({
                 width: 24,
                 height: 24,
                 borderRadius: "50%",
-                background: "#6366f1",
-                color: "#ffffff",
+                background: "var(--accent, #6366f1)",
+                color: "var(--accent-contrast, #ffffff)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -368,94 +337,25 @@ export default function InterviewModeSelection({
       </header>
 
       {/* ── MAIN STREAMLINED CONTENT CONTAINER ─────────────────────────── */}
-      <main
-        style={{
-          flex: 1,
-          maxWidth: "1080px",
-          width: "100%",
-          margin: "0 auto",
-          padding: "2rem 1.5rem 3rem 1.5rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.75rem",
-        }}
-      >
+      <main className="interview-setup-container">
         {/* Title Header */}
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              color: "#166534",
-              fontSize: "0.78rem",
-              fontWeight: 800,
-              padding: "4px 14px",
-              borderRadius: "20px",
-              marginBottom: "10px",
-            }}
-          >
-            <Sparkles size={14} color="#16a34a" /> Proctored Technical & Behavioral Interviews
+        <div className="interview-setup-hero">
+          <div className="interview-setup-eyebrow">
+            <Sparkles size={14} /> Proctored Technical &amp; Behavioral Interviews
           </div>
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: 900,
-              color: "#0f172a",
-              margin: "0 0 8px 0",
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <h1 className="interview-setup-title">
             Select Your Interview Track
           </h1>
-          <p
-            style={{
-              fontSize: "0.94rem",
-              color: "#64748b",
-              maxWidth: "680px",
-              margin: "0 auto",
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="interview-setup-subtitle">
             Your interview options are derived directly from your connected resources—LeetCode practice, GitHub codebases, verified skills, and certifications.
           </p>
         </div>
 
         {/* ── CONNECTED RESOURCES GROUNDING SUMMARY BAR ───────────────────── */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "14px",
-            padding: "1rem 1.25rem",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "0.82rem",
-                fontWeight: 800,
-                color: "#0f172a",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              <Zap size={15} color="#6366f1" />
+        <div className="interview-grounding-bar">
+          <div className="interview-grounding-header">
+            <div className="interview-grounding-label">
+              <Zap size={15} color="var(--accent)" />
               Connected Resources Powering Your Interview Options:
             </div>
             <Link
@@ -463,7 +363,7 @@ export default function InterviewModeSelection({
               style={{
                 fontSize: "0.78rem",
                 fontWeight: 700,
-                color: "#4f46e5",
+                color: "var(--accent)",
                 textDecoration: "none",
               }}
             >
@@ -471,93 +371,46 @@ export default function InterviewModeSelection({
             </Link>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              flexWrap: "wrap",
-            }}
-          >
+          <div className="interview-grounding-pills">
             {/* LeetCode Badge */}
-            <div
-              style={{
-                background: lcSolved > 0 ? "#fff7ed" : "#f8fafc",
-                border: `1px solid ${lcSolved > 0 ? "#fed7aa" : "#e2e8f0"}`,
-                borderRadius: "10px",
-                padding: "6px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span style={{ fontSize: "1rem" }}>⚡</span>
+            <div className={`interview-evidence-pill ${lcSolved > 0 ? "connected" : ""}`}>
+              <span style={{ fontSize: "0.95rem" }}>⚡</span>
               <div>
-                <div style={{ fontSize: "0.72rem", color: "#9a3412", fontWeight: 800 }}>LeetCode</div>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#c2410c" }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>LeetCode</div>
+                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>
                   {lcSolved > 0 ? `${lcSolved} Solved` : "Connected"}
                 </div>
               </div>
             </div>
 
             {/* GitHub Badge */}
-            <div
-              style={{
-                background: ghRepos.length > 0 ? "#f8fafc" : "#f8fafc",
-                border: `1px solid ${ghRepos.length > 0 ? "#cbd5e1" : "#e2e8f0"}`,
-                borderRadius: "10px",
-                padding: "6px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span style={{ fontSize: "1rem" }}>🐙</span>
+            <div className={`interview-evidence-pill ${ghRepos.length > 0 ? "connected" : ""}`}>
+              <span style={{ fontSize: "0.95rem" }}>🐙</span>
               <div>
-                <div style={{ fontSize: "0.72rem", color: "#334155", fontWeight: 800 }}>GitHub</div>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0f172a" }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>GitHub</div>
+                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>
                   {ghRepos.length > 0 ? `${ghRepos.length} Repositories` : "CareerVerseAI"}
                 </div>
               </div>
             </div>
 
             {/* HackerRank Badge */}
-            <div
-              style={{
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                borderRadius: "10px",
-                padding: "6px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span style={{ fontSize: "1rem" }}>🏆</span>
+            <div className="interview-evidence-pill connected">
+              <span style={{ fontSize: "0.95rem" }}>🏆</span>
               <div>
-                <div style={{ fontSize: "0.72rem", color: "#166534", fontWeight: 800 }}>HackerRank</div>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#15803d" }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>HackerRank</div>
+                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>
                   {hrSolved > 0 ? `${hrSolved} Solved` : "Problem Solving & SQL"}
                 </div>
               </div>
             </div>
 
             {/* Resume / Skills Badge */}
-            <div
-              style={{
-                background: "#f0f9ff",
-                border: "1px solid #bae6fd",
-                borderRadius: "10px",
-                padding: "6px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span style={{ fontSize: "1rem" }}>📄</span>
+            <div className="interview-evidence-pill connected">
+              <span style={{ fontSize: "0.95rem" }}>📄</span>
               <div>
-                <div style={{ fontSize: "0.72rem", color: "#0369a1", fontWeight: 800 }}>Resume & Experience</div>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0284c7" }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>Resume &amp; Experience</div>
+                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>
                   {skillsList.length > 0 ? `${skillsList.length} Verified Skills` : "Verified Project Profile"}
                 </div>
               </div>
@@ -565,21 +418,11 @@ export default function InterviewModeSelection({
 
             {/* Certifications Badge */}
             {certsList.length > 0 && (
-              <div
-                style={{
-                  background: "#f5f3ff",
-                  border: "1px solid #ddd6fe",
-                  borderRadius: "10px",
-                  padding: "6px 12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <span style={{ fontSize: "1rem" }}>📜</span>
+              <div className="interview-evidence-pill connected">
+                <span style={{ fontSize: "0.95rem" }}>📜</span>
                 <div>
-                  <div style={{ fontSize: "0.72rem", color: "#5b21b6", fontWeight: 800 }}>Certifications</div>
-                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#7c3aed" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>Certifications</div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>
                     {certsList.length} Credentials
                   </div>
                 </div>
@@ -589,13 +432,7 @@ export default function InterviewModeSelection({
         </div>
 
         {/* Dynamic Connected Resources Track Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "14px",
-          }}
-        >
+        <div className="interview-tracks-grid">
           {availableTracks.map((track, tIdx) => {
             const isSelected = selectedTrackId === track.id;
             const Icon = track.icon;
@@ -604,129 +441,50 @@ export default function InterviewModeSelection({
               <div
                 key={tIdx}
                 onClick={() => handleSelectTrack(track)}
-                style={{
-                  background: isSelected ? "#ffffff" : "#ffffff",
-                  border: isSelected ? `2px solid ${track.color}` : "1px solid #e2e8f0",
-                  borderRadius: "16px",
-                  padding: "1.25rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  boxShadow: isSelected
-                    ? `0 8px 24px ${track.color}20`
-                    : "0 2px 6px rgba(0,0,0,0.02)",
-                  transform: isSelected ? "translateY(-2px)" : "none",
-                  transition: "all 0.2s ease",
-                  position: "relative",
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleSelectTrack(track);
+                  }
                 }}
+                className={`interview-track-card ${isSelected ? "selected" : ""}`}
               >
                 <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "10px",
-                        background: track.bg,
-                        color: track.color,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
+                  <div className="interview-track-card-head">
+                    <div className="interview-track-icon">
                       <Icon size={20} />
                     </div>
 
-                    <span
-                      style={{
-                        fontSize: "0.72rem",
-                        fontWeight: 800,
-                        background: isSelected ? track.color : track.bg,
-                        color: isSelected ? "#ffffff" : track.color,
-                        padding: "3px 10px",
-                        borderRadius: "12px",
-                        letterSpacing: "0.02em",
-                        border: `1px solid ${track.border || "transparent"}`,
-                      }}
-                    >
+                    <span className="interview-track-badge">
                       {track.badge}
                     </span>
                   </div>
 
-                  <h3
-                    style={{
-                      fontSize: "1.05rem",
-                      fontWeight: 800,
-                      color: "#0f172a",
-                      margin: "0 0 6px 0",
-                    }}
-                  >
+                  <h3 className="interview-track-title">
                     {track.title}
                   </h3>
 
                   {/* Connected Resource Grounding Badge */}
                   {track.resourceEvidence && (
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        background: track.bg,
-                        border: `1px solid ${track.border || "#cbd5e1"}`,
-                        padding: "2px 8px",
-                        borderRadius: "6px",
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        color: track.color,
-                        marginBottom: "10px",
-                      }}
-                    >
+                    <div className="interview-track-evidence">
                       <span>✓ From {track.connectedResource}:</span>
                       <span style={{ fontWeight: 600 }}>{track.resourceEvidence}</span>
                     </div>
                   )}
 
-                  <p
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "#64748b",
-                      margin: "0 0 14px 0",
-                      lineHeight: 1.45,
-                    }}
-                  >
+                  <p className="interview-track-desc">
                     {track.description}
                   </p>
                 </div>
 
-                <div
-                  style={{
-                    paddingTop: "10px",
-                    borderTop: "1px solid #f1f5f9",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    fontSize: "0.74rem",
-                    color: "#64748b",
-                  }}
-                >
+                <div className="interview-track-footer">
                   <span style={{ fontWeight: 600 }}>{track.platforms}</span>
-                  <div
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      border: isSelected ? `5px solid ${track.color}` : "2px solid #cbd5e1",
-                      background: "#ffffff",
-                    }}
-                  />
+                  <div className="interview-radio-dot">
+                    {isSelected && <div className="interview-radio-dot-inner" />}
+                  </div>
                 </div>
               </div>
             );
@@ -734,49 +492,16 @@ export default function InterviewModeSelection({
         </div>
 
         {/* ── STREAMLINED INTERVIEW CONFIGURATION PANEL ───────────────── */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "18px",
-            padding: "1.5rem 1.75rem",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "0.85rem",
-              fontWeight: 800,
-              color: "#0f172a",
-              marginBottom: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <Target size={16} color="#6366f1" />
+        <div className="interview-config-card">
+          <div className="interview-config-title">
+            <Target size={16} color="var(--accent)" />
             Interview Configuration
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "16px",
-              marginBottom: "1.5rem",
-            }}
-          >
+          <div className="interview-config-grid">
             {/* Target Role Input */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  color: "#475569",
-                  marginBottom: "6px",
-                }}
-              >
+              <label className="interview-field-label">
                 Target Role
               </label>
               <input
@@ -784,48 +509,19 @@ export default function InterviewModeSelection({
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value)}
                 placeholder="e.g. Software Engineer (SDE)"
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid #cbd5e1",
-                  fontSize: "0.88rem",
-                  fontWeight: 600,
-                  color: "#0f172a",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
+                className="interview-input"
               />
             </div>
 
             {/* Language Selector */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  color: "#475569",
-                  marginBottom: "6px",
-                }}
-              >
+              <label className="interview-field-label">
                 Spoken Language
               </label>
               <select
                 value={selectedLang}
                 onChange={(e) => setSelectedLang(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid #cbd5e1",
-                  fontSize: "0.88rem",
-                  fontWeight: 600,
-                  color: "#0f172a",
-                  outline: "none",
-                  background: "#ffffff",
-                  boxSizing: "border-box",
-                }}
+                className="interview-select"
               >
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -835,48 +531,72 @@ export default function InterviewModeSelection({
               </select>
             </div>
 
+            {/* Session Mode Selector */}
+            <div>
+              <label className="interview-field-label">
+                Session Mode
+              </label>
+              <select
+                value={sessionMode}
+                onChange={(e) => setSessionMode(e.target.value)}
+                className="interview-select"
+              >
+                <option value="fresh">Fresh Comprehensive (5-Phased Sequence)</option>
+                <option value="revision">Targeted Revision (Weak Areas Focus)</option>
+                <option value="mock_exam">Mock Assessment (Strict Evaluation)</option>
+              </select>
+            </div>
+
+            {/* Session Length / Question Count Selector */}
+            <div>
+              <label className="interview-field-label">
+                Session Length
+              </label>
+              <select
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                className="interview-select"
+              >
+                <option value={5}>5 Questions (Standard Round)</option>
+                <option value={8}>8 Questions (In-Depth Assessment)</option>
+              </select>
+            </div>
+
+            {/* Repository Selector */}
+            {ghRepos.length > 0 && (
+              <div>
+                <label className="interview-field-label">
+                  Grounded Codebase
+                </label>
+                <select
+                  value={selectedRepoId}
+                  onChange={(e) => setSelectedRepoId(e.target.value)}
+                  className="interview-select"
+                >
+                  <option value="">Auto-Detect Most Relevant Repo</option>
+                  {ghRepos.map((repo, idx) => (
+                    <option key={repo.id || idx} value={repo.id || repo.name}>
+                      {repo.name} {repo.language ? `(${repo.language})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Voice Proctoring Check */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  color: "#475569",
-                  marginBottom: "6px",
-                }}
-              >
+              <label className="interview-field-label">
                 AI Audio Proctoring
               </label>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  height: "38px",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "38px" }}>
                 <button
                   type="button"
                   onClick={handleTestVoiceAudio}
                   disabled={isTestingVoice}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    background: isTestingVoice ? "#eef2ff" : "#f8fafc",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "10px",
-                    padding: "8px 12px",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    color: "#334155",
-                    cursor: "pointer",
-                  }}
+                  className="interview-back-btn"
+                  style={{ flex: 1, justifyContent: "center", height: "38px" }}
                 >
-                  <Volume2 size={15} color={isTestingVoice ? "#4f46e5" : "#64748b"} />
+                  <Volume2 size={15} color="var(--accent)" />
                   {isTestingVoice ? "Speaking sample…" : "Test Cyra's Voice"}
                 </button>
               </div>
@@ -888,23 +608,7 @@ export default function InterviewModeSelection({
             type="button"
             onClick={handleLaunch}
             disabled={loading}
-            style={{
-              width: "100%",
-              padding: "14px 20px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
-              color: "#ffffff",
-              border: "none",
-              fontSize: "1rem",
-              fontWeight: 800,
-              cursor: loading ? "wait" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              boxShadow: "0 4px 14px rgba(79, 70, 229, 0.35)",
-              transition: "all 0.15s ease",
-            }}
+            className="interview-launch-btn"
           >
             <Sparkles size={18} />
             {loading ? "Starting Interview…" : `Start ${currentTrack.title} →`}
@@ -917,25 +621,25 @@ export default function InterviewModeSelection({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "14px",
+            gap: "10px",
             flexWrap: "wrap",
             fontSize: "0.78rem",
-            color: "#64748b",
+            color: "var(--text-muted)",
           }}
         >
-          <span style={{ fontWeight: 700, color: "#166534", display: "flex", alignItems: "center", gap: "5px" }}>
-            <CheckCircle2 size={14} color="#16a34a" /> Verified Evidence Sources Active:
+          <span style={{ fontWeight: 700, color: "var(--success)", display: "flex", alignItems: "center", gap: "5px" }}>
+            <CheckCircle2 size={14} /> Verified Evidence Sources Active:
           </span>
-          <span style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "3px 10px", borderRadius: "10px" }}>
+          <span style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: "6px" }}>
             HackerRank {hrProfile?.total_solved ? `(${hrProfile.total_solved} Solved)` : "(Python, SQL)"}
           </span>
-          <span style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "3px 10px", borderRadius: "10px" }}>
+          <span style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: "6px" }}>
             LeetCode {lcProfile?.total_solved ? `(${lcProfile.total_solved} Solved)` : "(DSA Problem Bank)"}
           </span>
-          <span style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "3px 10px", borderRadius: "10px" }}>
+          <span style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: "6px" }}>
             GitHub Repositories
           </span>
-          <span style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "3px 10px", borderRadius: "10px" }}>
+          <span style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: "6px" }}>
             Resume Experience
           </span>
         </div>

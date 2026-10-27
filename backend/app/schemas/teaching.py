@@ -71,6 +71,16 @@ class TeachingLesson(BaseModel):
     key_takeaways: Optional[List[str]] = Field(default_factory=list)
     duration: Optional[str] = "12 min"
     quick_check: Optional[Dict[str, Any]] = None
+    step_by_step: Optional[str] = None
+    execution_walkthrough: Optional[str] = None
+    common_mistakes: Optional[str] = None
+    last_verified_date: Optional[str] = "2026-03"
+    mental_model_diagram: Optional[str] = None
+    diagram_explanation: Optional[str] = None
+    time_complexity: Optional[str] = None
+    space_complexity: Optional[str] = None
+    intuition: Optional[str] = None
+    execution_trace_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 
 class TeachingLessonDetailRequest(BaseModel):
@@ -186,6 +196,11 @@ class SkillLearningPathResponse(BaseModel):
     recommended_start_lesson_id: Optional[str] = None
     connected_projects: List[Dict[str, Any]] = Field(default_factory=list)
     related_skills: List[str] = Field(default_factory=list)
+    last_verified_date: Optional[str] = "2026-03"
+    knowledge_source: Optional[str] = "Authoritative Documentation & Verified Curriculum"
+    target_role: Optional[str] = None
+    learner_level: Optional[str] = "Intermediate"
+    is_live_verified: bool = False
 
 
 # ── MODE B: REPOSITORY UNDERSTANDING & LEARNING PATH SCHEMAS ──────────────────

@@ -422,6 +422,15 @@ class InterviewAgent:
                 metadata={"sources": []},
             )
 
+        technical_citations = rag_context.metadata.get("technical_sources", [])
+        technical_source_status = rag_context.metadata.get("technical_source_status", "unavailable")
+
+        def attach_technical_citations(questions: List[InterviewQuestion]) -> List[InterviewQuestion]:
+            for question in questions:
+                question.source_citations = technical_citations
+                question.technical_source_status = technical_source_status
+            return questions
+
         # Helper to construct localized fallback questions
         def build_fallback_questions() -> List[InterviewQuestion]:
             fb: List[InterviewQuestion] = []
@@ -507,6 +516,7 @@ class InterviewAgent:
             if not sanitized_questions:
                 logger.info("Interview Agent: No valid questions parsed from LLM, constructing grounded fallbacks.")
                 sanitized_questions = build_fallback_questions()
+            sanitized_questions = attach_technical_citations(sanitized_questions)
 
             return InterviewResponse(
                 candidate_id=candidate_id,
@@ -524,6 +534,7 @@ class InterviewAgent:
             logger.warning("LLM inference / JSON parse failed for interview agent: %s", str(exc))
 
             fallback_questions = build_fallback_questions()
+            fallback_questions = attach_technical_citations(fallback_questions)
 
             if language == "ta":
                 prep_summary = "உங்கள் உண்மையான திட்டங்கள் மற்றும் தொழில்நுட்ப திறன்களின் அடிப்படையில் நேர்காணல் கேள்விகள் தயாரிக்கப்பட்டுள்ளன."

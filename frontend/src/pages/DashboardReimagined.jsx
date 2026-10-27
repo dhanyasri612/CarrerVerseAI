@@ -146,13 +146,13 @@ export default function DashboardReimagined() {
                 alignItems: "center",
                 gap: "6px",
                 padding: "8px 16px",
-                background: "#0f172a",
-                color: "#fbbf24",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
+                color: "var(--accent, var(--cv-accent))",
+                border: "1px solid var(--accent-border, var(--cv-accent-border))",
                 borderRadius: "8px",
                 textDecoration: "none",
                 fontWeight: 600,
                 fontSize: "0.85rem",
-                boxShadow: "0 2px 8px rgba(15, 23, 42, 0.15)",
               }}
             >
               <Code2 size={15} /> Daily DSA Practice & Roadmap <ArrowRight size={13} />
@@ -197,17 +197,21 @@ export default function DashboardReimagined() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "8px",
-                background: "linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)",
-                border: "1px solid #fdba74",
+                background: "var(--accent-soft, var(--cv-accent-soft))",
+                border: "1px solid var(--accent-border, var(--cv-accent-border))",
                 padding: "8px 16px",
                 borderRadius: "20px",
-                color: "#9a3412",
+                color: "var(--accent, var(--cv-accent))",
                 fontWeight: 800,
                 fontSize: "0.92rem",
               }}
             >
-              <Flame size={18} color="#ea580c" />
-              <span>{activityMetrics.streak}-Day Active Streak</span>
+              <Flame size={18} color="var(--accent, var(--cv-accent))" />
+              <span>
+                {activityMetrics.streak > 0
+                  ? `${activityMetrics.streak}-Day Active Streak`
+                  : "No active streak yet"}
+              </span>
             </div>
           </div>
 
@@ -217,8 +221,8 @@ export default function DashboardReimagined() {
           {/* Today's Completed Work — Compact & Sleek */}
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
+              background: "var(--surface, var(--cv-surface))",
+              border: "1px solid var(--border, var(--cv-border))",
               borderRadius: "14px",
               padding: "1rem 1.25rem",
               boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
@@ -226,32 +230,32 @@ export default function DashboardReimagined() {
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <strong style={{ fontSize: "0.88rem", color: "#0f172a" }}>
+                <strong style={{ fontSize: "0.88rem", color: "var(--text, var(--cv-text))" }}>
                   Today's Activity
                 </strong>
                 {activityMetrics.todayCount > 0 && (
                   <span
                     style={{
-                      background: "#dcfce7",
-                      color: "#15803d",
+                      background: "var(--success-soft, rgba(22, 163, 74, 0.12))",
+                      color: "var(--success, var(--cv-success))",
                       fontSize: "0.72rem",
                       fontWeight: 700,
                       padding: "2px 8px",
                       borderRadius: "12px",
-                      border: "1px solid #86efac",
+                      border: "1px solid var(--success-border, rgba(22, 163, 74, 0.25))",
                     }}
                   >
                     ✓ {activityMetrics.todayCount} completed
                   </span>
                 )}
               </div>
-              <span style={{ fontSize: "0.74rem", color: "#64748b" }}>
+              <span style={{ fontSize: "0.74rem", color: "var(--text-muted, var(--cv-muted))" }}>
                 Auto-synced
               </span>
             </div>
 
             {aggregatedTodayActivities.length === 0 ? (
-              <p style={{ margin: "0 0 10px 0", fontSize: "0.82rem", color: "#64748b" }}>
+              <p style={{ margin: "0 0 10px 0", fontSize: "0.82rem", color: "var(--text-muted, var(--cv-muted))" }}>
                 No sessions completed yet today. Complete an interview or practice a DSA problem to extend your streak!
               </p>
             ) : (
@@ -260,8 +264,8 @@ export default function DashboardReimagined() {
                   <div
                     key={act.id || idx}
                     style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
+                      background: "var(--surface-2, var(--cv-bg-subtle))",
+                      border: "1px solid var(--border, var(--cv-border))",
                       padding: "6px 10px",
                       borderRadius: "8px",
                       display: "flex",
@@ -271,12 +275,12 @@ export default function DashboardReimagined() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, overflow: "hidden" }}>
-                      <CheckCircle2 size={14} color="#16a34a" style={{ flexShrink: 0 }} />
+                      <CheckCircle2 size={14} color="var(--success, var(--cv-success))" style={{ flexShrink: 0 }} />
                       <span
                         style={{
                           fontSize: "0.82rem",
                           fontWeight: 600,
-                          color: "#0f172a",
+                          color: "var(--text, var(--cv-text))",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -288,8 +292,8 @@ export default function DashboardReimagined() {
                       {act.count > 1 && (
                         <span
                           style={{
-                            background: "#e0e7ff",
-                            color: "#4338ca",
+                            background: "var(--accent-soft, var(--cv-accent-soft))",
+                            color: "var(--accent, var(--cv-accent))",
                             fontSize: "0.68rem",
                             fontWeight: 800,
                             padding: "1px 6px",
@@ -301,7 +305,7 @@ export default function DashboardReimagined() {
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: "0.72rem", color: "#94a3b8", flexShrink: 0 }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted, var(--cv-muted))", flexShrink: 0 }}>
                       {new Date(act.latestTimestamp || act.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
@@ -314,7 +318,7 @@ export default function DashboardReimagined() {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#4f46e5",
+                      color: "var(--accent, var(--cv-accent))",
                       fontSize: "0.74rem",
                       fontWeight: 700,
                       cursor: "pointer",
@@ -341,14 +345,14 @@ export default function DashboardReimagined() {
               <Link
                 to="/ai/interview"
                 className="cv2-text-link"
-                style={{ padding: "5px 12px", border: "1px solid #cbd5e1", borderRadius: "8px", textDecoration: "none", fontSize: "0.78rem" }}
+                style={{ padding: "5px 12px", border: "1px solid var(--border, var(--cv-border))", borderRadius: "8px", textDecoration: "none", fontSize: "0.78rem" }}
               >
                 <Brain size={13} /> Voice Interview
               </Link>
               <Link
                 to="/career-roadmap"
                 className="cv2-text-link"
-                style={{ padding: "5px 12px", border: "1px solid #cbd5e1", borderRadius: "8px", textDecoration: "none", fontSize: "0.78rem" }}
+                style={{ padding: "5px 12px", border: "1px solid var(--border, var(--cv-border))", borderRadius: "8px", textDecoration: "none", fontSize: "0.78rem" }}
               >
                 <Zap size={13} /> Roadmap Tech Tree
               </Link>

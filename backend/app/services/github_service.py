@@ -1,4 +1,5 @@
 import base64
+import re
 import httpx
 from datetime import datetime, timedelta
 from fastapi import HTTPException
@@ -74,24 +75,34 @@ def fetch_github_profile(
 
     profile_data = profile_response.json()
 
-    # Fetch public repositories
-    repos_response = httpx.get(
-        f"{GITHUB_API_URL}/users/{username}/repos",
-        headers=headers,
-        params={
-            "per_page": 100,
-            "sort": "updated"
-        },
-        timeout=10.0
-    )
-
-    if repos_response.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail="Failed to fetch GitHub repositories"
+    # Fetch public repositories with full pagination
+    repos_data = []
+    page = 1
+    while page <= 10:
+        repos_response = httpx.get(
+            f"{GITHUB_API_URL}/users/{username}/repos",
+            headers=headers,
+            params={
+                "per_page": 100,
+                "sort": "updated",
+                "page": page,
+            },
+            timeout=15.0,
         )
-
-    repos_data = repos_response.json()
+        if repos_response.status_code != 200:
+            if page == 1:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Failed to fetch GitHub repositories",
+                )
+            break
+        batch = repos_response.json()
+        if not batch or not isinstance(batch, list):
+            break
+        repos_data.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
 
     repositories = []
     languages = set()
@@ -465,21 +476,39 @@ def fetch_repository_file_content(
             detail="GitHub response did not contain file content"
         )
 
-    try:
-        decoded_bytes = base64.b64decode(raw_content)
-        decoded_text = decoded_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=400,
-            detail="Binary or unsupported file encoding cannot be decoded as source code"
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=502,
-            detail="Failed to decode base64 file content from GitHub"
-        )
+    clean_b64 = re.sub(r"\s+", "", raw_content) if isinstance(raw_content, str) else ""
+    file_name = file_record.file_name or ""
+    ext = file_name.split(".")[-1].lower() if "." in file_name else ""
 
-    file_record.content = decoded_text
+    image_mime_map = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "gif": "image/gif",
+        "webp": "image/webp",
+        "svg": "image/svg+xml",
+        "bmp": "image/bmp",
+        "ico": "image/x-icon",
+    }
+
+    if ext in image_mime_map:
+        mime = image_mime_map[ext]
+        file_record.content = f"data:{mime};base64,{clean_b64}"
+    elif ext == "pdf":
+        file_record.content = f"data:application/pdf;base64,{clean_b64}"
+    else:
+        try:
+            decoded_bytes = base64.b64decode(clean_b64)
+            decoded_text = decoded_bytes.decode("utf-8")
+            file_record.content = decoded_text
+        except UnicodeDecodeError:
+            file_record.content = f"[BINARY_FILE:format={ext or 'binary'}:size={file_data.get('size', 0)}]"
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail="Failed to decode base64 file content from GitHub"
+            )
+
     if file_data.get("size") is not None:
         file_record.size = file_data.get("size")
     if file_data.get("sha") is not None:

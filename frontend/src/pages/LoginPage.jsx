@@ -13,7 +13,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const { theme, setTheme } = useTheme?.() || { theme: "paper", setTheme: () => {} };
+  const { theme, setTheme, themes = [] } = useTheme?.() || { theme: "paper-iris", setTheme: () => {}, themes: [] };
 
   const [form, setForm] = useState({
     email: location.state?.registeredEmail || "",
@@ -68,27 +68,39 @@ export default function LoginPage() {
             </div>
           </Link>
 
-          <div style={{ display: "flex", gap: "6px" }}>
-            {["paper", "black", "clay", "cinema"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTheme && setTheme(t)}
-                title={`Theme: ${t}`}
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  borderRadius: "50%",
-                  border: theme === t ? "2px solid var(--cv-text)" : "1px solid var(--cv-rule)",
-                  background:
-                    t === "paper" ? "#f1eee4" :
-                    t === "black" ? "#11141c" :
-                    t === "clay"  ? "#eee3d5" : "#1c1b18",
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              />
-            ))}
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            {(themes.length > 0 ? themes : [
+              { id: "paper-iris", name: "Paper / Iris", preview: { bg: "#F9F8F5" } },
+              { id: "midnight-nebula", name: "Midnight / Nebula", preview: { bg: "#0B0E14" } },
+              { id: "clay-sunrise", name: "Clay / Sunrise", preview: { bg: "#FAF6F0" } },
+              { id: "moss-graphite", name: "Moss / Graphite", preview: { bg: "#181B1A" } },
+              { id: "ocean-mist", name: "Ocean / Mist", preview: { bg: "#F2F7FA" } },
+              { id: "cinema-night", name: "Cinema / Night", preview: { bg: "#1C1B18" } },
+            ]).map((t) => {
+              const isSelected = theme === t.id ||
+                (t.id === "paper-iris" && (theme === "paper" || theme === "paper-iris")) ||
+                (t.id === "midnight-nebula" && (theme === "black" || theme === "midnight-nebula")) ||
+                (t.id === "moss-graphite" && (theme === "botanical" || theme === "moss-graphite"));
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTheme && setTheme(t.id)}
+                  title={`Theme: ${t.name}`}
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "50%",
+                    border: isSelected ? "2px solid var(--cv-accent)" : "1px solid var(--cv-rule)",
+                    background: t.preview?.bg,
+                    boxShadow: isSelected ? "0 0 0 2px var(--cv-paper), 0 0 8px var(--cv-glow)" : "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
 

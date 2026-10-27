@@ -4,6 +4,10 @@ from typing import Any, Dict, List, Optional
 
 from app.ai.knowledge_graph.graph_queries import CandidateGraphQueries, candidate_graph_queries
 from app.ai.vector_store.semantic_search import SemanticSearchEngine, semantic_search_engine
+from app.ai.rag.technical_sources import (
+    render_technical_sources_context,
+    search_fresh_technical_sources,
+)
 from app.schemas.knowledge_graph import CandidateSubgraphResponse
 from app.schemas.rag import RAGRetrievedContext
 from app.schemas.semantic_search import SemanticSearchResultItem
@@ -126,6 +130,15 @@ class RAGContextBuilder:
             semantic_items=semantic_items,
             retrieval_warnings=warnings,
         )
+        try:
+            technical_result = search_fresh_technical_sources(query, top_k=4)
+        except Exception as exc:
+            logger.warning("Fresh technical-source retrieval unavailable: %s", exc)
+            technical_result = {"status": "unavailable", "sources": []}
+        context_text = (
+            f"{context_text}\n\n"
+            f"{render_technical_sources_context(technical_result)}"
+        )
 
         # ----------------------------------------------------
         # 4. Metadata Compilation
@@ -147,6 +160,8 @@ class RAGContextBuilder:
             "graph_experience_count": len(graph_subgraph.experience) if graph_subgraph else 0,
             "context_text_length": len(context_text),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "technical_source_status": technical_result.get("status", "unavailable"),
+            "technical_sources": technical_result.get("sources", []),
         }
 
         return RAGRetrievedContext(

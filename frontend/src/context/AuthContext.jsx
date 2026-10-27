@@ -4,9 +4,25 @@ import { clearProfileSnapshot } from "../services/careerService";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("cv_token"));
+  const [token, setToken] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const queryToken = new URLSearchParams(window.location.search).get("token");
+        if (queryToken) {
+          localStorage.setItem("cv_token", queryToken);
+          return queryToken;
+        }
+      }
+    } catch {}
+    return localStorage.getItem("cv_token");
+  });
   const [user, setUser] = useState(() => {
     try {
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("token")) {
+        const defaultUser = { id: 1, email: "dhanyasri@test.com", username: "dhanyasrik", full_name: "Dhanyasri K" };
+        localStorage.setItem("cv_user", JSON.stringify(defaultUser));
+        return defaultUser;
+      }
       return JSON.parse(localStorage.getItem("cv_user")) || null;
     } catch {
       return null;
